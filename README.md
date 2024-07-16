@@ -1,6 +1,6 @@
 # EpiMAP Myeloma
 Epidemiological Modelling of Australian Patients with Myeloma
-Monash University - Centre for Health Economics & Transfusion Research Unit
+A Monash University collaboration between the Centre for Health Economics & the Transfusion Research Unit
 
 This repository houses the three items needed to simulate the disease outcomes and treatment pathways of Australia patients with multiple myeloma.
 
