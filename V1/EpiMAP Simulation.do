@@ -14,14 +14,14 @@
 		mata: mata matuse "EpiMAP Coefficients"
 
 	*Number of patients to simulate
-		scalar Obs = 10000
+		scalar Obs = 1000
 		
 	*Age limit
 		scalar Limit = 100
 		
-	*Load MI patients and take bsample
+	*Load patients and take bsample
 {	
-		use "EpiMAP MI Patients.dta"
+		use "EpiMAP Hypothetical Patients.dta"
 		preserve
 		bsample `=Obs'
 		*stID
