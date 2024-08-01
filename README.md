@@ -2,9 +2,9 @@
 
 **Epidemiological Modelling of Australian Patients with Myeloma**
 
-A Monash University collaboration between the Centre for Health Economics & the Transfusion Research Unit.
+_A Monash University collaboration between the Centre for Health Economics & Transfusion Research Unit_
 
-The EpiMAP Myeloma model is a discrete-event simulation model of  multiple myeloma disease outcomes and treatment pathways. It is based on a series of risk equations estimated using patient-level data from Monash University's Australia and New Zealand Myeloma and Related Diseases Registry (MRDR). An open-access peer-reviewed manuscript has been accepted for publication which contains additional details regarding the structure and assumptions used to build the model, once published this repository will be updated to include the publication.
+The EpiMAP Myeloma model is a discrete-event simulation model of multiple myeloma disease outcomes and treatment pathways. It is based on a series of risk equations estimated using patient-level data from Monash University's Australia and New Zealand Myeloma and Related Diseases Registry (MRDR).
 
 This repository houses the three items needed to simulate the disease outcomes and treatment pathways of patients with multiple myeloma. The code is written in Stata and a valid Stata license is required to execute the simulation.
 
@@ -14,7 +14,7 @@ This repository houses the three items needed to simulate the disease outcomes a
 
 **Running the Model**
 
-To run the model, download the folder for the version you require (e.g., V1) ensuring not to alter the structure of the folder. Set your directory ('cd' command in Stata) to the downloaded folder and run the simulation code (EpiMAP Simulation.do) in Stata. The model uses Stata's in-built matrix language Mata to store simulated data, which is converted into a Stata data file at the end of the simulation (EpiMAP Simulated.dta).
+To run the model, download the repository and extract the V1 folder, ensuring not to alter the structure of files inside the folder. Set your directory ('cd' command in Stata) to the downloaded V1 folder and run the simulation code (EpiMAP Simulation.do) in Stata. The model uses Stata's in-built matrix language Mata to store simulated data, which is converted into a Stata data file at the end of the simulation (EpiMAP Simulated.dta).
 
 The diagnostic characteristics of 1,000 hypothetical multiple myeloma patients are included in this repository (EpiMAP Hypothetical Patients.dta) so that the simulation code can be executed and verified. Do not draw inference from the results of simulating these patients as the relationships between the randomly assigned patient characeristics may not reflect reality. If you are a researcher interested in acquiring genuine patient data from the MRDR you may submit an application to the Steering Committee. Full details can be found at https://www.mrdr.net.au/
 
@@ -82,8 +82,6 @@ Given significant differences in outcomes, separate ASCT and non-ASCT regression
 | 29 | LoT 6+ Best Clinical Response |
 | 30 | LoT 6+ Treatment-free Interval |
 
-By making this model open source we hope to begin collaborative research that can help improve outcomes for patients with multiple myeloma. 
+By making this model open source we hope to begin collaborative research that can help improve outcomes for patients with multiple myeloma. Please contact adam.irving@monash.edu with queries related to using the model, or if you find any bugs in the code.
 
-The EpiMAP Myeloma project was directly supported by grant 1200706 to investigator Prof Zoe K. McQuilten. The EpiMAP Myeloma team thanks Andrew Marks for his involvement in the Expert Advisory Group as a consumer representative. The MRDR thanks patients, clinicians, and research staff at participating centres for their support. 
-
-Please contact adam.irving@monash.edu with queries related to using the model, or if you find any bugs in the code.
+_The EpiMAP Myeloma project was directly supported by grant 1200706 to investigator Prof Zoe K. McQuilten. The EpiMAP Myeloma team thanks Andrew Marks for his involvement in the Expert Advisory Group as a consumer representative. The MRDR thanks patients, clinicians, and research staff at participating centres for their support._
