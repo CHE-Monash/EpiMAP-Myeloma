@@ -28,7 +28,7 @@ At diagnosis, MM patients are assigned four diagnostic characteristics - age, se
 
 Blue health states represent treatments where BCR is predicted, either to chemotherapy or autologous stem cell transplant (ASCT). Grey health states represent treatment-free intervals or post-induction maintenance therapy. The EpiMAP Myeloma model (V1) considers up to nine LoTs and BCR is predicted after each treatment (chemotherapy or ASCT). The time between LoTs is defined as a treatment-free interval.
 
-Given the wide variety of chemotherapy regimens used to treat MM in Australia, the EpiMAP Myeloma model includes coefficients for specific chemotherapy regimens at LoT 1 and LoT 2 only, alongside the 'other' category. The proportion of simulated patients that receive each chemotherapy regimen is based on observed data from the MRDR.
+Given the wide variety of chemotherapy regimens used to treat myeloma in Australia, the EpiMAP Myeloma model includes coefficients for specific chemotherapy regimens at LoT 1 and LoT 2 only, alongside the 'other' category. The proportion of simulated patients that receive each chemotherapy regimen is based on observed data from the MRDR.
 
 | LoT | Regimen | Proportion | 
 | --- | ------- | ---------- |
