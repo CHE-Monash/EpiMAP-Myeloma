@@ -10,7 +10,8 @@ At diagnosis, MM patients are assigned four diagnostic characteristics - age, se
 
 Blue health states represent treatments where best clinical response is predicted, either to chemotherapy or autologous stem cell transplant. Grey health states represent treatment-free intervals or post-induction maintenance therapy. The EpiMAP Myeloma model (V1) considers up to nine LoTs and BCR is predicted after each treatment (chemotherapy or ASCT). The time between LoTs is defined as a treatment-free interval.
 
-Given the wide variety of chemotherapy regimens used to treat MM in Australia, the EpiMAP Myeloma model includes coefficients for specific chemotherapy regimens at LoT 1 and LoT 2 only, alongside the 'other' category.
+Given the wide variety of chemotherapy regimens used to treat MM in Australia, the EpiMAP Myeloma model includes coefficients for specific chemotherapy regimens at LoT 1 and LoT 2 only, alongside the 'other' category. The proportion of simulated patients that receive each chemotherapy regimen is based on observed data from the Registry.
+
 | LoT | Regimen | Proportion | 
 | --- | ------- | ---------- |
 | 1 | VCd (bortezomib, cyclophosphamide & dexamethasone) | 58% |
@@ -19,7 +20,8 @@ Given the wide variety of chemotherapy regimens used to treat MM in Australia, t
 | 2 | Rd (lenalidomide & dexamethasone) | 16% |
 | 2 | DVd (daratumumab, bortezomib & dexamethasone) | 11% |
 | 2 | Other | 73% |
-From LoT 3 onwards, all patients receive the 'other' category.
+
+From LoT 3 onwards, all patients receive the 'other' category. If you would like to analyze a scenario with different proportions of patients receiving each regimen, you may override the default in relevant do file (SIM CR.do)
 
 This repository houses the three items needed to simulate the disease outcomes and treatment pathways of patients with multiple myeloma. The code is written in Stata and a valid Stata license is required to execute the simulation.
 
