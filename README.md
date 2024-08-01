@@ -18,4 +18,5 @@ Alternatively, if you are an institution with access to individual multiple myel
 
 Note that the model uses Stata's in-built matrix language Mata to store simulated data, which is converted into a Stata data file at the end of the simulation (EpiMAP Simulated.dta)
 
+Please contact adam.irving@monash.edu with queries related to using the model
 
