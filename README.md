@@ -1,5 +1,6 @@
 # EpiMAP Myeloma
-Epidemiological Modelling of Australian Patients with Myeloma.
+
+**Epidemiological Modelling of Australian Patients with Myeloma**
 
 A Monash University collaboration between the Centre for Health Economics & the Transfusion Research Unit.
 
