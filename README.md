@@ -41,8 +41,6 @@ Given the wide variety of chemotherapy regimens used to treat myeloma in Austral
 
 From LoT 3 onwards, all patients receive the 'other' category. It is not possible to simulate the impact of chemotherapy regimens not included in the model without restimating risk equations on individual patient-level data.
 
-Please contact adam.irving@monash.edu with queries related to using the model, or if you find any bugs in the code.
-
 **Risk Equations**
 
 The EpiMAP Myeloma model contains 28 risk equations estimated using the Myeloma and Related Diseases Registry:
@@ -77,3 +75,5 @@ The EpiMAP Myeloma model contains 28 risk equations estimated using the Myeloma 
 | 26 | LoT 6+ Chemotherapy Duration |
 | 27 | LoT 6+ Best Clinical Response |
 | 28 | LoT 6+ Treatment-free Interval |
+
+Please contact adam.irving@monash.edu with queries related to using the model, or if you find any bugs in the code.
