@@ -22,7 +22,7 @@ Given the wide variety of chemotherapy regimens used to treat MM in Australia, t
 | 2 | DVd (daratumumab, bortezomib & dexamethasone) | 11% |
 | 2 | Other | 73% |
 
-From LoT 3 onwards, all patients receive the 'other' category. If you would like to analyze a scenario with different proportions of patients receiving each regimen, you may override the default in relevant do file (SIM CR.do). It is not possible to estimate treatment effects for chemotherapy regimens not included in the model without restimating risk equations.
+From LoT 3 onwards, all patients receive the 'other' category. If you would like to analyze a scenario with different proportions of patients receiving each regimen, you may override the default in relevant do file (SIM CR.do). It is not possible to simulate the impact of chemotherapy regimens not included in the model without restimating risk equations on individual patient-level data.
 
 This repository houses the three items needed to simulate the disease outcomes and treatment pathways of patients with multiple myeloma. The code is written in Stata and a valid Stata license is required to execute the simulation.
 
