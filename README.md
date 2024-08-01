@@ -39,7 +39,7 @@ Given the wide variety of chemotherapy regimens used to treat myeloma in Austral
 | 2 | DVd (daratumumab, bortezomib & dexamethasone) | 11% |
 | 2 | Other | 73% |
 
-From LoT 3 onwards, all patients receive the 'other' category. If you would like to analyze a scenario with different proportions of patients receiving each regimen, you may override the default in relevant do file (Sub/SIM CR.do). It is not possible to simulate the impact of chemotherapy regimens not included in the model without restimating risk equations on individual patient-level data.
+From LoT 3 onwards, all patients receive the 'other' category. It is not possible to simulate the impact of chemotherapy regimens not included in the model without restimating risk equations on individual patient-level data.
 
 Please contact adam.irving@monash.edu with queries related to using the model, or if you find any bugs in the code.
 
