@@ -82,6 +82,8 @@ Given significant differences in outcomes, separate ASCT and non-ASCT regression
 | 29 | LoT 6+ Best Clinical Response |
 | 30 | LoT 6+ Treatment-free Interval |
 
-By making this model open source we hope to begin collaborative research that can help improve outcomes for patients with multiple myeloma. The EpiMAP Myeloma team thanks Andrew Marks for his involvement in the Expert Advisory Group as a consumer representative. The Australia & New Zealand Myeloma and Related Diseases registry thanks patients, clinicians, and research staff at participating centres for their support. 
+By making this model open source we hope to begin collaborative research that can help improve outcomes for patients with multiple myeloma. 
+
+The EpiMAP Myeloma project was directly supported by grant 1200706 to investigator Prof Zoe K. McQuilten. The EpiMAP Myeloma team thanks Andrew Marks for his involvement in the Expert Advisory Group as a consumer representative. The MRDR thanks patients, clinicians, and research staff at participating centres for their support. 
 
 Please contact adam.irving@monash.edu with queries related to using the model, or if you find any bugs in the code.
