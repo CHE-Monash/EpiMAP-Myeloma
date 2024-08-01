@@ -13,7 +13,7 @@ This repository houses the three items needed to simulate the disease outcomes a
 
 **Running the Model**
 
-To run the model, download the folder for the version you require (e.g., V1) ensuring not to alter the structure of the folder, set your directory ('cd' command in Stata) to the downloaded folder and run the simulation code (EpiMAP Simulation.do) in Stata. The model uses Stata's in-built matrix language Mata to store simulated data, which is converted into a Stata data file at the end of the simulation (EpiMAP Simulated.dta).
+To run the model, download the folder for the version you require (e.g., V1) ensuring not to alter the structure of the folder. Set your directory ('cd' command in Stata) to the downloaded folder and run the simulation code (EpiMAP Simulation.do) in Stata. The model uses Stata's in-built matrix language Mata to store simulated data, which is converted into a Stata data file at the end of the simulation (EpiMAP Simulated.dta).
 
 The diagnostic characteristics of 1,000 hypothetical multiple myeloma patients are included in this repository (EpiMAP Hypothetical Patients.dta) so that the simulation code can be executed and verified. Do not draw inference from the results of simulating these patients as the relationships between the randomly assigned patient characeristics may not reflect reality. If you are a researcher interested in acquiring genuine patient data from the MRDR you may submit an application to the Steering Committee. Full details can be found at https://www.mrdr.net.au/
 
