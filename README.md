@@ -1,5 +1,6 @@
 # EpiMAP Myeloma
 Epidemiological Modelling of Australian Patients with Myeloma.
+
 A Monash University collaboration between the Centre for Health Economics & the Transfusion Research Unit.
 
 The EpiMAP Myeloma model is a discrete-event simulation model of the multiple myeloma disease and treatment pathway. It is based on a series of risk equations estimated using patient-level data from Monash University's Myeloma and Related Diseases Registry. An open-access peer-reviewed manuscript has been accepted for publication which contains additional details regarding the structure and assumptions used to build the model, once published this repository will be updated to include the publication.
@@ -40,6 +41,7 @@ Note that the model uses Stata's in-built matrix language Mata to store simulate
 Please contact adam.irving@monash.edu with queries related to using the model, or if you find any bugs in the code.
 
 **Risk Equations**
+
 The EpiMAP Myeloma model contains 28 risk equations estimated using the Myeloma and Related Diseases Registry:
 
 | No. | Outcome |
