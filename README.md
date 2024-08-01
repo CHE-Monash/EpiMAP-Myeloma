@@ -6,7 +6,7 @@ The EpiMAP Myeloma model is a discrete-event simulation model of the multiple my
 
 At diagnosis, MM patients are assigned four diagnostic characteristics - age, sex, Eastern Cooperative Oncology Group (ECOG) performance score and International Staging System (ISS) score. These diagnostic characteristics are included in all of the subsequent risk equations. The model uses Best Clinical Response (BCR) to treatment as a surrogate outcome for Overall Survival (OS).
 
-![EpiMAP Myeloma - Fig 1 - Model Framework.pdf](https://github.com/user-attachments/files/16450628/EpiMAP.Myeloma.-.Fig.1.-.Model.Framework.pdf)
+![EpiMAP Myeloma - Model Framework](https://github.com/user-attachments/assets/3ae58966-9eb4-4a9a-b9b6-509fb8b1d952)
 
 Blue health states represent treatments where best clinical response is predicted, either to chemotherapy or autologous stem cell transplant. Grey health states represent treatment-free intervals or post-induction maintenance therapy. The EpiMAP Myeloma model (V1) considers up to nine LoTs and BCR is predicted after each treatment (chemotherapy or ASCT). The time between LoTs is defined as a treatment-free interval.
 
