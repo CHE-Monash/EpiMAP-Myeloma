@@ -4,7 +4,7 @@
 
 _A Monash University collaboration between the Centre for Health Economics & Transfusion Research Unit_
 
-Adam Irving, Dennis Petrie, Anthony Harris, Laura Fanning, Erica M Wood, Elizabeth Moore, Cameron Wellard, Neil Waters, Bradley Augustson, Gordon Cook, Francesca Gay, Georgia McCaughan, Peter Mollee, Andrew Spencer, Zoe K McQuilten
+Research Team: Adam Irving, Dennis Petrie, Anthony Harris, Laura Fanning, Erica M Wood, Elizabeth Moore, Cameron Wellard, Neil Waters, Bradley Augustson, Gordon Cook, Francesca Gay, Georgia McCaughan, Peter Mollee, Andrew Spencer, Zoe K McQuilten
 
 The EpiMAP Myeloma model is a discrete-event simulation model of multiple myeloma disease outcomes and treatment pathways. It is based on a series of risk equations estimated using patient-level data from Monash University's Australia and New Zealand Myeloma and Related Diseases Registry (MRDR).
 
