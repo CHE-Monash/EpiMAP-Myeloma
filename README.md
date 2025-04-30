@@ -9,7 +9,7 @@ The EpiMAP Myeloma model is a discrete-event simulation model of multiple myelom
 This repository houses the three items needed to simulate the disease outcomes and treatment pathways of patients with multiple myeloma. The code is written in Stata and a valid Stata license is required to execute the simulation.
 
 1. Risk equation coefficients (EpiMAP Coefficients.mmat)
-2. Hypoethetical patient data file (EpiMAP Hypothetical Patients.dta)
+2. Synthetic patient data file (EpiMAP Hypothetical Patients.dta)
 3. Simulation code (EpiMAP Simulation.do and the separate SIM do files located in the Sub folder)
 
 **Running the Model**
