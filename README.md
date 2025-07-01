@@ -4,6 +4,8 @@
 
 _A Monash University collaboration between the Centre for Health Economics & Transfusion Research Unit_
 
+Research Team: Adam Irving, Dennis Petrie, Anthony Harris, Laura Fanning, Erica M Wood, Elizabeth Moore, Cameron Wellard, Neil Waters, Bradley Augustson, Gordon Cook, Francesca Gay, Georgia McCaughan, Peter Mollee, Andrew Spencer, Zoe K McQuilten
+
 The EpiMAP Myeloma model is a discrete-event simulation model of multiple myeloma disease outcomes and treatment pathways. It is based on a series of risk equations estimated using patient-level data from Monash University's Australia and New Zealand Myeloma and Related Diseases Registry (MRDR).
 
 This repository houses the three items needed to simulate the disease outcomes and treatment pathways of patients with multiple myeloma. The code is written in Stata and a valid Stata license is required to execute the simulation.
@@ -41,7 +43,7 @@ It is not possible to simulate the impact of chemotherapy regimens not included 
 
 **Discrete-event Simulation**
 
-Patient characteristics of the hypothetical MM patients to be simulated were based on the patients from the MRDR. For each decision point in the model framework (e.g., after induction chemotherapy does this patient receive an ASCT?), the coefficients from the respective risk equation wearere used to calculate the likelihood p of each patient experiencing the outcome. This is then compared to a random number r drawn from a uniform distribution between 0 and 1 to determine the outcome (e.g., if p < r this patient receives an ASCT). As a discrete-event simulation model, all time periods were modelled explicitly for each patient. OS was predicted at the start of each health state with random numbers drawn from a uniform distribution between 0 and each patient’s current position on their specific OS curve. When assessing the time to competing events such as death versus end of chemotherapy duration, the model selected whichever event happened first. An age limit was also used to curtail patients who survival was estimated beyond 100 years old. As the MRDR contained some missing chemotherapy end dates, chemotherapy duration and treatment-free intervals are curtailed at the maximum observed in the data. 
+Patient characteristics of the hypothetical MM patients to be simulated were based on the patients from the MRDR. For each decision point in the model framework (e.g., after induction chemotherapy does this patient receive an ASCT?), the coefficients from the respective risk equation were used to calculate the likelihood p of each patient experiencing the outcome. This is then compared to a random number r drawn from a uniform distribution between 0 and 1 to determine the outcome (e.g., if p < r this patient receives an ASCT). As a discrete-event simulation model, all time periods were modelled explicitly for each patient. OS was predicted at the start of each health state with random numbers drawn from a uniform distribution between 0 and each patient’s current position on their specific OS curve. When assessing the time to competing events such as death versus end of chemotherapy duration, the model selected whichever event happened first. An age limit was also used to curtail patients who survival was estimated beyond 100 years old. As the MRDR contained some missing chemotherapy end dates, chemotherapy duration and treatment-free intervals are curtailed at the maximum observed in the data. 
 
 **Risk Equations**
 
