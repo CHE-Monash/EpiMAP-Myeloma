@@ -11,7 +11,7 @@
 **********
 	
 	*Load risk equation coefficients
-		mata: mata matuse "EpiMAP Coefficients"
+		mata: mata matuse "EpiMAP_Myeloma_Coefficients"
 
 	*Number of patients to simulate
 		scalar Obs = 1000
@@ -21,7 +21,7 @@
 		
 	*Load patients and take bsample
 {	
-		use "EpiMAP Hypothetical Patients.dta"
+		use "EpiMAP_Myeloma_Patients.dta"
 		preserve
 		bsample `=Obs'
 		*stID
