@@ -20,4 +20,4 @@ v1.0 provides a general-purpose simulation for multiple myeloma patients with:
 
 ```stata
 cd v1.0
-do "EpiMAP Simulation.do"
+do "EpiMAP_Myeloma_v1.0.do"
