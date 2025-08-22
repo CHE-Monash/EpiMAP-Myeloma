@@ -5,7 +5,7 @@
 capture program drop matrix_setup
 program define matrix_setup
 	
-	di as text "Setting up matrices"
+	di "Setting up matrices"
 	
 	*Additional variables needed for mCore2 to transfer to matrix multiplication for XB
 		capture gen ECOGcc0 = (ECOGcc == 0)

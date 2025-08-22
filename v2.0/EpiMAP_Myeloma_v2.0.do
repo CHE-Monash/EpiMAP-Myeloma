@@ -25,7 +25,7 @@
 	if regexm("$Data", "Population_([0-9]+)") {
 		global PopulationNumber = regexs(1)
 		global DataType = "Population"
-		di as text "Using specific population: ${PopulationNumber}"
+		di "Using specific population: ${PopulationNumber}"
 	}
 	else {
 		global DataType = "$Data"
@@ -41,7 +41,7 @@
 		
 		local analyses : dir "analyses" dirs "*"
 		foreach analysis of local analyses {
-			di as text "  - `analysis'"
+			di "  - `analysis'"
 		}
 		exit 601
 	}
@@ -55,7 +55,7 @@
 			di as error "Available populations:"
 			local populations : dir "data/populations" files "EpiMAP_Population_*.dta"
 			foreach pop of local populations {
-				di as text "  - `pop'"
+				di "  - `pop'"
 			}
 			exit 601
 		}
@@ -66,7 +66,7 @@
 	global analysis_path "analyses/$Analysis"
 	global coefficients_path "$analysis_path/data/coefficients"
 	global patients_path "$analysis_path/data/patients" 
-	global results_path "$analysis_path/data/simulated"
+	global simulated_path "$analysis_path/data/simulated"
 	global populations_path "data/populations"
 	
 	// Create results directory if it doesn't exist
@@ -82,4 +82,4 @@
 	// Run the specific analysis
 	do "$analysis_path/${Analysis}.do"
 	
-	di as text "Analysis completed successfully."
+	di "Analysis completed successfully."

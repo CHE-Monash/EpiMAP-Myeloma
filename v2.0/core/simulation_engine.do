@@ -5,7 +5,7 @@
 capture program drop simulation
 program define simulation
 
-di as text "Running simulation"
+di "Running simulation"
 
 *Diagnosis (DN)
 	scalar OMC = 2
