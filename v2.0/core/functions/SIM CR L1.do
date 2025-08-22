@@ -104,7 +104,7 @@
 
 	*VRd 
 {
-		if ("Line" == 1 & $Int" == "VRd") {	
+		if ("$Line" == "1" & "$Int" == "VRd") {	
 			forvalues i = 1/`=Obs' { 
 				mata {
 					if (mMOR[`i',`=OMC'-1] == 0) {

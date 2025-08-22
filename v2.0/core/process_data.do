@@ -1,0 +1,93 @@
+**********
+	*EpiMAP Myeloma - Process Data
+**********
+
+capture program drop process_data
+program process_data
+
+	di as text "Processing Simulated Data"
+
+	*Create mSum in Mata 
+		mata: mSum = mCore , mAge , mOS , mTNE , mTSD , mMOR , mOC , mCR , mCD , mBCR , mCI , mState, mSCT
+	
+	*Convert mSum to stSum
+		mata: st_matrix("stSum", mSum)
+		drop _all
+		
+	*Convert stSum to variables
+		svmat double stSum
+	
+	*Name variables
+		local varnames ID Age Male ECOGcc RISS SCT MNT CR CD BCR ///
+			Age_ID Age_DN Age_L1S Age_L1E Age_L2S Age_L2E Age_L3S Age_L3E Age_L4S Age_L4E Age_L5S Age_L5E Age_L6S Age_L6E Age_L7S Age_L7E Age_L8S Age_L8E Age_L9S Age_L9E ///
+			OS_ID OS_DN OS_L1S OS_L1E OS_L2S OS_L2E OS_L3S OS_L3E OS_L4S OS_L4E OS_L5S OS_L5E OS_L6S OS_L6E OS_L7S OS_L7E OS_L8S OS_L8E OS_L9S OS_L9E ///
+			TNE_ID TNE_DN TNE_L1S TNE_L1E TNE_L2S TNE_L2E TNE_L3S TNE_L3E TNE_L4S TNE_L4E TNE_L5S TNE_L5E TNE_L6S TNE_L6E TNE_L7S TNE_L7E TNE_L8S TNE_L8E TNE_L9S TNE_L9E ///
+			TSD_ID TSD_DN TSD_L1S TSD_L1E TSD_L2S TSD_L2E TSD_L3S TSD_L3E TSD_L4S TSD_L4E TSD_L5S TSD_L5E TSD_L6S TSD_L6E TSD_L7S TSD_L7E TSD_L8S TSD_L8E TSD_L9S TSD_L9E ///
+			MOR_ID MOR_DN MOR_L1S MOR_L1E MOR_L2S MOR_L2E MOR_L3S MOR_L3E MOR_L4S MOR_L4E MOR_L5S MOR_L5E MOR_L6S MOR_L6E MOR_L7S MOR_L7E MOR_L8S MOR_L8E MOR_L9S MOR_L9E ///
+			OC_ID OC_TIME OC_MORT ///
+			CR_ID CR_L1 CR_L2 CR_L3 CR_L4 CR_L5 CR_L6 CR_L7 CR_L8 CR_L9 ///
+			CD_ID CD_L1 CD_L2 CD_L3 CD_L4 CD_L5 CD_L6 CD_L7 CD_L8 CD_L9 ///
+			BCR_ID BCR_L1 BCR_L2 BCR_L3 BCR_L4 BCR_L5 BCR_L6 BCR_L7 BCR_L8 BCR_L9 BCR_SCT ///
+			CI_ID CI_L1 CI_L2 CI_L3 CI_L4 CI_L5 CI_L6 CI_L7 CI_L8 CI_L9 /// 
+			State_ID State DateDN ///
+			SCT_DN SCT_L1
+		
+		local varlength : word count `varnames'
+		
+		forvalues i = 1/`varlength'{
+			local currentvar : word `i' of `varnames'
+			rename stSum`i' `currentvar'
+		}		
+	
+		format DateDN %td
+	
+	*Drop unnecessary variables
+		drop Age_ID OS_ID TNE_ID TSD_ID MOR_ID OC_ID CR_ID CD_ID BCR_ID CI_ID State_ID CR CD BCR
+		order ID Age Male ECOGcc RISS SCT MNT
+		
+	*Label
+		label values State State_lbl
+	
+	*Generate Dates
+		qui {
+			gen DateL1S = DateDN + (TNE_DN*365.25)
+			gen DateL1E = DateL1S + (TNE_L1S*365.25)
+			gen DateL2S = DateL1E + (TNE_L1E*365.25)
+			gen DateL2E = DateL2S + (TNE_L2S*365.25)
+			gen DateL3S = DateL2E + (TNE_L2E*365.25)
+			gen DateL3E = DateL3S + (TNE_L3S*365.25)
+			gen DateL4S = DateL3E + (TNE_L3E*365.25)
+			gen DateL4E = DateL4S + (TNE_L4S*365.25)
+			gen DateL5S = DateL4E + (TNE_L4E*365.25)
+			gen DateL5E = DateL5S + (TNE_L5S*365.25)
+			gen DateL6S = DateL5E + (TNE_L5E*365.25)
+			gen DateL6E = DateL6S + (TNE_L6S*365.25)
+			gen DateL7S = DateL6E + (TNE_L6E*365.25)
+			gen DateL7E = DateL7S + (TNE_L7S*365.25)
+			gen DateL8S = DateL7E + (TNE_L7E*365.25)
+			gen DateL8E = DateL8S + (TNE_L8S*365.25)
+			gen DateL9S = DateL8E + (TNE_L8E*365.25)
+			gen DateL9E = DateL9S + (TNE_L9S*365.25)
+			gen DateSCT = DateL1E + 1 if(SCT == 1) // Fix DateSCT 1 day after DateL1E
+			gen DateMOR = DateDN + (OC_TIME*365.25)
+		}
+		format Date* %td
+	
+	*Generate Years
+		qui {
+		gen YearDN = yofd(DateDN)
+		gen YearL1 = yofd(DateL1S)
+		gen YearL2 = yofd(DateL2S)
+		gen YearL3 = yofd(DateL3S)
+		gen YearL4 = yofd(DateL4S)
+		gen YearL5 = yofd(DateL5S)
+		gen YearL6 = yofd(DateL6S)
+		gen YearL7 = yofd(DateL7S)
+		gen YearL8 = yofd(DateL8S)
+		gen YearL9 = yofd(DateL9S)
+		gen YearSCT = yofd(DateSCT)
+		gen YearMOR = yofd(DateMOR)
+		}
+
+
+end
