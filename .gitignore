@@ -1,3 +1,4 @@
+#File types to ignore
 .DS_Store
 **/.DS_Store
 *.log
@@ -6,3 +7,27 @@
 *.gph
 *.bak
 *.tmp
+
+# Additional macOS system files
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows system files (if collaborating with Windows users)
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# Stata-specific temporary files
+*.dta~
+*.do~
+*.ado~
+
+# Simulated data
+analyses/*/data/simulated/*           # Ignore everything in simulated folders
+!analyses/*/data/simulated/.gitkeep   # EXCEPT the .gitkeep files
