@@ -31,7 +31,7 @@
 	
 	*VRd-Post				
 		*No Bootstrap 
-			do "EpiMAP_Myeloma_v2.0.do" VRd-Post VRd 1 VRd Predicted 1 4884 0
+			do "EpiMAP_Myeloma_v2.0.do" vrdpost VRd 1 VRd Predicted 1 4884 0
 			do "EpiMAP_Myeloma_v2.0.do" VRd-Post NoVRd 1 VRd Predicted 1 4884 0
 			
 			do "Simulation.do" VRd-Post NoVRd 1 VRd Cohort10 1 1000 0	// 48741	
