@@ -11,8 +11,6 @@ A comprehensive discrete-event simulation model for multiple myeloma disease out
 ## What's New in v2.0
 
 - **Reorganised Architecture**: Clear version-specific folder structure (`v1.0/`, `v2.0/`)
-- **Enhanced Performance**: Optimised simulation algorithms with improved memory management
-- **Better Validation**: Comprehensive parameter validation and error checking
 - **Extended Treatment Options**: Additional pathways for later lines of therapy (LoT 3+)
 - **Robust Testing Framework**: Complete model validation suite with benchmark results
 - **Comprehensive Documentation**: Detailed user guides and technical specifications
@@ -24,7 +22,7 @@ EpiMAP Myeloma simulates the complete treatment journey of multiple myeloma pati
 
 ### Key Features
 
-- **Patient Characteristics**: Age, sex, ECOG performance score, ISS staging
+- **Patient Characteristics**: Age, sex, ECOG performance score, R-ISS staging
 - **Treatment Pathways**: Comprehensive modelling of up to 9 lines of therapy
 - **Clinical Outcomes**: Best Clinical Response (BCR) and Overall Survival (OS)
 - **ASCT Modelling**: Separate pathways for transplant-eligible patients
@@ -49,8 +47,12 @@ cd epimap-myeloma/v2.0
 
 ```stata
 cd "path/to/epimap-myeloma/v2.0"
-do "EpiMAP_Myeloma_v2.0.do"
-```
+do "EpiMAP_Myeloma_v2.0.do" [Analysis] [Intervention] [Line] [Coefficients] [Data] [MinID] [MaxID] [Bootstrap] [MinBS] [MaxBS]
+
+Arguments Description
+PositionArgumentDescriptionExample Values1AnalysisAnalysis identifiervrdpost, dvdpre2InterventionTreatment interventionVRd, NoVRd, DVd3LineLine of therapy (1-9)1, 2, 34CoefficientsCoefficient set to useVRd, DVd5DataDataset typePredicted, Population, Cohort106MinIDMinimum patient ID17MaxIDMaximum patient ID4884, 10008BootstrapBootstrap flag (0/1)0 (no), 1 (yes)9MinBSMinimum bootstrap sample110MaxBSMaximum bootstrap sample5, 100
+
+Example Commands
 
 The simulation will generate `EpiMAP_Simulated_v2.dta` containing comprehensive patient outcomes.
 
