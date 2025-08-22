@@ -48,9 +48,22 @@ cd epimap-myeloma/v2.0
 ```stata
 cd "path/to/epimap-myeloma/v2.0"
 do "EpiMAP_Myeloma_v2.0.do" [Analysis] [Intervention] [Line] [Coefficients] [Data] [MinID] [MaxID] [Bootstrap] [MinBS] [MaxBS]
+```
 
-Arguments Description
-PositionArgumentDescriptionExample Values1AnalysisAnalysis identifiervrdpost, dvdpre2InterventionTreatment interventionVRd, NoVRd, DVd3LineLine of therapy (1-9)1, 2, 34CoefficientsCoefficient set to useVRd, DVd5DataDataset typePredicted, Population, Cohort106MinIDMinimum patient ID17MaxIDMaximum patient ID4884, 10008BootstrapBootstrap flag (0/1)0 (no), 1 (yes)9MinBSMinimum bootstrap sample110MaxBSMaximum bootstrap sample5, 100
+#### Arguments Description
+
+| Position | Argument | Description | Example Values |
+|:--------:|:---------|:------------|:---------------|
+| 1 | **Analysis** | Analysis identifier | `vrdpost` |
+| 2 | **Intervention** | Treatment intervention | `VRd`, `SoC` |
+| 3 | **Line** | Line of therapy (1-9) | `1`, `2`, `3` |
+| 4 | **Coefficients** | Coefficient set to use | `VRd`, `SoC` |
+| 5 | **Data** | Dataset type | `Predicted`, `Population` |
+| 6 | **MinID** | Minimum patient ID | `1` |
+| 7 | **MaxID** | Maximum patient ID | `4884`, `1000` |
+| 8 | **Bootstrap** | Bootstrap flag (0/1) | `0` (no), `1` (yes) |
+| 9 | **MinBS** | Minimum bootstrap sample | `1` |
+| 10 | **MaxBS** | Maximum bootstrap sample | `5`, `100` |
 
 Example Commands
 
@@ -58,24 +71,24 @@ The simulation will generate `EpiMAP_Simulated_v2.dta` containing comprehensive 
 
 ## Repository Structure
 
-```
-v2.0/
-├── EpiMAP_Myeloma_v2.0.do          # Main simulation script
-├── functions/                       # Core simulation functions
-│   ├── SIM_BCR_L*.do               # Best Clinical Response models
-│   ├── SIM_CR_L*.do                # Chemotherapy regimen selection
-│   └── SIM_OS_*.do                 # Overall survival models
-├── data/
-│   ├── EpiMAP_Coefficients_v2.mmat # Updated risk equation coefficients
-│   └── EpiMAP_Patients_v2.dta      # Hypothetical patient dataset
-├── analyses/                        # Specialised analysis scripts
-│   ├── vrdpost/                    # VRd post-market analysis
-│   └── dvdpre/                     # DVd pre-market analysis
-└── documentation/                   # Comprehensive user guides
-    ├── User_Guide.md
-    ├── Technical_Specifications.md
-    └── Parameter_Reference.md
-```
+- **v2.0/**
+  - `EpiMAP_Myeloma_v2.0.do` - Main simulation script
+  - **functions/** - Core simulation functions
+    - `SIM_BCR_L*.do` - Best Clinical Response models
+    - `SIM_CR_L*.do` - Chemotherapy regimen selection
+    - `SIM_OS_*.do` - Overall survival models
+  - **data/**
+    - **coefficients/** - Universal risk equation coefficients
+      - `EpiMAP_Coefficients_v2.mmat`
+    - **populations_2025-2030/** - Multiple MM population realisations for 2025-2030
+      - `EpiMAP_Myeloma_Population_1.dta` 
+  - **analyses/** - Specialised analysis scripts
+    - **vrdpost/** - VRd post-market analysis
+    - **dvdpre/** - DVd pre-market analysis
+  - **documentation/** - Comprehensive user guides
+    - `User_Guide.md`
+    - `Technical_Specifications.md`
+    - `Parameter_Reference.md`
 
 ## Clinical Applications
 
@@ -190,11 +203,11 @@ We welcome collaborative research! Please see our [contribution guidelines](CONT
 
 ## Research Team
 
-**Principal Investigators**: Adam Irving, Dennis Petrie, Anthony Harris, Zoe K McQuilten
+**Health Economists**: Adam Irving, Dennis Petrie, Anthony Harris, Laura Fanning
 
-**Clinical Experts**: Laura Fanning, Bradley Augustson, Gordon Cook, Francesca Gay, Georgia McCaughan, Peter Mollee, Andrew Spencer
+**Clinical Experts**: Zoe K McQuilten, Erica M Wood, Bradley Augustson, Gordon Cook, Francesca Gay, Georgia McCaughan, Peter Mollee, Andrew Spencer
 
-**Technical Team**: Erica M Wood, Elizabeth Moore, Cameron Wellard, Neil Waters
+**Registry Team**: Elizabeth Moore, Cameron Wellard, Neil Waters
 
 **Consumer Representative**: Andrew Marks
 
@@ -204,9 +217,6 @@ We welcome collaborative research! Please see our [contribution guidelines](CONT
 For access to genuine patient data from the Australia and New Zealand Myeloma and Related Diseases Registry:
 - Submit applications to the MRDR Steering Committee
 - Visit: [mrdr.net.au](https://www.mrdr.net.au/)
-
-### Hypothetical Data
-The repository includes 1,000 hypothetical patients for testing and validation. **Note**: Do not draw clinical inferences from these simulated characteristics.
 
 ## Licence
 
@@ -220,7 +230,7 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ## Related Resources
 
-- [Australia and New Zealand Myeloma Registry](https://www.mrdr.net.au/)
+- [Australia and New Zealand Myeloma and Related Diseases Registry](https://www.mrdr.net.au/)
 - [Monash Centre for Health Economics](https://www.monash.edu/business/che)
 - [Monash Transfusion Research Unit](https://www.monash.edu/medicine/sphpm/units/transfusion-research)
 

@@ -104,7 +104,7 @@
 
 	*VRd 
 {
-		if ("$Analysis" == "VRd-Post" & "$Int" == "VRd") {	
+		if ("Line" == 1 & $Int" == "VRd") {	
 			forvalues i = 1/`=Obs' { 
 				mata {
 					if (mMOR[`i',`=OMC'-1] == 0) {
@@ -112,23 +112,6 @@
 						mCore[`i',cCR] = 31
 						mCR[`i',`=LX'+2] = 31
 					}	
-				}
-			}
-		}
-		
-		if ("$Analysis" == "VRd-Post" & "$Int" == "NoVRd") {
-			forvalues i = 1/`=Obs' { 
-				mata {
-					if (mMOR[`i',`=OMC'-1] == 0 & `=m'[`i',`=c'RN] < 0.976) {
-						`=m'[`i',`=c'OC] = 4
-						mCore[`i',cCR] = 4
-						mCR[`i',`=LX'+2] = 4
-					}
-					else {
-						`=m'[`i',`=c'OC] = 0
-						mCore[`i',cCR] = 0
-						mCR[`i',`=LX'+2] = 0
-					}
 				}
 			}
 		}
