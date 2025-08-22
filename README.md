@@ -80,11 +80,23 @@ The simulation will generate `EpiMAP_Simulated_v2.dta` containing comprehensive 
   - **data/**
     - **coefficients/** - Universal risk equation coefficients
       - `EpiMAP_Coefficients_v2.mmat`
-    - **populations_2025-2030/** - Multiple MM population realisations for 2025-2030
-      - `EpiMAP_Myeloma_Population_1.dta` 
-  - **analyses/** - Specialised analysis scripts
-    - **vrdpost/** - VRd post-market analysis
-    - **dvdpre/** - DVd pre-market analysis
+    - **populations_2025-2030/** - 10 alternative MM populations for 2025-2030
+      - `EpiMAP_Myeloma_Population_1.dta`
+      - ...
+      - `EpiMAP_Myeloma_Population_10.dta`
+  - **analyses/** - Analysis-specific data and scripts
+    - **vrd_l1_post/** - VRd LoT 1 post-market analysis
+    - `EpiMAP_Myeloma_VRd_L1_Post.do`
+      - **data/**
+        - **coefficients/** - Risk equation coefficients that exclude VRd at LoT 1
+          - `EpiMAP_Myeloma_Coefficients_VRd_L1_Post.dta`
+          - **bootstrap/** - 500 bootstrapped risk equation coefficients
+            - `EpiMAP_Myeloma_Coefficients_VRd_L1_Post_B1.dta`
+            - ...
+            - `EpiMAP_Myeloma_Coefficients_VRd_L1_Post_B500.dta`
+        - **patients/**
+          - `EpiMAP_Myeloma_Patients_VRd_L1_Post.dta` - Synthetic patient cohort predicted to receive VRd at LoT 1
+        - **simulated/**
   - **documentation/** - Comprehensive user guides
     - `User_Guide.md`
     - `Technical_Specifications.md`
