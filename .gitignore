@@ -1,4 +1,3 @@
-cat > .gitignore << 'EOF'
 #File types to ignore
 .DS_Store
 **/.DS_Store
@@ -36,13 +35,5 @@ v2.0/analyses/*/data/simulated/*.csv
 v2.0/analyses/*/data/simulated/*.txt
 v2.0/analyses/*/data/simulated/*.log
 v2.0/analyses/*/data/simulated/bootstrap/
-# Keep .gitkeep files (they won't be ignored by the above patterns)
-EOF
 
-# 2. Test the patterns
-git check-ignore v2.0/analyses/vrd_l1_post/data/simulated/test.dta
-# Should return the file path if ignored correctly
-
-# 3. Add and commit
-git add .gitignore
-git commit -m "Fix: Update gitignore patterns for v2.0 repository structure"
+# Keep .gitkeep files (they won't be ignored by the above patterns)x
