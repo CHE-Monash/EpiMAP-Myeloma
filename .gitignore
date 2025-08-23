@@ -1,3 +1,4 @@
+cat > .gitignore << 'EOF'
 #File types to ignore
 .DS_Store
 **/.DS_Store
@@ -28,10 +29,20 @@ ehthumbs.db
 *.do~
 *.ado~
 
-# Simulated data - CORRECTED PATTERN
-# First, don't ignore the simulated directories themselves
-!analyses/*/data/simulated/
-# Then ignore all contents within them
-analyses/*/data/simulated/*
-# Finally, un-ignore the .gitkeep files
-!analyses/*/data/simulated/.gitkeep
+# Simulated data - CORRECTED for v2.0 structure
+# Target the actual paths in your repository
+v2.0/analyses/*/data/simulated/*.dta
+v2.0/analyses/*/data/simulated/*.csv
+v2.0/analyses/*/data/simulated/*.txt
+v2.0/analyses/*/data/simulated/*.log
+v2.0/analyses/*/data/simulated/bootstrap/
+# Keep .gitkeep files (they won't be ignored by the above patterns)
+EOF
+
+# 2. Test the patterns
+git check-ignore v2.0/analyses/vrd_l1_post/data/simulated/test.dta
+# Should return the file path if ignored correctly
+
+# 3. Add and commit
+git add .gitignore
+git commit -m "Fix: Update gitignore patterns for v2.0 repository structure"
