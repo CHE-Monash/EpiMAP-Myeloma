@@ -17,15 +17,15 @@ di "Running simulation"
 		scalar m = "DN_SCT"
 		scalar b = "bDN_SCT"
 		scalar c = "cLO_"
-		quietly do "core/functions/New/SIM SCT DN.do"			
-		*mata: _matrix_list(pDN_SCT, rpDN_SCT, cpDN_SCT)
-		*mata: _matrix_list(oDN_SCT, roDN_SCT, coDN_SCT)
+		quietly do "core/functions/SIM SCT DN.do"			
+		*mata: _matrix_list(mDN_SCT, rmDN_SCT, cmDN_SCT)
+		*mata: _matrix_list(mSCT, rmSCT, cmSCT)
 
 	di "DN - Chemo Interval"
 		scalar m = "DN_CI"
 		scalar b = "bDN_CI"
 		scalar c = "cSU_"
-		quietly do "core/functions/New/SIM CI DN.do"
+		quietly do "core/functions/SIM CI DN.do"
 		*mata: _matrix_list(mDN_CI, rmDN_CI, cmDN_CI)
 		*mata: _matrix_list(mNFT, rmNFT, cmNFT)	
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
@@ -35,7 +35,7 @@ di "Running simulation"
 		scalar m = "OS_DN"
 		scalar b = "bOS"
 		scalar c = "cSU_"	
-		quietly do "core/functions/New/SIM OS DN.do"	
+		quietly do "core/functions/SIM OS DN.do"	
 		*mata: _matrix_list(mOS_DN, rmOS_DN, cmOS_DN)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
@@ -124,7 +124,8 @@ di "Running simulation"
 		scalar b = "bL1_SCT"
 		scalar c = "cLO_"
 		quietly do "core/functions/SIM SCT L1.do"			
-		*mata: _matrix_list(mL1_SCT, rmL1_SCT, cmL1_SCT)	
+		*mata: _matrix_list(mL1_SCT, rmL1_SCT, cmL1_SCT)
+		*mata: _matrix_list(mSCT, rmSCT, cmSCT)
 
 	di "L1E - SCT Best Clinical Response"
 		scalar m = "mSCT_BCR"

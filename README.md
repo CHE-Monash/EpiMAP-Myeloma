@@ -11,10 +11,9 @@ A comprehensive discrete-event simulation model for multiple myeloma disease out
 ## What's New in v2.0
 
 - **Reorganised Architecture**: Clear version-specific folder structure (`v1.0/`, `v2.0/`)
-- **Extended Treatment Options**: Additional pathways for later lines of therapy (LoT 3+)
-- **Robust Testing Framework**: Complete model validation suite with benchmark results
+- **Extended Treatment Options**: Additional anticancer regimens modelled for later lines of therapy (LoT 3+)
 - **Comprehensive Documentation**: Detailed user guides and technical specifications
-- **Improved Accuracy**: Updated risk equations reflecting current clinical practice
+- **Improved Accuracy**: Updated risk equations reflecting latest registry data
 
 ## Model Overview
 
@@ -146,7 +145,9 @@ Replace the hypothetical dataset with your institution's data:
 use "your_patient_data.dta", clear
 ```
 
-**Required variables**: `age`, `male`, `ecog`, `iss`
+**Required variables**: `age`, `male`, `ecog`, `riss`, `cmscore`
+
+CMScore is a categorical variable between 0 and 6 that counts the number of the following comorbidities: cardiac disease, pulmonary disease, diabetes, liver disease, peripheral neuropathy, and other malignancy
 
 ### Scenario Analyses
 
@@ -248,7 +249,7 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ## Acknowledgements
 
-The EpiMAP Myeloma project was supported by grant 1200706 to Prof Zoe K McQuilten. We thank patients, clinicians, and research staff at participating centres for their invaluable contributions to the MRDR.
+The EpiMAP Myeloma project was supported by Medical Research Future Fund grant 1200706 to Prof Zoe K McQuilten. We thank patients, clinicians, and research staff at participating centres for their invaluable contributions to the MRDR.
 
 ---
 

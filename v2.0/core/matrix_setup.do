@@ -61,37 +61,17 @@ program define matrix_setup
 		}
 }	
 		*mata: _matrix_list(mCore, rmCore, cmCore)
-		
-	*mCore2 - Core patient matrix for matrix multiplication
-{
-		mata {
-			mCore2 = st_data(., "Age Age2 Male ECOGcc0 ECOGcc1 ECOGcc2 RISS1 RISS2 RISS3")
-			rmCore2 = J(rows(mCore2),2,"")
-			rmCore2[.,2] = strofreal(1::rows(mCore2)) 
-			cmCore2 = J(9,2,"")
-			cmCore2[1,1] = "Age" 
-			cmCore2[2,1] = "Age2"
-			cmCore2[3,1] = "Male" 
-			cmCore2[4,1] = "ECOGcc0" 
-			cmCore2[5,1] = "ECOGcc1" 
-			cmCore2[6,1] = "ECOGcc2" 
-			cmCore2[7,1] = "RISS1" 
-			cmCore2[8,1] = "RISS2" 
-			cmCore2[9,1] = "RISS3" 
-		}
-}
-		*mata: _matrix_list(mCore2, rmCore2, cmCore2)
 	
 	*mCom - Comorbidity matrix
 {
 		mata {
-			mCom = st_data(.,"Age70 Age75 CMScore")
+			mCom = st_data(.,"Age70 Age75 CMc")
 			rmCom = J(rows(mCom),2,"")
 			rmCom[.,2] = strofreal(1::rows(mCom))
 			cmCom = J(3,2,"")
 			cmCom[1,1] = "Age70" 
 			cmCom[2,1] = "Age75"
-			cmCom[3,1] = "CMScore" 
+			cmCom[3,1] = "CMc" 
 		}
 }
 		*mata: _matrix_list(mCom, rmCom, cmCom)
