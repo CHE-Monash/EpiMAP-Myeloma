@@ -1,11 +1,11 @@
 **********
-*EpiMAP Myeloma - VRd Line 1 Post-Market Analysis
+*EpiMAP Myeloma - Base Model Analysis
 **********
 
 **********
 *Analysis Configuration
-	local analysis_name "vrd_l1_post"
-	local coefficient_file "coefficients_vrd_l1_post"
+	local analysis_name "base_model"
+	local coefficient_file "coefficients_base_model"
 
 **********
 *Load Programs
@@ -18,6 +18,7 @@
 *Determine processing approach
 	if("$Boot" == "0") {
 		// No Bootstrapping
+		di as text "Loading base model coefficients (all regimens included)..."
 		mata: mata matuse "$coefficients_path/`coefficient_file'"
 				
 		load_patients		
@@ -26,12 +27,17 @@
 		process_data
 		
 		save "$simulated_path/$Int $Line $Data $MinID $MaxID.dta", replace
-		di "Analysis completed: $results_path/$Int $Line $Data $MinID $MaxID.dta"
+		di as result "Analysis completed successfully!"
+		di as text "Results saved to: $simulated_path/$Int $Line $Data $MinID $MaxID.dta"
 	}
 	else {
 		// Bootstrapping
+		di as text "Running bootstrap analysis with $MaxBS iterations..."
+		
 		forvalues b = $MinBS / $MaxBS {
+			di as text _newline "========================================" 
 			di as text "Processing bootstrap iteration `b' of $MaxBS..."
+			di as text "========================================"
 			
 			mata: mata clear
 			mata: mata matuse "$coefficients_path/bootstrap/`coefficient_file'_B`b'"
@@ -42,8 +48,10 @@
 			process_data
 			
 			save "$simulated_path/bootstrap/$Int $Line $Data $MinID $MaxID Bootstrap_B`b'.dta", replace
-			di "Bootstrap iteration `b' completed: Bootstrap_B`b'.dta"
+			di as text "Bootstrap iteration `b' completed: Bootstrap_B`b'.dta"
 		}
 		
-		di "All bootstrap iterations completed. Files saved as Bootstrap_B[MinBS-MaxBS].dta"
+		di as result _newline "All bootstrap iterations completed successfully!"
+		di as text "Bootstrap results saved in: $simulated_path/bootstrap/"
+		di as text "Files saved as: Bootstrap_B[$MinBS-$MaxBS].dta"
 	}

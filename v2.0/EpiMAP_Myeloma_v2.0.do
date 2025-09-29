@@ -1,5 +1,5 @@
 **********
-	*EpiMAP Myeloma v2.0 - Main Dispatcher
+*EpiMAP Myeloma v2.0 - Main Dispatcher
 **********
 	
 	clear
