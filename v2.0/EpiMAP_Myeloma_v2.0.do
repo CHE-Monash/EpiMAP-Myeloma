@@ -22,9 +22,9 @@
 
 **********
 *Parse Data parameter for population-specific requests
-	if regexm("$Data", "Population_([0-9]+)") {
+	if regexm("$Data", "population_([0-9]+)") {
 		global PopulationNumber = regexs(1)
-		global DataType = "Population"
+		global DataType = "population"
 		di "Using specific population: ${PopulationNumber}"
 	}
 	else {
@@ -49,7 +49,7 @@
 **********
 *Validate Population data if needed
 	if ("$DataType" == "Population") {
-		capture confirm file "data/2025-2030/population_${PopulationNumber}.dta"
+		capture confirm file "patients/population/2025-2030/population_${PopulationNumber}.dta"
 		if _rc != 0 {
 			di as error "Error: Population ${PopulationNumber} not found."
 			di as error "Available populations:"

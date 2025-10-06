@@ -18,7 +18,6 @@
 *Determine processing approach
 	if("$Boot" == "0") {
 		// No Bootstrapping
-		di as text "Loading base model coefficients (all regimens included)..."
 		mata: mata matuse "$coefficients_path/`coefficient_file'"
 				
 		load_patients		
@@ -27,7 +26,6 @@
 		process_data
 		
 		save "$simulated_path/$Int $Line $Data $MinID $MaxID.dta", replace
-		di as result "Analysis completed successfully!"
 		di as text "Results saved to: $simulated_path/$Int $Line $Data $MinID $MaxID.dta"
 	}
 	else {

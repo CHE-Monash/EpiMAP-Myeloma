@@ -26,7 +26,7 @@
 		process_data
 		
 		save "$simulated_path/$Int $Line $Data $MinID $MaxID.dta", replace
-		di "Analysis completed: $results_path/$Int $Line $Data $MinID $MaxID.dta"
+		di "Analysis completed: $simu;ated_path/$Int $Line $Data $MinID $MaxID.dta"
 	}
 	else {
 		// Bootstrapping
