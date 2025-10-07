@@ -12,7 +12,7 @@
 	*Determine outcome
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 				
 				*Calculate XB
 					*Age
@@ -44,12 +44,12 @@
 						if (mBCR[`i',2] == 4) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,13 + cols(`=o')]
 						if (mBCR[`i',2] == 5) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,14 + cols(`=o')] 
 						if (mBCR[`i',2] == 6) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,15 + cols(`=o')] 
-					*BCR_SCT - mBCR column 11
+					*BCR_SCT - mBCR column 10
 						if (`=m'[`i',cSCT] == 1) {
-							if (mBCR[`i',11] == 1) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,17 + cols(`=o')] 
-							if (mBCR[`i',11] == 2) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,18 + cols(`=o')] 
-							if (mBCR[`i',11] == 3) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,19 + cols(`=o')] 
-							if (mBCR[`i',11] == 4) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,20 + cols(`=o')]
+							if (mBCR[`i',10] == 1) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,17 + cols(`=o')] 
+							if (mBCR[`i',10] == 2) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,18 + cols(`=o')] 
+							if (mBCR[`i',10] == 3) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,19 + cols(`=o')] 
+							if (mBCR[`i',10] == 4) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,20 + cols(`=o')]
 						}
 				
 				*Probabilities
@@ -70,7 +70,7 @@
 				}	
 			}			
 		}
-					
+/*					
 		*Pre-market analysis - sort by XB, overwrite RN
 			mata {
 				if ("$Analysis" == "DVd-Pre"){
@@ -97,12 +97,13 @@
 				}
 			
 			mata: _sort(`=m', 1) // sort by ID
-		
-		*Update outcome matrices
+*/
 			forvalues i = 1/`=Obs' {
 				mata {	
-					if (mState[`i',2] > `=OMC') `=m'[`i',`=c'OC] = mBCR[`i',`=LX'+1] // Grab prevalent patient data
+				*Grab prevalent patient data	
+					if (mState[`i',1] > `=OMC'+1) `=m'[`i',`=c'OC] = mBCR[`i',`=LX']
+				*Update outcome matrices	
 					if (mMOR[`i',`=OMC'-1] == 0) mCore[`i',cBCR] = `=m'[`i',`=c'OC]					
-					if (mMOR[`i',`=OMC'-1] == 0) mBCR[`i',`=LX'+1] = `=m'[`i',`=c'OC]
+					if (mMOR[`i',`=OMC'-1] == 0) mBCR[`i',`=LX'] = `=m'[`i',`=c'OC]
 				}
 			}

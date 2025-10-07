@@ -13,7 +13,7 @@
 		scalar b = "bL1F1_CD_S1"
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 					if (`=m'[`i',cCR] != 7 & `=m'[`i',cSCT] == 1) { // Fixed + SCT filter
 					
 					*Calculate XB
@@ -55,7 +55,7 @@
 		scalar b = "bL1F1_CD_S2"
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 					if (`=m'[`i',cCR] != 7 & `=m'[`i',cSCT] == 1) { // Fixed + SCT filter
 					
 					*Calculate XB
@@ -100,7 +100,7 @@
 		scalar b = "bL1F1_CD_S3"
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 					if (`=m'[`i',cCR] != 7 & `=m'[`i',cSCT] == 1) { // Fixed + SCT filter
 					
 					*Calculate XB
@@ -142,7 +142,7 @@
 		scalar b = "bL1F0_CD"
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 					if (`=m'[`i',cCR] != 7 & `=m'[`i',cSCT] == 0) { // Fixed - SCT filter
 					
 					*Calculate XB
@@ -191,7 +191,7 @@
 			scalar b = "bL1C_CD"
 			forvalues i = 1/`=Obs' {
 				mata {
-					if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+					if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 						if (`=m'[`i',cCR] == 7) { // Continuous Therapy filter	
 						
 						*Calculate XB
@@ -223,15 +223,16 @@
 			}	
 		}
 
-	*Update outcome matrices
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mState[`i',2] > `=OMC') `=m'[`i',`=c'OC] = mTNE[`i',`=OMC']*365.25 // Grab prevalent patient data
+			*Grab prevalent patient data	
+				if (mState[`i',1] > `=OMC'+1) `=m'[`i',`=c'OC] = mTNE[`i',`=OMC']*365.25 
+			*Update outcome matrices	
 				if (mMOR[`i',`=OMC'-1] == 0) {
 					mTNE[`i',`=OMC'] = `=m'[`i',`=c'OC]/365.25
 					mTSD[`i',`=OMC'+1] = mTSD[`i',`=OMC'] + mTNE[`i',`=OMC']
 					mCore[`i',cCD] = `=m'[`i',`=c'OC]
-					mCD[`i',`=LX'+2] = `=m'[`i',`=c'OC]	
+					mCD[`i',`=LX'+1] = `=m'[`i',`=c'OC]
 				}
 			}
 		}

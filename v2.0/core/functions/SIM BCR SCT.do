@@ -12,7 +12,7 @@
 	*Determine outcome
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 					if (`=m'[`i',cSCT] == 1) { // SCT patients only
 					
 					*Calculate XB
@@ -48,10 +48,12 @@
 					}
 				}
 				
-			*Update outcome matrices	
-				if (mState[`i',2] > `=OMC') `=m'[`i',`=c'OC] = mBCR[`i',11] // Grab prevalent patient data
+			*Grab prevalent patient data	
+				else if (mState[`i',1] > `=OMC'+1) `=m'[`i',`=c'OC] = mBCR[`i',10] // BCR_SCT is column 10 of mBCR
+				
+			*Update outcome matrices		
 				if (`=m'[`i',cSCT] == 0) `=m'[`i',`=c'OC] = 0 // Set BCR to 0 for No SCT
 				if (mMOR[`i',`=OMC'-1] == 0) mCore[`i',cBCR] = `=m'[`i',`=c'OC]					
-				if (mMOR[`i',`=OMC'-1] == 0) mBCR[`i',11] = `=m'[`i',`=c'OC] // mBCR column 11 is SCT
+				if (mMOR[`i',`=OMC'-1] == 0) mBCR[`i',10] = `=m'[`i',`=c'OC] // BCR_SCT is column 10 of mBCR
 			}
 		}

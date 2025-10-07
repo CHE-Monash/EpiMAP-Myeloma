@@ -6,12 +6,12 @@ capture program drop load_patients
 program define load_patients
 
 	// Determine data source based on $DataType (not $Data)
-	if ("$DataType" == "Population") {
+	if ("$DataType" == "population") {
 		// Use population number extracted by main dispatcher
 		use "patients/population/2025-2030/population_${PopulationNumber}.dta", clear
 		di as text "Loaded population ${PopulationNumber}"
 	}
-	else if ("$DataType" == "Predicted") {
+	else if ("$DataType" == "predicted") {
 		use "$patients_path/patients_${Analysis}.dta", clear
 		di as text "Loaded ${Analysis} specific patient data"
 	}
@@ -27,7 +27,7 @@ program define load_patients
 	}
 
 	// Standard data preparation and filtering
-	keep if State <= ($Line * 2) + 1
+	keep if State <= ($Line * 2) + 2
 	replace ID = _n
 	keep if ID >= $MinID & ID <= $MaxID
 	

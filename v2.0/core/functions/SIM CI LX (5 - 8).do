@@ -12,7 +12,7 @@
 	*Determine outcome
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 				
 				*Calculate XB
 					*Age
@@ -31,7 +31,7 @@
 						if (`=m'[`i',cBCR] == 3) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,11] 
 						if (`=m'[`i',cBCR] == 5) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,12] 
 					*cons
-						mata: `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,13] 			
+						`=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,13] 			
 				
 				*Calculate survival time
 					if (f`=b' == "exponential") `=m'[`i',`=c'OC] = (ln(`=m'[`i',`=c'RN])):/-exp(`=m'[`i',`=c'XB])
@@ -40,15 +40,15 @@
 								
 				*Curtail if outcome beyond last observed in the data
 					if (`=m'[`i',`=c'OC] != . & `=m'[`i',`=c'OC] > maxLX_CI)	`=m'[`i',`=c'OC] = maxLX_CI
-					
-				*Update outcome matrices
-					if (mMOR[`i',`=OMC'-1] == 0) mTNE[`i',`=OMC'] = `=m'[`i',`=c'OC] / 365.25
-					if (mMOR[`i',`=OMC'-1] == 0) mTSD[`i',`=OMC'+1] = mTSD[`i',`=OMC'] + mTNE[`i',`=OMC']
-					if (mMOR[`i',`=OMC'-1] == 0) mCI[`i',`=LX'+1] = `=m'[`i',`=c'OC]
 				}
 			
-			*Grab Prevalent patient data
-				if (mState[`i',2] > `=OMC') `=m'[`i',`=c'OC] = mTNE[`i',`=OMC'] * 365.25
+			*Grab prevalent patient data
+				else if (mState[`i',1] > `=OMC'+1) `=m'[`i',`=c'OC] = mTNE[`i',`=OMC'] * 365.25
+								
+			*Update outcome matrices
+				mTNE[`i',`=OMC'] = `=m'[`i',`=c'OC] / 365.25
+				mTSD[`i',`=OMC'+1] = mTSD[`i',`=OMC'] + mTNE[`i',`=OMC']
+				mCI[`i',`=LX'+1] = `=m'[`i',`=c'OC]	
 			}
 		}
 		

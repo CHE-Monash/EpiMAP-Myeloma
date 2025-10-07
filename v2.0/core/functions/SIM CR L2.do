@@ -16,7 +16,7 @@
 	*Determine outcome
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 				
 					`=m'[`i',`=c'XB1] = 1 // Set e(XB1) to 1
 					
@@ -109,7 +109,7 @@
 						
 					*Update outcome matrices
 						mCore[`i',cCR] = `=m'[`i',`=c'OC]
-						mCR[`i',`=LX'+2] = `=m'[`i',`=c'OC]
+						mCR[`i',`=LX'+1] = `=m'[`i',`=c'OC]
 				}
 			}
 		}
