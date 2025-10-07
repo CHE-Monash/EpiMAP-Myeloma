@@ -47,7 +47,7 @@
 				
 			*Update outcome matrices
 				mTNE[`i',`=OMC'] = `=m'[`i',`=c'OC] / 365.25
-				mTSD[`i',`=OMC'+1] = mTSD[`i',`=OMC'] + mTNE[`i',`=OMC'] // Don't run for L9
+				mTSD[`i',`=OMC'+1] = mTSD[`i',`=OMC'] + mTNE[`i',`=OMC']
 				mCore[`i',cCD] = `=m'[`i',`=c'OC]
 				mCD[`i',`=LX'+1] = `=m'[`i',`=c'OC]	
 			}
