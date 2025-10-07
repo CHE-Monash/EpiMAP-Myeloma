@@ -48,7 +48,7 @@
 
 **********
 *Validate Population data if needed
-	if ("$DataType" == "Population") {
+	if ("$DataType" == "population") {
 		capture confirm file "patients/population/2025-2030/population_${PopulationNumber}.dta"
 		if _rc != 0 {
 			di as error "Error: Population ${PopulationNumber} not found."
@@ -76,7 +76,7 @@
 *Run analysis
 	di as text "Running EpiMAP Myeloma Analysis: $Analysis"
 	di as text "Intervention: $Int, Line: $Line, Data: $DataType"
-	if ("$DataType" == "Population") di as text "Population: ${PopulationNumber}"
+	if ("$DataType" == "population") di as text "Population: ${PopulationNumber}"
 	di as text "Patient range: $MinID to $MaxID"
 	
 	// Run the specific analysis

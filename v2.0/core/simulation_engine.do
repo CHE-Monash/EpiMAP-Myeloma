@@ -8,49 +8,49 @@ program define simulation
 di "Running simulation"
 
 *Diagnosis (DN)
-	scalar OMC = 2
+	scalar OMC = 1
 	scalar Line = 0
 	scalar LX = 0
-	scalar NFT = 2
 			
 	di "DN - SCT"
-		scalar m = "DN_SCT"
+		scalar m = "mDN_SCT"
 		scalar b = "bDN_SCT"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM SCT DN.do"			
+		quietly do "core/functions/SIM SCT DN.do"
 		*mata: _matrix_list(mDN_SCT, rmDN_SCT, cmDN_SCT)
-		*mata: _matrix_list(mSCT, rmSCT, cmSCT)
-
+		*mata: _matrix_list(bDN_SCT, rbDN_SCT, cbDN_SCT)
+		*mata: _matrix_list(mSCT, rmSCT, cmSCT)		
+		
 	di "DN - Chemo Interval"
-		scalar m = "DN_CI"
+		scalar m = "mDN_CI"
 		scalar b = "bDN_CI"
 		scalar c = "cSU_"
 		quietly do "core/functions/SIM CI DN.do"
 		*mata: _matrix_list(mDN_CI, rmDN_CI, cmDN_CI)
-		*mata: _matrix_list(mNFT, rmNFT, cmNFT)	
+		*mata: _matrix_list(bDN_CI, rbDN_CI, cbDN_CI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
-		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
+		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 
 	di "DN - Overall Survival" 
-		scalar m = "OS_DN"
+		scalar m = "mOS_DN"
 		scalar b = "bOS"
 		scalar c = "cSU_"	
-		quietly do "core/functions/SIM OS DN.do"	
+		quietly do "core/functions/SIM OS DN.do"
 		*mata: _matrix_list(mOS_DN, rmOS_DN, cmOS_DN)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "DN - Mortality"
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mState[`i',2] <= `=OMC') { // State filter
+				if (mState[`i',1] <= `=OMC'+1) { // Alive filter
 					if (mTSD[`i',`=OMC'+1] > mOS[`i',`=OMC']) { // If TSD > OS...
 						mMOR[`i',`=OMC'] = 1 // Patient dies
-						if ((mAge[`i',2] + mOS[`i',`=OMC']) > `=Limit') mOS[`i',`=OMC'] = `=Limit' - mAge[`i',2] // Set mOS to max if Age > Limit
-						mOC[`i',2] = mOS[`i',`=OMC'] // Set OC Time
-						mOC[`i',3] = 1 // Set OC Outcome
+						if ((mAge[`i',1] + mOS[`i',`=OMC']) > `=Limit') mOS[`i',`=OMC'] = `=Limit' - mAge[`i',1] // Set mOS to max if Age > Limit
+						mOC[`i',1] = mOS[`i',`=OMC'] // Set OC Time
+						mOC[`i',2] = 1 // Set OC Outcome
 						mTSD[`i',`=OMC'+1] = . // Clear TSD
 						mTNE[`i',`=OMC'] = mOS[`i',`=OMC'] - mTSD[`i',`=OMC'] // Truncate TNE to OC_TIME
-						mCI[`i', `=OMC'/2] = (mOC[`i',2] - mTSD[`i',`=OMC'])*365.25 // Overwrite CI
+						mCI[`i', 1] = (mOC[`i',1] - mTSD[`i',`=OMC'])*365.25 // Overwrite CI
 						mCore[`i', cSCT] = 0 // Overwrite SCT
 					}
 					if (mTSD[`i',`=OMC'+1] <= mOS[`i',`=OMC']) mMOR[`i',`=OMC'] = 0 // If TSD < OS, Patient alive
@@ -61,7 +61,7 @@ di "Running simulation"
 
 **********
 *Chemo Line 1 Start (L1S)
-	scalar OMC = 3
+	scalar OMC = 2
 
 	di "L1S - Age"
 		quietly do "core/functions/SIM AGE.do"	
@@ -102,10 +102,9 @@ di "Running simulation"
 
 **********
 *Chemo Line 1 End (L1E)
-	scalar OMC = 4
+	scalar OMC = 3
 	scalar Line = 1
 	scalar LX = 1
-	scalar NFT = 3
 
 	di "L1E - Age"
 		quietly do "core/functions/SIM AGE.do"
@@ -148,7 +147,6 @@ di "Running simulation"
 		scalar c = "cSU_"
 		quietly do "core/functions/SIM CI L1.do"			
 		*mata: _matrix_list(mL1_CI, rmL1_CI, cmL1_CI)
-		*mata: _matrix_list(mNFT, rmNFT, cmNFT)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)		
 	
@@ -166,7 +164,7 @@ di "Running simulation"
 
 **********
 *Chemo Line 2 Start (L2S)
-	scalar OMC = 5
+	scalar OMC = 4
 		
 	di "L2S - Age"
 		quietly do "core/functions/SIM AGE.do"	
@@ -207,10 +205,9 @@ di "Running simulation"
 	
 **********
 *Chemo Line 2 End (L2E)
-	scalar OMC = 6
+	scalar OMC = 5
 	scalar Line = 2
 	scalar LX = 2
-	scalar NFT = 4
 
 	di "L2E - Age"
 		quietly do "core/functions/SIM AGE.do"	
@@ -230,7 +227,6 @@ di "Running simulation"
 		scalar c = "cSU_"
 		quietly do "core/functions/SIM CI L2.do"
 		*mata: _matrix_list(mL2_CI, rmL2_CI, cmL2_CI)
-		*mata: _matrix_list(mNFT, rmNFT, cmNFT)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
@@ -248,7 +244,7 @@ di "Running simulation"
 
 **********
 *Chemo Line 3 Start (L3S)
-	scalar OMC = 7
+	scalar OMC = 6
 		
 	di "L3S - Age"
 		quietly do "core/functions/SIM AGE.do"	
@@ -296,10 +292,9 @@ di "Running simulation"
 
 **********
 *Chemo Line 3 End (L3E)
-	scalar OMC = 8
+	scalar OMC = 7
 	scalar Line = 3
 	scalar LX = 3
-	scalar NFT = 5
 		
 	di "L3E - Age"
 		quietly do "core/functions/SIM AGE.do"	
@@ -319,7 +314,6 @@ di "Running simulation"
 		scalar c = "cSU_"
 		quietly do "core/functions/SIM CI L3 L4.do"		
 		*mata: _matrix_list(mL3_CI, rmL3_CI, cmL3_CI)
-		*mata: _matrix_list(mNFT, rmNFT, cmNFT)	
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
@@ -337,7 +331,7 @@ di "Running simulation"
 
 **********
 *Chemo Line 4 Start (L4S)
-	scalar OMC = 9
+	scalar OMC = 8
 		
 	di "L4S - Age"
 		quietly do "core/functions/SIM AGE.do"	
@@ -385,10 +379,9 @@ di "Running simulation"
 
 **********
 *Chemo Line 4 End (L4E)
-	scalar OMC = 10
+	scalar OMC = 9
 	scalar Line = 4
 	scalar LX = 4
-	scalar NFT = 6
 		
 	di "L4E - Age"
 		quietly do "core/functions/SIM AGE.do"	
@@ -408,7 +401,6 @@ di "Running simulation"
 		scalar c = "cSU_"
 		quietly do "core/functions/SIM CI L3 L4.do"	
 		*mata: _matrix_list(mL4_CI, rmL4_CI, cmL4_CI)
-		*mata: _matrix_list(mNFT, rmNFT, cmNFT)	
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
@@ -426,7 +418,7 @@ di "Running simulation"
 			
 **********
 *Chemo Line 5 Start (L5S)
-	scalar OMC = 11
+	scalar OMC = 10
 		
 	di "L5S - Age" 
 		quietly do "core/functions/SIM AGE.do"	
@@ -437,7 +429,7 @@ di "Running simulation"
 			mata {
 				if 	(mMOR[`i',`=OMC'-1] == 0) mCore[`i',cCR] = 0
 				if 	(mMOR[`i',`=OMC'-1] != 0) mCore[`i',cCR] = .
-				if 	(mMOR[`i',`=OMC'-1] == 0) mCR[`i',`=LX'+2] = 0
+				if 	(mMOR[`i',`=OMC'-1] == 0) mCR[`i',`=LX'+1] = 0
 			}
 		}
 
@@ -464,10 +456,9 @@ di "Running simulation"
 
 **********
 *Chemo Line 5 End (L5E)
-	scalar OMC = 12
+	scalar OMC = 11
 	scalar Line = 5
 	scalar LX = 5
-	scalar NFT = 7
 		
 	di "L5E - Age"
 		quietly do "core/functions/SIM AGE.do"	
@@ -487,7 +478,6 @@ di "Running simulation"
 		scalar c = "cSU_"
 		quietly do "core/functions/SIM CI LX (5 - 8).do"				
 		*mata: _matrix_list(mL5_CI, rmL5_CI, cmL5_CI)
-		*mata: _matrix_list(mNFT, rmNFT, cmNFT)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
@@ -505,7 +495,7 @@ di "Running simulation"
 		
 **********
 *Chemo Line 6 Start (L6S) 
-	scalar OMC = 13
+	scalar OMC = 12
 		
 	di "L6S - Age" 
 		quietly do "core/functions/SIM AGE.do"	
@@ -516,7 +506,7 @@ di "Running simulation"
 			mata {
 				if 	(mMOR[`i',`=OMC'-1] == 0) mCore[`i',cCR] = 0
 				if 	(mMOR[`i',`=OMC'-1] != 0) mCore[`i',cCR] = .
-				if 	(mMOR[`i',`=OMC'-1] == 0) mCR[`i',`=LX'+2] = 0
+				if 	(mMOR[`i',`=OMC'-1] == 0) mCR[`i',`=LX'+1] = 0
 			}
 		}
 
@@ -543,10 +533,9 @@ di "Running simulation"
 
 **********
 *Chemo Line 6 End (L6E)
-	scalar OMC = 14
+	scalar OMC = 13
 	scalar Line = 6
 	scalar LX = 6
-	scalar NFT = 8
 		
 	di "L6E - Age"
 		quietly do "core/functions/SIM AGE.do"	
@@ -566,7 +555,6 @@ di "Running simulation"
 		scalar c = "cSU_"
 		quietly do "core/functions/SIM CI LX (5 - 8).do"				
 		*mata: _matrix_list(mL6_CI, rmL6_CI, cmL6_CI)
-		*mata: _matrix_list(mNFT, rmNFT, cmNFT)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 
@@ -584,7 +572,7 @@ di "Running simulation"
 					
 **********
 *Chemo Line 7 Start (L7S) 
-	scalar OMC = 15
+	scalar OMC = 14
 		
 	di "L7S - Age" 
 		quietly do "core/functions/SIM AGE.do"	
@@ -595,7 +583,7 @@ di "Running simulation"
 			mata {
 				if 	(mMOR[`i',`=OMC'-1] == 0) mCore[`i',cCR] = 0
 				if 	(mMOR[`i',`=OMC'-1] != 0) mCore[`i',cCR] = .
-				if 	(mMOR[`i',`=OMC'-1] == 0) mCR[`i',`=LX'+2] = 0
+				if 	(mMOR[`i',`=OMC'-1] == 0) mCR[`i',`=LX'+1] = 0
 			}
 		}
 
@@ -622,9 +610,8 @@ di "Running simulation"
 
 **********
 *Chemo Line 7 End (L7E)
-	scalar OMC = 16
+	scalar OMC = 15
 	scalar LX = 7
-	scalar NFT = 9
 		
 	di "L7E - Age"
 		quietly do "core/functions/SIM AGE.do"	
@@ -644,7 +631,6 @@ di "Running simulation"
 		scalar c = "cSU_"
 		quietly do "core/functions/SIM CI LX (5 - 8).do"				
 		*mata: _matrix_list(mL7_CI, rmL7_CI, cmL7_CI)
-		*mata: _matrix_list(mNFT, rmNFT, cmNFT)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)		
 
@@ -662,7 +648,7 @@ di "Running simulation"
 		
 **********
 *Chemo Line 8 Start (L8S) 
-	scalar OMC = 17
+	scalar OMC = 16
 		
 	di "L8S - Age" 
 		quietly do "core/functions/SIM AGE.do"	
@@ -673,7 +659,7 @@ di "Running simulation"
 			mata {
 				if 	(mMOR[`i',`=OMC'-1] == 0) mCore[`i',cCR] = 0
 				if 	(mMOR[`i',`=OMC'-1] != 0) mCore[`i',cCR] = .
-				if 	(mMOR[`i',`=OMC'-1] == 0) mCR[`i',`=LX'+2] = 0
+				if 	(mMOR[`i',`=OMC'-1] == 0) mCR[`i',`=LX'+1] = 0
 			}
 		}
 
@@ -700,9 +686,8 @@ di "Running simulation"
 
 **********
 *Chemo Line 8 End (L8E)
-	scalar OMC = 18
+	scalar OMC = 17
 	scalar LX = 8
-	scalar NFT = 10
 		
 	di "L8E - Age"
 		quietly do "core/functions/SIM AGE.do"	
@@ -722,7 +707,6 @@ di "Running simulation"
 		scalar c = "cSU_"
 		quietly do "core/functions/SIM CI LX (5 - 8).do"				
 		*mata: _matrix_list(mL8_CI, rmL8_CI, cmL8_CI)
-		*mata: _matrix_list(mNFT, rmNFT, cmNFT)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 
@@ -740,7 +724,7 @@ di "Running simulation"
 
 **********
 *Chemo Line 9 Start (L9S) 
-	scalar OMC = 19
+	scalar OMC = 18
 		
 	di "L9S - Age" 
 		quietly do "core/functions/SIM AGE.do"	
@@ -751,7 +735,7 @@ di "Running simulation"
 			mata {
 				if 	(mMOR[`i',`=OMC'-1] == 0) mCore[`i',cCR] = 0
 				if 	(mMOR[`i',`=OMC'-1] != 0) mCore[`i',cCR] = .
-				if 	(mMOR[`i',`=OMC'-1] == 0) mCR[`i',`=LX'+2] = 0
+				if 	(mMOR[`i',`=OMC'-1] == 0) mCR[`i',`=LX'+1] = 0
 			}
 		}
 
@@ -778,9 +762,8 @@ di "Running simulation"
 
 **********
 *Chemo Line 9 End (L9E)
-	scalar OMC = 20
+	scalar OMC = 19
 	scalar LX = 9
-	scalar NFT = 11
 		
 	di "L9E - Age"
 		quietly do "core/functions/SIM AGE.do"	
@@ -807,10 +790,10 @@ di "Running simulation"
 		forvalues i = 1/`=Obs'{
 			mata {
 				if (mMOR[`i',`=OMC'-1] == 0) { // Alive filter
-						if	((mAge[`i',2] + mOS[`i',`=OMC']) > `=Limit') mOS[`i',`=OMC'] = `=Limit' - mAge[`i',2] // Set mOS to max if Age > Limit
+					if	((mAge[`i',1] + mOS[`i',`=OMC']) > `=Limit') mOS[`i',`=OMC'] = `=Limit' - mAge[`i',1] // Set mOS to max if Age > Limit
 					mMOR[`i',`=OMC'] = 1 // Patient dies
-					mOC[`i',2] = mOS[`i',`=OMC'] // Set OC Time
-					mOC[`i',3] = 1 // Set OC Outcome
+					mOC[`i',1] = mOS[`i',`=OMC'] // Set OC Time
+					mOC[`i',2] = 1 // Set OC Outcome
 				}		
 			}	
 		}

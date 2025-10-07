@@ -12,7 +12,7 @@
 	*Determine outcome
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mState[`i',1] <= `=OMC'+1) { // State filter only (no-one dies before DN)	
 				
 				*Calculate XB
 					*Age

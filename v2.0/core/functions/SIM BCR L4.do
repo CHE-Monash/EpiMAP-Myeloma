@@ -12,7 +12,7 @@
 	*Determine outcome
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 				
 				*Calculate XB
 					*Age
@@ -52,9 +52,11 @@
 					if (`=m'[`i',`=c'RN] > `=m'[`i',`=c'PR2]) `=m'[`i',`=c'OC] = 5
 				}
 	
+			 *Grab prevalent patient data 	
+				else if (mState[`i',1] > `=OMC'+1) `=m'[`i',`=c'OC] = mBCR[`i',`=LX']
+				
 			*Update outcome matrices	
-				if (mState[`i',2] > `=OMC') `=m'[`i',`=c'OC] = mBCR[`i',`=LX'+1] // Grab prevalent patient data
-				mCore[`i',cBCR] = `=m'[`i',`=c'OC]					
-				mBCR[`i',`=LX'+1] = `=m'[`i',`=c'OC]
+				mCore[`i',cBCR] = `=m'[`i',`=c'OC]
+				mBCR[`i',`=LX'] = `=m'[`i',`=c'OC]
 			}
 		}

@@ -13,7 +13,7 @@
 		scalar b = "bL1_CI_S1"
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 					if (`=m'[`i',cSCT] == 1) { // SCT filter
 					
 					*Calculate XB
@@ -54,7 +54,7 @@
 		scalar b = "bL1_CI_S0"
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 					if (`=m'[`i',cSCT] == 0) { // No SCT filter
 					
 					*Calculate XB
@@ -92,15 +92,14 @@
 				}
 			}
 		}
-				
-	*Update outcome matrices
+
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mState[`i',2] > `=OMC') `=m'[`i',`=c'OC] = mTNE[`i',`=OMC'] * 365.25 // Grab prevalent patient data
-				if (mMOR[`i',`=OMC'-1] == 0) { // Alive filters
-					mTNE[`i',`=OMC'] = `=m'[`i',`=c'OC] / 365.25
-					mTSD[`i',`=OMC'+1] = mTSD[`i',`=OMC'] + mTNE[`i',`=OMC']
-					mCI[`i',`=LX'+1] = `=m'[`i',`=c'OC]
-				}
+			*Grab prevalent patient data
+				if (mState[`i',1] > `=OMC'+1) `=m'[`i',`=c'OC] = mTNE[`i',`=OMC'] * 365.25
+			*Update outcome matrices	
+				mTNE[`i',`=OMC'] = `=m'[`i',`=c'OC] / 365.25
+				mTSD[`i',`=OMC'+1] = mTSD[`i',`=OMC'] + mTNE[`i',`=OMC']
+				mCI[`i',`=LX'+1] = `=m'[`i',`=c'OC]
 			}
 		}

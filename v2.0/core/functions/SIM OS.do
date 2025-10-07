@@ -11,7 +11,7 @@
 	*Determine outcome
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',1] <= `=OMC'+1) { // Alive & State filters
 				
 				*Calculate XB
 					*Age
@@ -51,7 +51,7 @@
 					if (f`=b' == "weibull")  	`=m'[`i',`=c'OC] = ((ln(`=m'[`i',`=c'RN])):/-exp(`=m'[`i',`=c'XB])):^(1:/exp(`=b'[1,cols(`=b')]))
 					if (f`=b' == "gompertz")	`=m'[`i',`=c'OC] = (ln(1:-((`=b'[1,cols(`=b')]:*(ln(`=m'[`i',`=c'RN]))):/exp(`=m'[`i',`=c'XB])))):/`=b'[1,cols(`=b')]
 				
-				*Update outcome matrix
+				*Update matrix
 					mOS[`i',`=OMC'] = `=m'[`i',`=c'OC]
 				}
 			}

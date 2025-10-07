@@ -4,7 +4,7 @@
 
 	forvalues i = 1/`=Obs' {
 		mata {
-			if (mState[`i',2] <= `=OMC') { // State filter
+			if (mState[`i',1] <= `=OMC'+1) { // State filter
 			*For patients dead
 				if (mMOR[`i',`=OMC'-1] == 1) mCore[`i',cAge] = . // Set Age in mCore to missing
 			*For patients alive
@@ -16,8 +16,8 @@
 						mAge[`i',`=OMC'] = `=Limit' // Set Age to Limit
 						mMOR[`i',`=OMC'-1] = 1 // Overwrite mMOR
 						mCore[`i',cAge] = . // Overwrite mCore		
-						mOC[`i',2] = `=Limit' - mAge[`i',2] // Set OC_TIME so patient dies at Limit
-						mOC[`i',3] = 1
+						mOC[`i',1] = `=Limit' - mAge[`i',2] // Set OC_TIME so patient dies at Limit
+						mOC[`i',2] = 1
 						*Code below similar to SIM MORT but OMC has now moved on by 1
 						if	(mod((`=OMC'-1), 2) == 0) mCI[`i', (`=OMC'-1)/2] = (mOC[`i',2] - mTSD[`i',`=OMC'-1])*365.25 // Overwrite CI (even OMCs)
 						if	(mod((`=OMC'-1), 2) != 0) mCD[`i', `=OMC'/2] = (mOC[`i',2] - mTSD[`i',`=OMC'-1])*365.25 // Overwrite CD (odd OMCs)

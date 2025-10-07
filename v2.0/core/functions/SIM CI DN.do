@@ -12,7 +12,7 @@
 	*Determine outcome
 		forvalues i = 1/`=Obs' {
 			mata {
-				if (mMOR[`i',`=OMC'-1] == 0 & mState[`i',2] <= `=OMC') { // Alive & State filters
+				if (mState[`i',1] <= `=OMC'+1) { // State filter only (no-one dies before DN)	
 				
 				*Calculate XB
 					*Age
@@ -37,11 +37,13 @@
 					if (f`=b' == "weibull") 	`=m'[`i',`=c'OC] = ((ln(`=m'[`i',`=c'RN])):/-exp(`=m'[`i',`=c'XB])):^(1:/exp(`=b'[1,cols(`=b')]))
 					if (f`=b' == "gompertz")	`=m'[`i',`=c'OC] = (ln(1:-((`=b'[1,cols(`=b')]:*(ln(`=m'[`i',`=c'RN]))):/exp(`=m'[`i',`=c'XB])))):/`=b'[1,cols(`=b')]
 				}
+
+			*Grab prevalent patient data	
+				else if (mState[`i',1] > `=OMC'+1) `=m'[`i',`=c'OC] = mTNE[`i',`=OMC'] * 365.25
 				
-				*Update outcome matrices
-					if (mState[`i',2] > `=OMC') `=m'[`i',`=c'OC] = mTNE[`i',`=OMC'] * 365.25 // Grab prevalent patient data
-					mTNE[`i',`=OMC'] = `=m'[`i',`=c'OC] / 365.25
-					mTSD[`i',`=OMC'+1] = mTSD[`i',`=OMC'] + mTNE[`i',`=OMC']
-					mCI[`i',`=LX'+1] = `=m'[`i',`=c'OC]
+			*Update outcome matrices
+				mTNE[`i',`=OMC'] = `=m'[`i',`=c'OC] / 365.25
+				mTSD[`i',`=OMC'+1] = mTSD[`i',`=OMC'] + mTNE[`i',`=OMC']
+				mCI[`i',`=LX'+1] = `=m'[`i',`=c'OC]
 			}
 		}
