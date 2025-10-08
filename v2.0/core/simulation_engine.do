@@ -16,7 +16,7 @@ di "Running simulation"
 		scalar m = "mDN_SCT"
 		scalar b = "bDN_SCT"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM SCT DN.do"
+		quietly do "core/outcomes/SIM SCT DN.do"
 		*mata: _matrix_list(mDN_SCT, rmDN_SCT, cmDN_SCT)
 		*mata: _matrix_list(bDN_SCT, rbDN_SCT, cbDN_SCT)
 		*mata: _matrix_list(mSCT, rmSCT, cmSCT)		
@@ -25,7 +25,7 @@ di "Running simulation"
 		scalar m = "mDN_CI"
 		scalar b = "bDN_CI"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CI DN.do"
+		quietly do "core/outcomes/SIM CI DN.do"
 		*mata: _matrix_list(mDN_CI, rmDN_CI, cmDN_CI)
 		*mata: _matrix_list(bDN_CI, rbDN_CI, cbDN_CI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
@@ -35,7 +35,7 @@ di "Running simulation"
 		scalar m = "mOS_DN"
 		scalar b = "bOS"
 		scalar c = "cSU_"	
-		quietly do "core/functions/SIM OS DN.do"
+		quietly do "core/outcomes/SIM OS DN.do"
 		*mata: _matrix_list(mOS_DN, rmOS_DN, cmOS_DN)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
@@ -64,7 +64,7 @@ di "Running simulation"
 	scalar OMC = 2
 
 	di "L1S - Age"
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 
 	di "L1S - Chemo Regimen"
@@ -72,7 +72,7 @@ di "Running simulation"
 		scalar b = "bL1_CR"
 		scalar o = "oL1_CR"
 		scalar c = "cML_"
-		quietly do "core/functions/SIM CR L1.do"
+		quietly do "core/outcomes/SIM CR L1.do"
 		*mata: _matrix_list(mL1_CR, rmL1_CR, cmL1_CR)
 		*mata: _matrix_list(mCR, rmCR, cmCR)
 		
@@ -83,7 +83,7 @@ di "Running simulation"
 	di "L1S - Chemo Duration"
 		scalar m = "mL1_CD"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CD L1.do"
+		quietly do "core/outcomes/SIM CD L1.do"
 		*mata: _matrix_list(mL1_CD, rmL1_CD, cmL1_CD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -92,12 +92,12 @@ di "Running simulation"
 		scalar m = "mOS_L1S"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L1S, rmOS_L1S, cmOS_L1S)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L1S - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -107,14 +107,14 @@ di "Running simulation"
 	scalar LX = 1
 
 	di "L1E - Age"
-		quietly do "core/functions/SIM AGE.do"
+		quietly do "core/outcomes/SIM AGE.do"
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 
 	di "L1E - Best Clinical Response"
 		scalar m = "mL1_BCR"
 		scalar b = "bL1_BCR"
 		scalar c = "cOL_"
-		quietly do "core/functions/SIM BCR L1.do"		
+		quietly do "core/outcomes/SIM BCR L1.do"		
 		*mata: _matrix_list(mL1_BCR, rmL1_BCR, cmL1_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
@@ -122,7 +122,7 @@ di "Running simulation"
 		scalar m = "mL1_SCT"
 		scalar b = "bL1_SCT"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM SCT L1.do"			
+		quietly do "core/outcomes/SIM SCT L1.do"			
 		*mata: _matrix_list(mL1_SCT, rmL1_SCT, cmL1_SCT)
 		*mata: _matrix_list(mSCT, rmSCT, cmSCT)
 
@@ -130,7 +130,7 @@ di "Running simulation"
 		scalar m = "mSCT_BCR"
 		scalar b = "bSCT_BCR"
 		scalar c = "cOL_"
-		quietly do "core/functions/SIM BCR SCT.do"			
+		quietly do "core/outcomes/SIM BCR SCT.do"			
 		*mata: _matrix_list(mSCT_BCR, rmSCT_BCR, cmSCT_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
@@ -138,14 +138,14 @@ di "Running simulation"
 		scalar m = "mMNT"
 		scalar b = "bMNT"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM MNT.do"		
+		quietly do "core/outcomes/SIM MNT.do"		
 		*mata: _matrix_list(mMNT, rmMNT, cmMNT)
 		*mata: _matrix_list(mCore, rmCore, cmCore)
 
 	di "L1E - Chemo Interval"
 		scalar m = "mL1_CI"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CI L1.do"			
+		quietly do "core/outcomes/SIM CI L1.do"			
 		*mata: _matrix_list(mL1_CI, rmL1_CI, cmL1_CI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)		
@@ -154,12 +154,12 @@ di "Running simulation"
 		scalar m = "mOS_L1E"
 		scalar b = "bOS"	
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"	
+		quietly do "core/outcomes/SIM OS.do"	
 		*mata: _matrix_list(mOS_L1E, rmOS_L1E, cmOS_L1E)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L1E - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -167,7 +167,7 @@ di "Running simulation"
 	scalar OMC = 4
 		
 	di "L2S - Age"
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)		
 		
 	di "L2S - Chemo Regimen"
@@ -175,7 +175,7 @@ di "Running simulation"
 		scalar b = "bL2_CR"
 		scalar o = "oL2_CR"
 		scalar c = "cML_"
-		quietly do "core/functions/SIM CR L2.do"
+		quietly do "core/outcomes/SIM CR L2.do"
 		*mata: _matrix_list(mL2_CR, rmL2_CR, cmL2_CR)
 		
 		if ("$Analysis" == "DVd-Post" & "$Int" == "All" & "$Data" == "Population" & $Line == 2) {
@@ -186,7 +186,7 @@ di "Running simulation"
 		scalar m = "mL2_CD"
 		scalar b = "bL2_CD"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CD L2.do"
+		quietly do "core/outcomes/SIM CD L2.do"
 		*mata: _matrix_list(mL2_CD, rmL2_CD, cmL2_CD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -195,12 +195,12 @@ di "Running simulation"
 		scalar m = "mOS_L2S"
 		scalar b = "bOS"	
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"	
+		quietly do "core/outcomes/SIM OS.do"	
 		*mata: _matrix_list(mOS_L2S, rmOS_L2S, cmOS_L2S)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L2S - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 	
 **********
@@ -210,14 +210,14 @@ di "Running simulation"
 	scalar LX = 2
 
 	di "L2E - Age"
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)		
 	
 	di "L2E - Best Clinical Response"
 		scalar m = "mL2_BCR"
 		scalar b = "bL2_BCR"
 		scalar c = "cOL_"
-		quietly do "core/functions/SIM BCR L2.do"
+		quietly do "core/outcomes/SIM BCR L2.do"
 		*mata: _matrix_list(mL2_BCR, rmL2_BCR, cmL2_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
@@ -225,7 +225,7 @@ di "Running simulation"
 		scalar m = "mL2_CI"
 		scalar b = "bL2_CI"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CI L2.do"
+		quietly do "core/outcomes/SIM CI L2.do"
 		*mata: _matrix_list(mL2_CI, rmL2_CI, cmL2_CI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -234,12 +234,12 @@ di "Running simulation"
 		scalar m = "mOS_L2E"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"	
+		quietly do "core/outcomes/SIM OS.do"	
 		*mata: _matrix_list(mOS_L2E, rmOS_L2E, cmOS_L2E)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L2E - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -247,7 +247,7 @@ di "Running simulation"
 	scalar OMC = 6
 		
 	di "L3S - Age"
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 		
 	di "L3S - Chemo Regimen"
@@ -255,7 +255,7 @@ di "Running simulation"
 		scalar b = "bL3_CR"
 		scalar o = "oL3_CR"
 		scalar c = "cML_"
-		quietly do "core/functions/SIM CR L3.do"
+		quietly do "core/outcomes/SIM CR L3.do"
 		
 /*		mata: oL3_CR = 0
 		scalar o = "oL3_CR"
@@ -273,7 +273,7 @@ di "Running simulation"
 		scalar m = "mL3_CD"
 		scalar b = "bL3_CD"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CD L3.do"	
+		quietly do "core/outcomes/SIM CD L3.do"	
 		*mata: _matrix_list(mL3_CD, rmL3_CD, cmL3_CD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -282,12 +282,12 @@ di "Running simulation"
 		scalar m = "mOS_L3S"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L3S, rmOS_L3S, cmOS_L3S)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L3S - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)	
 
 **********
@@ -297,14 +297,14 @@ di "Running simulation"
 	scalar LX = 3
 		
 	di "L3E - Age"
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 	
 	di "L3E - Best Clinical Response"
 		scalar m = "mL3_BCR"
 		scalar b = "bL3_BCR"
 		scalar c = "cOL_"
-		quietly do "core/functions/SIM BCR L3.do"		
+		quietly do "core/outcomes/SIM BCR L3.do"		
 		*mata: _matrix_list(mL3_BCR, rmL3_BCR, cmL3_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
@@ -312,7 +312,7 @@ di "Running simulation"
 		scalar m = "mL3_CI"
 		scalar b = "bL3_CI"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CI L3 L4.do"		
+		quietly do "core/outcomes/SIM CI L3 L4.do"		
 		*mata: _matrix_list(mL3_CI, rmL3_CI, cmL3_CI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -321,12 +321,12 @@ di "Running simulation"
 		scalar m = "mOS_L3E"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L3E, rmOS_L3E, cmOS_L3E)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L3E - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -334,7 +334,7 @@ di "Running simulation"
 	scalar OMC = 8
 		
 	di "L4S - Age"
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)		
 
 	di "L4S - Chemo Regimen"
@@ -342,7 +342,7 @@ di "Running simulation"
 		scalar b = "bL4_CR"
 		scalar o = "oL4_CR"
 		scalar c = "cML_"
-		quietly do "core/functions/SIM CR L4.do"
+		quietly do "core/outcomes/SIM CR L4.do"
 
 /*		mata: oL4_CR = 0
 		scalar o = "oL4_CR"
@@ -360,7 +360,7 @@ di "Running simulation"
 		scalar m = "mL4_CD"
 		scalar b = "bL4_CD"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CD L4.do"		
+		quietly do "core/outcomes/SIM CD L4.do"		
 		*mata: _matrix_list(mL4_CD, rmL4_CD, cmL4_CD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -369,12 +369,12 @@ di "Running simulation"
 		scalar m = "mOS_L4S"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L4S, rmOS_L4S, cmOS_L4S)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L4S - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -384,14 +384,14 @@ di "Running simulation"
 	scalar LX = 4
 		
 	di "L4E - Age"
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 	
 	di "L4E - Best Clinical Response"
 		scalar m = "mL4_BCR"
 		scalar b = "bL4_BCR"
 		scalar c = "cOL_"
-		quietly do "core/functions/SIM BCR L4.do"	
+		quietly do "core/outcomes/SIM BCR L4.do"	
 		*mata: _matrix_list(mL4_BCR, rmL4_BCR, cmL4_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
@@ -399,7 +399,7 @@ di "Running simulation"
 		scalar m = "mL4_CI"
 		scalar b = "bL4_CI"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CI L3 L4.do"	
+		quietly do "core/outcomes/SIM CI L3 L4.do"	
 		*mata: _matrix_list(mL4_CI, rmL4_CI, cmL4_CI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -408,12 +408,12 @@ di "Running simulation"
 		scalar m = "mOS_L4E"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"	
+		quietly do "core/outcomes/SIM OS.do"	
 		*mata: _matrix_list(mOS_L4E, rmOS_L4E, cmOS_L4E)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L4E - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 			
 **********
@@ -421,7 +421,7 @@ di "Running simulation"
 	scalar OMC = 10
 		
 	di "L5S - Age" 
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 		
 	di "L5S - Chemo Regimen"
@@ -437,7 +437,7 @@ di "Running simulation"
 		scalar m = "mL5_CD"
 		scalar b = "bLX_CD"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CD LX (5 - 9).do"		
+		quietly do "core/outcomes/SIM CD LX (5 - 9).do"		
 		*mata: _matrix_list(mL5_CD, rmL5_CD, cmL5_CD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -446,12 +446,12 @@ di "Running simulation"
 		scalar m = "mOS_L5S"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L5S, rmOS_L5S, cmOS_L5S)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L5S - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -461,14 +461,14 @@ di "Running simulation"
 	scalar LX = 5
 		
 	di "L5E - Age"
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 
 	di "L5E - Best Clinical Response"
 		scalar m = "mL5_BCR"
 		scalar b = "bLX_BCR"
 		scalar c = "cOL_"
-		quietly do "core/functions/SIM BCR LX (5 - 9).do"
+		quietly do "core/outcomes/SIM BCR LX (5 - 9).do"
 		*mata: _matrix_list(mL5_BCR, rmL5_BCR, cmL5_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 	
@@ -476,7 +476,7 @@ di "Running simulation"
 		scalar m = "mL5_CI"
 		scalar b = "bLX_CI"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CI LX (5 - 8).do"				
+		quietly do "core/outcomes/SIM CI LX (5 - 8).do"				
 		*mata: _matrix_list(mL5_CI, rmL5_CI, cmL5_CI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -485,12 +485,12 @@ di "Running simulation"
 		scalar m = "mOS_L5E"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L5E, rmOS_L5E, cmOS_L5E)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L5E - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 		
 **********
@@ -498,7 +498,7 @@ di "Running simulation"
 	scalar OMC = 12
 		
 	di "L6S - Age" 
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 		
 	di "L6S - Chemo Regimen"
@@ -514,7 +514,7 @@ di "Running simulation"
 		scalar m = "mL6_CD"
 		scalar b = "bLX_CD" 		
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CD LX (5 - 9).do"	
+		quietly do "core/outcomes/SIM CD LX (5 - 9).do"	
 		*mata: _matrix_list(mL6_CD, rmL6_CD, cmL6_CD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -523,12 +523,12 @@ di "Running simulation"
 		scalar m = "mOS_L6S"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L6S, rmOS_L6S, cmOS_L6S)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L6S - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -538,14 +538,14 @@ di "Running simulation"
 	scalar LX = 6
 		
 	di "L6E - Age"
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 	
 	di "L6E - Best Clinical Response"
 		scalar m = "mL6_BCR"
 		scalar b = "bLX_BCR"
 		scalar c = "cOL_"
-		quietly do "core/functions/SIM BCR LX (5 - 9).do"	 	
+		quietly do "core/outcomes/SIM BCR LX (5 - 9).do"	 	
 		*mata: _matrix_list(mL6_BCR, rmL6_BCR, cmL6_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
@@ -553,7 +553,7 @@ di "Running simulation"
 		scalar m = "mL6_CI"
 		scalar b = "bLX_CI"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CI LX (5 - 8).do"				
+		quietly do "core/outcomes/SIM CI LX (5 - 8).do"				
 		*mata: _matrix_list(mL6_CI, rmL6_CI, cmL6_CI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
@@ -562,12 +562,12 @@ di "Running simulation"
 		scalar m = "mOS_L6E"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L6E, rmOS_L6E, cmOS_L6E)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L6E - Mortality" 
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 					
 **********
@@ -575,7 +575,7 @@ di "Running simulation"
 	scalar OMC = 14
 		
 	di "L7S - Age" 
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 		
 	di "L7S - Chemo Regimen"
@@ -591,7 +591,7 @@ di "Running simulation"
 		scalar m = "mL7_CD"
 		scalar b = "bLX_CD" 		
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CD LX (5 - 9).do"	
+		quietly do "core/outcomes/SIM CD LX (5 - 9).do"	
 		*mata: _matrix_list(mL7_CD, rmL7_CD, cmL7_CD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -600,12 +600,12 @@ di "Running simulation"
 		scalar m = "mOS_L7S"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L7S, rmOS_L7S, cmOS_L7S)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L7S - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -614,14 +614,14 @@ di "Running simulation"
 	scalar LX = 7
 		
 	di "L7E - Age"
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 	
 	di "L7E - Best Clinical Response" 
 		scalar m = "mL7_BCR"
 		scalar b = "bLX_BCR"
 		scalar c = "cOL_"
-		quietly do "core/functions/SIM BCR LX (5 - 9).do"	 	
+		quietly do "core/outcomes/SIM BCR LX (5 - 9).do"	 	
 		*mata: _matrix_list(mL7_BCR, rmL7_BCR, cmL7_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
@@ -629,7 +629,7 @@ di "Running simulation"
 		scalar m = "mL7_CI"
 		scalar b = "bLX_CI"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CI LX (5 - 8).do"				
+		quietly do "core/outcomes/SIM CI LX (5 - 8).do"				
 		*mata: _matrix_list(mL7_CI, rmL7_CI, cmL7_CI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)		
@@ -638,12 +638,12 @@ di "Running simulation"
 		scalar m = "mOS_L7E"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L7E, rmOS_L7E, cmOS_L7E)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L7E - Mortality" 
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 		
 **********
@@ -651,7 +651,7 @@ di "Running simulation"
 	scalar OMC = 16
 		
 	di "L8S - Age" 
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 		
 	di "L8S - Chemo Regimen"
@@ -667,7 +667,7 @@ di "Running simulation"
 		scalar m = "mL8_CD"
 		scalar b = "bLX_CD" 		
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CD LX (5 - 9).do"	
+		quietly do "core/outcomes/SIM CD LX (5 - 9).do"	
 		*mata: _matrix_list(mL8_CD, rmL8_CD, cmL8_CD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -676,12 +676,12 @@ di "Running simulation"
 		scalar m = "mOS_L8S"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L8S, rmOS_L8S, cmOS_L8S)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L8S - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -690,14 +690,14 @@ di "Running simulation"
 	scalar LX = 8
 		
 	di "L8E - Age"
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 	
 	di "L8E - Best Clinical Response"
 		scalar m = "mL8_BCR"
 		scalar b = "bLX_BCR"
 		scalar c = "cOL_"
-		quietly do "core/functions/SIM BCR LX (5 - 9).do"	
+		quietly do "core/outcomes/SIM BCR LX (5 - 9).do"	
 		*mata: _matrix_list(mL8_BCR, rmL8_BCR, cmL8_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
@@ -705,7 +705,7 @@ di "Running simulation"
 		scalar m = "mL8_CI"
 		scalar b = "bLX_CI"
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CI LX (5 - 8).do"				
+		quietly do "core/outcomes/SIM CI LX (5 - 8).do"				
 		*mata: _matrix_list(mL8_CI, rmL8_CI, cmL8_CI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
@@ -714,12 +714,12 @@ di "Running simulation"
 		scalar m = "mOS_L8E"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L8E, rmOS_L8E, cmOS_L8E)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L8E - Mortality" 
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)	
 
 **********
@@ -727,7 +727,7 @@ di "Running simulation"
 	scalar OMC = 18
 		
 	di "L9S - Age" 
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 		
 	di "L9S - Chemo Regimen"
@@ -743,7 +743,7 @@ di "Running simulation"
 		scalar m = "mL9_CD"
 		scalar b = "bLX_CD" 		
 		scalar c = "cSU_"
-		quietly do "core/functions/SIM CD LX (5 - 9).do"	
+		quietly do "core/outcomes/SIM CD LX (5 - 9).do"	
 		*mata: _matrix_list(mL9_CD, rmL9_CD, cmL9_CD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
@@ -752,12 +752,12 @@ di "Running simulation"
 		scalar m = "mOS_L9S"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L9S, rmOS_L9S, cmOS_L9S)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L9S - Mortality"
-		quietly do "core/functions/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -766,14 +766,14 @@ di "Running simulation"
 	scalar LX = 9
 		
 	di "L9E - Age"
-		quietly do "core/functions/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 	
 	di "L9E - Best Clinical Response"
 		scalar m = "mL9_BCR"
 		scalar b = "bLX_BCR"
 		scalar c = "cOL_"
-		quietly do "core/functions/SIM BCR LX (5 - 9).do"
+		quietly do "core/outcomes/SIM BCR LX (5 - 9).do"
 		*mata: _matrix_list(mL9_BCR, rmL9_BCR, cmL9_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
@@ -781,7 +781,7 @@ di "Running simulation"
 		scalar m = "mOS_L9E"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/functions/SIM OS.do"
+		quietly do "core/outcomes/SIM OS.do"
 		*mata: _matrix_list(mOS_L9E, rmOS_L9E, cmOS_L9E)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
