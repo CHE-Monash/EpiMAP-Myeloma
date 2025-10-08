@@ -9,6 +9,7 @@
 
 **********
 *Load Programs
+	quietly do "core/mata_functions.do"
 	quietly do "core/load_patients.do"
 	quietly do "core/matrix_setup.do"	
 	quietly do "core/simulation_engine.do"
@@ -20,6 +21,7 @@
 		// No Bootstrapping
 		mata: mata matuse "$coefficients_path/`coefficient_file'"
 				
+		mata_functions
 		load_patients		
 		matrix_setup
 		simulation
@@ -40,6 +42,7 @@
 			mata: mata clear
 			mata: mata matuse "$coefficients_path/bootstrap/`coefficient_file'_B`b'"
 			
+			mata_functions
 			load_patients		
 			matrix_setup
 			simulation
