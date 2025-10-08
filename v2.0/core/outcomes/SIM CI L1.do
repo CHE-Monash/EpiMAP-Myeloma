@@ -39,7 +39,7 @@
 							`=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,15]	
 			
 					*Calculate survival time
-						`=m'[`i',`=c'OC] = calcSurvivalTime(`=m'[`i',`=c'XB], `=m'[`i',`=c'RN], f`=b', `=b'[1,cols(`=b')])
+						`=m'[`i',`=c'OC] = calcSurvTime(`=m'[`i',`=c'XB], `=m'[`i',`=c'RN], f`=b', `=b'[1,cols(`=b')])
 							
 					*Curtail if outcome beyond last observed in the data
 						if (`=m'[`i',`=c'OC] != . & `=m'[`i',`=c'OC] > maxL1_CI_S1)	`=m'[`i',`=c'OC] = maxL1_CI_S1
@@ -80,7 +80,7 @@
 							`=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,17]
 				
 					*Calculate survival time
-						`=m'[`i',`=c'OC] = calcSurvivalTime(`=m'[`i',`=c'XB], `=m'[`i',`=c'RN], f`=b', `=b'[1,cols(`=b')])
+						`=m'[`i',`=c'OC] = calcSurvTime(`=m'[`i',`=c'XB], `=m'[`i',`=c'RN], f`=b', `=b'[1,cols(`=b')])
 				
 					*Curtail if outcome beyond last observed in the data
 						if (`=m'[`i',`=c'OC] != . & `=m'[`i',`=c'OC] > maxL1_CI_S0)	`=m'[`i',`=c'OC] = maxL1_CI_S0

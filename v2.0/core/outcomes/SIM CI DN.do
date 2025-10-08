@@ -33,7 +33,7 @@
 						`=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,11]
 						
 				*Calculate survival time
-					`=m'[`i',`=c'OC] = calcSurvivalTime(`=m'[`i',`=c'XB], `=m'[`i',`=c'RN], f`=b', `=b'[1,cols(`=b')])
+					`=m'[`i',`=c'OC] = calcSurvTime(`=m'[`i',`=c'XB], `=m'[`i',`=c'RN], f`=b', `=b'[1,cols(`=b')])
 				}
 
 			*Grab prevalent patient data	

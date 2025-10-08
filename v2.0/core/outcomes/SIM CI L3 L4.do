@@ -34,7 +34,7 @@
 						`=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,13] 			
 				
 				*Calculate survival time
-					`=m'[`i',`=c'OC] = calcSurvivalTime(`=m'[`i',`=c'XB], `=m'[`i',`=c'RN], f`=b', `=b'[1,cols(`=b')])
+					`=m'[`i',`=c'OC] = calcSurvTime(`=m'[`i',`=c'XB], `=m'[`i',`=c'RN], f`=b', `=b'[1,cols(`=b')])
 								
 				*Curtail if outcome beyond last observed in the data
 					if (`=m'[`i',`=c'OC] != . & `=m'[`i',`=c'OC] > maxL`=Line'_CI)	`=m'[`i',`=c'OC] = maxL`=Line'_CI

@@ -39,15 +39,13 @@
 						`=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,58]
 					
 				*Calculate probability of survival to mTSD
-					if (f`=b' == "ereg") 		`=m'[`i',`=c'PR] = exp(-(exp(`=m'[`i',`=c'XB]))*mTSD[`i',`=OMC'])
-					if (f`=b' == "weibull")  	`=m'[`i',`=c'PR] = exp(-(exp(`=m'[`i',`=c'XB]))*(mTSD[`i',`=OMC']:^exp(`=b'[1,cols(`=b')])))
-					if (f`=b' == "gompertz")	`=m'[`i',`=c'PR] = exp(-(exp(`=m'[`i',`=c'XB]))*(1:/`=b'[1,cols(`=b')])*(exp(`=b'[1,cols(`=b')]*mTSD[`i',`=OMC']):-1))
+					`=m'[`i',`=c'PR] = calcSurvProb(`=m'[`i',`=c'XB], mTSD[`i',`=OMC'], f`=b', `=b'[1,cols(`=b')])
 							
 				*Draw RN, conditional on survival to mTSD
 					`=m'[`i',`=c'RN] = runiform(1, 1, 0, `=m'[`i',`=c'PR])
 					
 				*Calculate survival time
-					`=m'[`i',`=c'OC] = calcSurvivalTime(`=m'[`i',`=c'XB], `=m'[`i',`=c'RN], f`=b', `=b'[1,cols(`=b')])
+					`=m'[`i',`=c'OC] = calcSurvTime(`=m'[`i',`=c'XB], `=m'[`i',`=c'RN], f`=b', `=b'[1,cols(`=b')])
 				
 				*Update matrix
 					mOS[`i',`=OMC'] = `=m'[`i',`=c'OC]

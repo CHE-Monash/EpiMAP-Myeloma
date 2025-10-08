@@ -29,7 +29,7 @@ mata clear
  *                 Extract as: aux = bMatrix[1, cols(bMatrix)]
  * @return         Survival times
  */
-real colvector calcSurvivalTime(
+real colvector calcSurvTime(
     real colvector XB,
     real colvector RN,
     string scalar dist,
@@ -60,49 +60,45 @@ real colvector calcSurvivalTime(
 
 
 /**
- * Calculate survival time conditional on already surviving to time TSD
+ * Calculate survival probability at time TSD
  * 
- * Used for Overall Survival calculations where patient has already survived
- * from diagnosis to current time point
+ * Returns S(TSD) = P(T > TSD) - the probability of surviving to time TSD
+ * Used for conditional survival calculations where patient already alive at TSD
  * 
  * @param XB       Linear predictor (vector or scalar)
- * @param TSD      Time since diagnosis - patient already survived to this point
- * @param dist     Distribution type
- * @param aux      Auxiliary parameter (final column of coefficient matrix)
- * @return         Survival times from current point
+ * @param TSD      Time since diagnosis - calculate S(TSD)
+ * @param dist     Distribution type ("exponential"/"ereg", "weibull", "gompertz")
+ * @param aux      Auxiliary parameter (shape/gamma parameter)
+ * @return         Survival probabilities S(TSD)
  */
-real colvector calcConditionalSurvivalTime(
+real colvector calcSurvProb(
     real colvector XB,
     real colvector TSD,
     string scalar dist,
-    real scalar aux
+    | real scalar aux
 ) {
-    real colvector PR, RN
+    real colvector PR
     
-    // Calculate probability of survival to current time (TSD)
+    // Calculate S(t) based on distribution
     if (dist == "exponential" | dist == "ereg") {
-        // S(t) = exp(-lambda * t)
+        // Exponential: S(t) = exp(-lambda * t)
         PR = exp(-exp(XB) :* TSD)
     }
     else if (dist == "weibull") {
-        // S(t) = exp(-lambda * t^p)
+        // Weibull: S(t) = exp(-lambda * t^shape)
         PR = exp(-exp(XB) :* (TSD :^ exp(aux)))
     }
     else if (dist == "gompertz") {
-        // S(t) = exp(-lambda/gamma * (exp(gamma*t) - 1))
+        // Gompertz: S(t) = exp(-lambda/gamma * (exp(gamma*t) - 1))
         PR = exp(-exp(XB) :* (1 :/ aux) :* (exp(aux :* TSD) :- 1))
     }
     else {
         errprintf("ERROR: Unknown distribution '%s'\n", dist)
+        errprintf("Valid distributions: 'exponential', 'ereg', 'weibull', 'gompertz'\n")
         exit(198)
     }
     
-    // Draw RN conditional on survival to TSD
-    // U ~ Uniform(0, S(TSD)) rather than Uniform(0, 1)
-    RN = runiform(rows(XB), 1, 0, PR)
-    
-    // Calculate survival time using standard function
-    return(calcSurvivalTime(XB, RN, dist, aux))
+    return(PR)
 }
 
 
