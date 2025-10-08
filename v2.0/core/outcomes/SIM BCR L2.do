@@ -37,13 +37,12 @@
 						if (cols(`=o') >= 4) {
 							if (`=m'[`i',cCR] == `=o'[1,4]) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,13]
 						}
-
 					*BCR_L1 - mBCR column 2
-						if (mBCR[`i',2] == 2) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,11 + cols(`=o')] 
-						if (mBCR[`i',2] == 3) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,12 + cols(`=o')] 
-						if (mBCR[`i',2] == 4) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,13 + cols(`=o')]
-						if (mBCR[`i',2] == 5) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,14 + cols(`=o')] 
-						if (mBCR[`i',2] == 6) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,15 + cols(`=o')] 
+						if (mBCR[`i',1] == 2) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,11 + cols(`=o')] 
+						if (mBCR[`i',1] == 3) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,12 + cols(`=o')] 
+						if (mBCR[`i',1] == 4) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,13 + cols(`=o')]
+						if (mBCR[`i',1] == 5) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,14 + cols(`=o')] 
+						if (mBCR[`i',1] == 6) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,15 + cols(`=o')] 
 					*BCR_SCT - mBCR column 10
 						if (`=m'[`i',cSCT] == 1) {
 							if (mBCR[`i',10] == 1) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,17 + cols(`=o')] 
@@ -52,21 +51,14 @@
 							if (mBCR[`i',10] == 4) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,20 + cols(`=o')]
 						}
 				
-				*Probabilities
-					`=m'[`i',`=c'PR1] = 1/(1+exp(`=m'[`i',`=c'XB] - `=b'[1,cols(`=b')-4]))
-					`=m'[`i',`=c'PR2] = 1/(1+exp(`=m'[`i',`=c'XB] - `=b'[1,cols(`=b')-3]))
-					`=m'[`i',`=c'PR3] = 1/(1+exp(`=m'[`i',`=c'XB] - `=b'[1,cols(`=b')-2]))
-					`=m'[`i',`=c'PR4] = 1/(1+exp(`=m'[`i',`=c'XB] - `=b'[1,cols(`=b')-1]))
-					`=m'[`i',`=c'PR5] = 1/(1+exp(`=m'[`i',`=c'XB] - `=b'[1,cols(`=b')]))
-					if (`=m'[`i',`=c'PR5] != .) `=m'[`i',`=c'PR6] = 1
+				*Extract cut points	
+					cutPoints = `=b'[1, (cols(`=b')-4, cols(`=b')-3, cols(`=b')-2, cols(`=b')-1, cols(`=b'))]
 				
-				*BCR outcome
-					if ((`=m'[`i',`=c'RN] < `=m'[`i',`=c'PR1]) & (`=m'[`i',`=c'PR6] == 1)) `=m'[`i',`=c'OC] = 1
-					if ((`=m'[`i',`=c'RN] > `=m'[`i',`=c'PR1]) & (`=m'[`i',`=c'RN] < `=m'[`i',`=c'PR2])) `=m'[`i',`=c'OC] = 2
-					if ((`=m'[`i',`=c'RN] > `=m'[`i',`=c'PR2]) & (`=m'[`i',`=c'RN] < `=m'[`i',`=c'PR3])) `=m'[`i',`=c'OC] = 3
-					if ((`=m'[`i',`=c'RN] > `=m'[`i',`=c'PR3]) & (`=m'[`i',`=c'RN] < `=m'[`i',`=c'PR4])) `=m'[`i',`=c'OC] = 4
-					if ((`=m'[`i',`=c'RN] > `=m'[`i',`=c'PR4]) & (`=m'[`i',`=c'RN] < `=m'[`i',`=c'PR5])) `=m'[`i',`=c'OC] = 5
-					if (`=m'[`i',`=c'RN] > `=m'[`i',`=c'PR5]) `=m'[`i',`=c'OC] = 6
+				*Calculate probabilities
+					probMatrix = calcOrdLogitProbs(`=m'[`i', `=c'XB], cutPoints)
+					
+				*Assign BCR outcome 
+					`=m'[`i',`=c'OC] = assignOrdOutcome(`=m'[`i',`=c'RN], probMatrix, (1, 2, 3, 4, 5, 6))[1,1]
 				}	
 			}			
 		}

@@ -44,15 +44,14 @@
 						if (`=m'[`i',cBCR] == 5) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,14 + cols(`=o')] 
 						if (`=m'[`i',cBCR] == 6) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,15 + cols(`=o')] 
 				
-				*Probabilities
-					`=m'[`i',`=c'PR1] = 1/(1+exp(`=m'[`i',`=c'XB] - `=b'[1,cols(`=b')]-1))
-					`=m'[`i',`=c'PR2] = 1/(1+exp(`=m'[`i',`=c'XB] - `=b'[1,cols(`=b')]))
-					if (`=m'[`i',`=c'PR2] != .) `=m'[`i',`=c'PR3] = 1
-				
-				*BCRc outcome
-					if ((`=m'[`i',`=c'RN] < `=m'[`i',`=c'PR1]) & (`=m'[`i',`=c'PR3] == 1)) `=m'[`i',`=c'OC] = 1
-					if ((`=m'[`i',`=c'RN] > `=m'[`i',`=c'PR1]) & (`=m'[`i',`=c'RN] < `=m'[`i',`=c'PR2])) `=m'[`i',`=c'OC] = 3
-					if (`=m'[`i',`=c'RN] > `=m'[`i',`=c'PR2]) `=m'[`i',`=c'OC] = 5
+				*Extract cut points from coefficient matrix			
+					cutPoints = `=b'[1, (cols(`=b')-1, cols(`=b'))]
+					
+				*Calculate probabilities
+					probMatrix = calcOrdLogitProbs(`=m'[`i', `=c'XB], cutPoints)
+					
+				*Assign BCR outcome 
+					`=m'[`i',`=c'OC] = assignOrdOutcome(`=m'[`i',`=c'RN], probMatrix, (1, 3, 5))[1,1]
 				}
 	
 			 *Grab prevalent patient data
