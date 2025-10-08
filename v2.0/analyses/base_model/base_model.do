@@ -21,8 +21,7 @@
 		// No Bootstrapping
 		mata: mata matuse "$coefficients_path/`coefficient_file'"
 				
-		mata_functions
-		load_patients		
+		load_patients
 		matrix_setup
 		simulation
 		process_data
@@ -42,7 +41,6 @@
 			mata: mata clear
 			mata: mata matuse "$coefficients_path/bootstrap/`coefficient_file'_B`b'"
 			
-			mata_functions
 			load_patients		
 			matrix_setup
 			simulation
