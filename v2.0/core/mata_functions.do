@@ -118,7 +118,7 @@ real colvector calcSurvProb(
  *                   For 6-category: cutPoints = bMatrix[1, (n+1..n+5)] where n = # predictors
  * @return           Matrix of cumulative probabilities (rows = obs, cols = cutpoints)
  */
-real matrix calcOrderedLogitProbs(
+real matrix calcOrdLogitProbs(
     real colvector XB,
     real rowvector cutPoints
 ) {
@@ -147,7 +147,7 @@ real matrix calcOrderedLogitProbs(
  *                   Example for 6-category BCR: (1, 2, 3, 4, 5, 6)
  * @return           Vector of assigned outcomes
  */
-real colvector assignOrderedOutcome(
+real colvector assignOrdOutcome(
     real colvector RN,
     real matrix probs,
     real rowvector values
@@ -158,11 +158,11 @@ real colvector assignOrderedOutcome(
     // Start with highest category as default
     outcome = J(rows(RN), 1, values[cols(values)])
     
-    // Assign outcomes from lowest to highest category
-    // If RN < P(Y <= j), assign value[j]
-    for (i = 1; i <= cols(values)-1; i++) {
-        outcome = outcome :* (RN :>= probs[., i]) + ///
-                  values[i] :* (RN :< probs[., i])
+    // Work BACKWARDS from highest to lowest category
+    // This ensures the lowest matching category wins
+    for (i = cols(values)-1; i >= 1; i--) {
+        outcome = (RN :< probs[., i]) :* values[i] + ///
+                  (RN :>= probs[., i]) :* outcome
     }
     
     return(outcome)

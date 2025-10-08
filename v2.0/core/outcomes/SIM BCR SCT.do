@@ -34,17 +34,14 @@
 							if (`=m'[`i',cBCR] == 4) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,13]
 							if (`=m'[`i',cBCR] == 5) `=m'[`i',`=c'XB] = `=m'[`i',`=c'XB] + `=b'[1,14] 
 						
-					*Probabilities	
-						`=m'[`i',`=c'PR1] = 1/(1+exp(`=m'[`i',`=c'XB] - `=b'[1,cols(`=b')-2]))
-						`=m'[`i',`=c'PR2] = 1/(1+exp(`=m'[`i',`=c'XB] - `=b'[1,cols(`=b')-1]))	
-						`=m'[`i',`=c'PR3] = 1/(1+exp(`=m'[`i',`=c'XB] - `=b'[1,cols(`=b')]))
-						`=m'[`i',`=c'PR4] = 1
+					*Extract cut points	
+						cutPoints = `=b'[1, (cols(`=b')-3, cols(`=b')-2, cols(`=b')-1, cols(`=b'))]
 					
-					*BCR outcome
-						if (`=m'[`i',`=c'RN] < `=m'[`i',`=c'PR1]) 											`=m'[`i',`=c'OC] = 1
-						if (`=m'[`i',`=c'RN] > `=m'[`i',`=c'PR1] & `=m'[`i',`=c'RN] < `=m'[`i',`=c'PR2]) 	`=m'[`i',`=c'OC] = 2
-						if (`=m'[`i',`=c'RN] > `=m'[`i',`=c'PR2] & `=m'[`i',`=c'RN] < `=m'[`i',`=c'PR3])	`=m'[`i',`=c'OC] = 3
-						if (`=m'[`i',`=c'RN] > `=m'[`i',`=c'PR3])											`=m'[`i',`=c'OC] = 4
+					*Calculate probabilities
+						probMatrix = calcOrdLogitProbs(`=m'[`i', `=c'XB], cutPoints)
+						
+					*Assign BCR outcome 
+						`=m'[`i',`=c'OC] = assignOrdOutcome(`=m'[`i',`=c'RN], probMatrix, (1, 2, 3, 4, 5))[1,1]
 					}
 				}
 				
