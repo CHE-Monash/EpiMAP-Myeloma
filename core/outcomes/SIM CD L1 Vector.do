@@ -33,14 +33,15 @@ mata {
 			vECOG2_ASCT = (vECOG[idxASCT] :== 2)
 			vRISS2_ASCT = (vRISS[idxASCT] :== 2)
 			vRISS3_ASCT = (vRISS[idxASCT] :== 3)
+			vCons_ASCT = vCons[idxASCT]
 			
 			// CR dummies from mTXR (Treatment Regimen matrix)
 			nCR = cols(oL1_CR)
 			vCR2_ASCT = (nCR >= 2) ? (mTXR[idxASCT, 1] :== oL1_CR[1,2]) : J(rows(idxASCT), 1, 0)
 			vCR3_ASCT = (nCR >= 3) ? (mTXR[idxASCT, 1] :== oL1_CR[1,3]) : J(rows(idxASCT), 1, 0)
 			
-			vCons = J(rows(idxASCT), 1, 1)
-			pMatrix = (vAge_ASCT, vAge2_ASCT, vMale_ASCT, vECOG1_ASCT, vECOG2_ASCT, vRISS2_ASCT, vRISS3_ASCT, vCR2_ASCT, vCR3_ASCT, vCons)
+			// Patient matrix
+			pMatrix = (vAge_ASCT, vAge2_ASCT, vMale_ASCT, vECOG1_ASCT, vECOG2_ASCT, vRISS2_ASCT, vRISS3_ASCT, vCR2_ASCT, vCR3_ASCT, vCons_ASCT)
 			
 			// --- SPLINE 1 ---
 			coef_S1 = bL1F1_CD_S1[1, (1, 2, 3, 5, 6, 8, 9, 11, 12, cols(bL1F1_CD_S1)-1)]'
@@ -110,21 +111,22 @@ mata {
 		
 		if (rows(idxNoASCT) > 0) {
 			// Build patient matrix from source vectors/matrices
-			vAge = mAge[idxNoASCT, OMC]
-			vAge2 = vAge :^ 2
+			vAge_NoASCT = mAge[idxNoASCT, OMC]
+			vAge2_NoASCT = vAge_NoASCT :^ 2
 			vMale_NoASCT = vMale[idxNoASCT]
-			vECOG1 = (vECOG[idxNoASCT] :== 1)
-			vECOG2 = (vECOG[idxNoASCT] :== 2)
-			vRISS2 = (vRISS[idxNoASCT] :== 2)
-			vRISS3 = (vRISS[idxNoASCT] :== 3)
+			vECOG1_NoASCT = (vECOG[idxNoASCT] :== 1)
+			vECOG2_NoASCT = (vECOG[idxNoASCT] :== 2)
+			vRISS2_NoASCT = (vRISS[idxNoASCT] :== 2)
+			vRISS3_NoASCT = (vRISS[idxNoASCT] :== 3)
+			vCons_NoASCT = vCons[idxNoASCT]
 			
 			// CR dummies from mTXR
 			nCR = cols(oL1_CR)
 			vCR2_NoASCT = (nCR >= 2) ? (mTXR[idxNoASCT, 1] :== oL1_CR[1,2]) : J(rows(idxNoASCT), 1, 0)
 			vCR3_NoASCT = (nCR >= 3) ? (mTXR[idxNoASCT, 1] :== oL1_CR[1,3]) : J(rows(idxNoASCT), 1, 0)
 			
-			vCons = J(rows(idxNoASCT), 1, 1)
-			pMatrix = (vAge, vAge2, vMale_NoASCT, vECOG1, vECOG2, vRISS2, vRISS3, vCR2_NoASCT, vCR3_NoASCT, vCons)
+			// Patient matrix
+			pMatrix = (vAge_NoASCT, vAge2_NoASCT, vMale_NoASCT, vECOG1_NoASCT, vECOG2_NoASCT, vRISS2_NoASCT, vRISS3_NoASCT, vCR2_NoASCT, vCR3_NoASCT, vCons_NoASCT)
 			
 			// Calculate XB with bL1F0_CD coefficients
 			coef_F0 = bL1F0_CD[1, (1, 2, 3, 5, 6, 8, 9, 11, 12, cols(bL1F0_CD)-1)]'
@@ -167,16 +169,16 @@ if _rc == 0 {
 		
 		if (rows(idxCont) > 0) {
 			// Build patient matrix from source vectors (no CR dummies for continuous)
-			vAge = mAge[idxCont, OMC]
-			vAge2 = vAge :^ 2
+			vAge_Cont = mAge[idxCont, OMC]
+			vAge2_Cont = vAge_Cont :^ 2
 			vMale_Cont = vMale[idxCont]
-			vECOG1 = (vECOG[idxCont] :== 1)
-			vECOG2 = (vECOG[idxCont] :== 2)
-			vRISS2 = (vRISS[idxCont] :== 2)
-			vRISS3 = (vRISS[idxCont] :== 3)
-			vCons = J(rows(idxCont), 1, 1)
+			vECOG1_Cont = (vECOG[idxCont] :== 1)
+			vECOG2_Cont = (vECOG[idxCont] :== 2)
+			vRISS2_Cont = (vRISS[idxCont] :== 2)
+			vRISS3_Cont = (vRISS[idxCont] :== 3)
+			vCons_Cont = vCons[idxCont]
 			
-			pMatrix = (vAge, vAge2, vMale_Cont, vECOG1, vECOG2, vRISS2, vRISS3, vCons)
+			pMatrix = (vAge_Cont, vAge2_Cont, vMale_Cont, vECOG1_Cont, vECOG2_Cont, vRISS2_Cont, vRISS3_Cont, vCons_Cont)
 			
 			// Calculate XB with bL1C_CD coefficients
 			coef_C = bL1C_CD[1, (1, 2, 3, 5, 6, 8, 9, cols(bL1C_CD)-1)]'

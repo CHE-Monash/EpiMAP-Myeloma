@@ -61,7 +61,7 @@ di "Running simulation"
 		scalar m = "mL1_CD"
 		scalar c = "cSU_"
 		quietly do "core/outcomes/SIM CD L1 Vector.do"
-		*mata: _matrix_list(mL1_CD, rmL1_CD, cmL1_CD)
+		*mata: _matrix_list(bL1_CD, rbL1_CD, cbL1_CD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
@@ -72,11 +72,9 @@ di "Running simulation"
 		quietly do "core/outcomes/SIM OS Vector.do"
 		*mata: _matrix_list(mOS_L1S, rmOS_L1S, cmOS_L1S)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-		
-		exit
 	
 	di "L1S - Mortality"
-		quietly do "core/outcomes/SIM MORT.do"	
+		quietly do "core/outcomes/SIM MORT Vector.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********

@@ -1,5 +1,5 @@
 // Test 1: Simple population simulation
-cd "/Users/adami/Documents/Monash/Research/Blood Disorders/Myeloma/EpiMAP/Github/v2.0"
+cd "/Users/adami/Documents/Monash/Research/Blood Disorders/Myeloma/EpiMAP/Github/"
 
 // Define settings
 local analysis      "base_model"    // Analysis folder name
