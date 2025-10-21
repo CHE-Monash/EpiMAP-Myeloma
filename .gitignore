@@ -37,3 +37,7 @@ v2.0/analyses/*/data/simulated/*.log
 v2.0/analyses/*/data/simulated/bootstrap/
 
 # Keep .gitkeep files (they won't be ignored by the above patterns)x
+
+# Simulated output data
+analyses/*/data/simulated/*.dta
+analyses/*/data/simulated/bootstrap/*.dta

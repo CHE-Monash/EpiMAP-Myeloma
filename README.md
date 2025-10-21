@@ -39,13 +39,13 @@ EpiMAP Myeloma simulates the complete treatment journey of multiple myeloma pati
 
 ```bash
 git clone https://github.com/your-org/epimap-myeloma.git
-cd epimap-myeloma/v2.0
+cd epimap-myeloma
 ```
 
 ### Basic Usage
 
 ```stata
-cd "path/to/epimap-myeloma/v2.0"
+cd "path/to/epimap-myeloma"
 do "EpiMAP_Myeloma_v2.0.do" [Analysis] [Intervention] [Line] [Coefficients] [Data] [MinID] [MaxID] [Bootstrap] [MinBS] [MaxBS]
 ```
 
