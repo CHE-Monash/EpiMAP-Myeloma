@@ -120,7 +120,7 @@ real colvector calcSurvProb(
  */
 real matrix calcOrdLogitProbs(
     real colvector XB,
-    real rowvector cutPoints
+    real rowvector cutPoints	
 ) {
     real matrix probs
     real scalar i

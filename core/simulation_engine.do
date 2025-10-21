@@ -7,74 +7,51 @@ program define simulation
 
 di "Running simulation"
 
+**********
 *Diagnosis (DN)
 	scalar OMC = 1
 	scalar Line = 0
 	scalar LX = 0
+	
+	mata: OMC = 1
+	mata: Line = 0
+	mata: LX = 0
 			
-	di "DN - SCT"
-		scalar m = "mDN_SCT"
-		scalar b = "bDN_SCT"
-		scalar c = "cLO_"
-		quietly do "core/outcomes/SIM SCT DN.do"
-		*mata: _matrix_list(mDN_SCT, rmDN_SCT, cmDN_SCT)
+	di "DN - SCT"	
+		quietly do "core/outcomes/SIM SCT DN Vector.do"
 		*mata: _matrix_list(bDN_SCT, rbDN_SCT, cbDN_SCT)
 		*mata: _matrix_list(mSCT, rmSCT, cmSCT)		
 		
-	di "DN - Chemo Interval"
-		scalar m = "mDN_CI"
-		scalar b = "bDN_CI"
-		scalar c = "cSU_"
-		quietly do "core/outcomes/SIM CI DN.do"
-		*mata: _matrix_list(mDN_CI, rmDN_CI, cmDN_CI)
-		*mata: _matrix_list(bDN_CI, rbDN_CI, cbDN_CI)
+	di "DN - Treatment-free Interval"		
+		quietly do "core/outcomes/SIM TFI DN Vector.do"
+		*mata: _matrix_list(bDN_CI, rbDN_CI, cbDN_CI) // Needs renaming to bDN_TFI / bTFI_DN
+		*mata: _matrix_list(mTFI, rmTFI, cmTFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 
 	di "DN - Overall Survival" 
-		scalar m = "mOS_DN"
-		scalar b = "bOS"
-		scalar c = "cSU_"	
-		quietly do "core/outcomes/SIM OS DN.do"
-		*mata: _matrix_list(mOS_DN, rmOS_DN, cmOS_DN)
+		quietly do "core/outcomes/SIM OS Vector.do"
+		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "DN - Mortality"
-		forvalues i = 1/`=Obs' {
-			mata {
-				if (mState[`i',1] <= `=OMC'+1) { // Alive filter
-					if (mTSD[`i',`=OMC'+1] > mOS[`i',`=OMC']) { // If TSD > OS...
-						mMOR[`i',`=OMC'] = 1 // Patient dies
-						if ((mAge[`i',1] + mOS[`i',`=OMC']) > `=Limit') mOS[`i',`=OMC'] = `=Limit' - mAge[`i',1] // Set mOS to max if Age > Limit
-						mOC[`i',1] = mOS[`i',`=OMC'] // Set OC Time
-						mOC[`i',2] = 1 // Set OC Outcome
-						mTSD[`i',`=OMC'+1] = . // Clear TSD
-						mTNE[`i',`=OMC'] = mOS[`i',`=OMC'] - mTSD[`i',`=OMC'] // Truncate TNE to OC_TIME
-						mCI[`i', 1] = (mOC[`i',1] - mTSD[`i',`=OMC'])*365.25 // Overwrite CI
-						mCore[`i', cSCT] = 0 // Overwrite SCT
-					}
-					if (mTSD[`i',`=OMC'+1] <= mOS[`i',`=OMC']) mMOR[`i',`=OMC'] = 0 // If TSD < OS, Patient alive
-				}
-			}
-		}
+		quietly do "core/outcomes/SIM MORT Vector.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
 *Chemo Line 1 Start (L1S)
 	scalar OMC = 2
+	
+	mata: OMC = 2
 
 	di "L1S - Age"
-		quietly do "core/outcomes/SIM AGE.do"	
+		quietly do "core/outcomes/SIM AGE Vector.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 
-	di "L1S - Chemo Regimen"
-		scalar m = "mL1_CR"
-		scalar b = "bL1_CR"
-		scalar o = "oL1_CR"
-		scalar c = "cML_"
-		quietly do "core/outcomes/SIM CR L1.do"
-		*mata: _matrix_list(mL1_CR, rmL1_CR, cmL1_CR)
-		*mata: _matrix_list(mCR, rmCR, cmCR)
+	di "L1S - Treatment Regimen"
+		quietly do "core/outcomes/SIM CR L1 Vector.do"
+		*mata: _matrix_list(bL1_CR, rbL1_CR, cbL1_CR)
+		*mata: _matrix_list(mTXD, rmTXD, cmTXD)
 		
 		if ("$Data" == "Population" & $Line == 1) {
 			exit
@@ -83,18 +60,20 @@ di "Running simulation"
 	di "L1S - Chemo Duration"
 		scalar m = "mL1_CD"
 		scalar c = "cSU_"
-		quietly do "core/outcomes/SIM CD L1.do"
+		quietly do "core/outcomes/SIM CD L1 Vector.do"
 		*mata: _matrix_list(mL1_CD, rmL1_CD, cmL1_CD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
-
+		
 	di "L1S - Overall Survival"
 		scalar m = "mOS_L1S"
 		scalar b = "bOS"
 		scalar c = "cLO_"
-		quietly do "core/outcomes/SIM OS.do"
+		quietly do "core/outcomes/SIM OS Vector.do"
 		*mata: _matrix_list(mOS_L1S, rmOS_L1S, cmOS_L1S)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
+		
+		exit
 	
 	di "L1S - Mortality"
 		quietly do "core/outcomes/SIM MORT.do"	
@@ -178,7 +157,7 @@ di "Running simulation"
 		quietly do "core/outcomes/SIM CR L2.do"
 		*mata: _matrix_list(mL2_CR, rmL2_CR, cmL2_CR)
 		
-		if ("$Analysis" == "DVd-Post" & "$Int" == "All" & "$Data" == "Population" & $Line == 2) {
+		if ("$Data" == "Population" & $Line == 2) {
 			exit
 		}
 
@@ -256,6 +235,10 @@ di "Running simulation"
 		scalar o = "oL3_CR"
 		scalar c = "cML_"
 		quietly do "core/outcomes/SIM CR L3.do"
+		
+		if ("$Data" == "Population" & $Line == 3) {
+			exit
+		}
 		
 /*		mata: oL3_CR = 0
 		scalar o = "oL3_CR"
@@ -343,6 +326,10 @@ di "Running simulation"
 		scalar o = "oL4_CR"
 		scalar c = "cML_"
 		quietly do "core/outcomes/SIM CR L4.do"
+		
+		if ("$Data" == "Population" & $Line == 4) {
+			exit
+		}
 
 /*		mata: oL4_CR = 0
 		scalar o = "oL4_CR"
@@ -455,7 +442,7 @@ di "Running simulation"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
-*Chemo Line 5 End (L5E)
+*Chemo Line 5 End (L5E)	
 	scalar OMC = 11
 	scalar Line = 5
 	scalar LX = 5

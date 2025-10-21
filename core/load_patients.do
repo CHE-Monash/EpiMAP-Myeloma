@@ -35,6 +35,7 @@ program define load_patients
 	scalar Obs = r(N)
 	di as text "Final sample size: `=Obs' patients (IDs $MinID to $MaxID)"
 	
-	scalar Limit = 100
+	scalar Limit = 100 // Can be removed once model is fully matarised
+	mata: Limit = 100
 	
 end
