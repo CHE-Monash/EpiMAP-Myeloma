@@ -2,13 +2,13 @@
 * SIM TFI DN - Vectorised Implementation
 * 
 * Purpose: Calculate Treatment-free Interval at Diagnosis (time from diagnosis to Line 1 start)
-* Method: Parametric survival model (Weibull) using vectorised matrix multiplication  
+* Method: Parametric survival analysis
 * Outcome: Continuous survival time (in days)
 **********
 	
 mata {
 	// Initialize outcome
-	oTFI_DN = J(st_nobs(), 1, .)
+	vOutcome = J(st_nobs(), 1, .)
 		
 	// Filter for incident patients
 	incident = selectindex(mState[., 1] :<= OMC + 1)
@@ -17,29 +17,35 @@ mata {
 	if (rows(incident) > 0) {
 		
 		// Assemble patient matrix
-		pTFI_DN = (vAge, vAge2, vMale, vECOG1, vECOG2, vRISS2, vRISS3, vSCT_DN, vCons)
+		mPatient = (vAge, vAge2, vMale, 
+				   vECOG0, vECOG1, vECOG2, 
+				   vRISS1, vRISS2, vRISS3, 
+				   vSCT_DN,
+				   vCons)
 		
 		// Extract coefficients
-		coefTFI_DN = bDN_CI[1, (1,2,3,5,6,8,9,10,11)]'
+		nPredictors = cols(mPatient)
+		vCoef= bDN_CI[1,1..nPredictors]'
+		aux = bDN_CI[1, cols(bDN_CI)]
 			
 		// Calculate XB
-		xbTFI_DN = pTFI_DN * coefTFI_DN
+		vXB = mPatient * vCoef
 			
 		// Generate random numbers
-		rnTFI_DN = runiform(rows(pTFI_DN), 1)
+		vRN = runiform(rows(incident), 1)
 			
 		// Calculate survival time using utility function
-		oTFI_DN = calcSurvTime(xbTFI_DN, rnTFI_DN, fbDN_CI, bDN_CI[1, cols(bDN_CI)])
+		vOutcome = calcSurvTime(vXB, vRN, fbDN_CI, aux)
 	}	
 		
 	// Grab prevalent patient data
 	prevalent = selectindex(mState[., 1] :> OMC + 1)
 	if (rows(prevalent) > 0) {
-		oTFI_DN[prevalent] = mTNE[prevalent, OMC] :* 365.25  // Convert years to days
+		vOutcome[prevalent] = mTNE[prevalent, OMC] :* 365.25  // Convert years to days
 	}
 		
 	// Update matrices	
-	mTNE[., OMC] = oCI_DN :/ 365.25                       // Convert days to years
-	mTFI[., LX+1] = oCI_DN                                // Store in days
+	mTNE[., OMC] = vOutcome :/ 365.25                       // Convert days to years
+	mTFI[., LX+1] = vOutcome                                // Store in days
 	mTSD[., OMC+1] = mTSD[., OMC] + mTNE[., OMC]          // Cumulative time
 }

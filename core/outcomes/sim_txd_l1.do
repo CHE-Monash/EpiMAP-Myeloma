@@ -29,14 +29,18 @@ mata {
 			vAge_ASCT = mAge[idxASCT, OMC]
 			vAge2_ASCT = vAge_ASCT :^ 2
 			vMale_ASCT = vMale[idxASCT] 
+			vECOG0_ASCT = (vECOG[idxASCT] :== 0)
 			vECOG1_ASCT = (vECOG[idxASCT] :== 1)
 			vECOG2_ASCT = (vECOG[idxASCT] :== 2)
+			vRISS1_ASCT = (vRISS[idxASCT] :== 1)
 			vRISS2_ASCT = (vRISS[idxASCT] :== 2)
 			vRISS3_ASCT = (vRISS[idxASCT] :== 3)
 			vCons_ASCT = vCons[idxASCT]
 			
 			// Patient matrix
-			pMatrix = (vAge_ASCT, vAge2_ASCT, vMale_ASCT, vECOG1_ASCT, vECOG2_ASCT, vRISS2_ASCT, vRISS3_ASCT)
+			pMatrix = (vAge_ASCT, vAge2_ASCT, vMale_ASCT, 
+					   vECOG0_ASCT, vECOG1_ASCT, vECOG2_ASCT, 
+					   vRISS1_ASCT, vRISS2_ASCT, vRISS3_ASCT)
 			nCR = cols(oL1_CR)
 			if (nCR >= 1) {
 				vCR1_ASCT = (mTXR[idxASCT, 1] :== oL1_CR[1,1])
@@ -135,14 +139,18 @@ mata {
 			vAge_NoASCT = mAge[idxNoASCT, OMC]
 			vAge2_NoASCT = vAge_NoASCT :^ 2
 			vMale_NoASCT = vMale[idxNoASCT]
+			vECOG0_NoASCT = (vECOG[idxNoASCT] :== 0)
 			vECOG1_NoASCT = (vECOG[idxNoASCT] :== 1)
 			vECOG2_NoASCT = (vECOG[idxNoASCT] :== 2)
+			vRISS1_NoASCT = (vRISS[idxNoASCT] :== 1)
 			vRISS2_NoASCT = (vRISS[idxNoASCT] :== 2)
 			vRISS3_NoASCT = (vRISS[idxNoASCT] :== 3)
 			vCons_NoASCT = vCons[idxNoASCT]
 
 			// Patient matrix
-			pMatrix = (vAge_NoASCT, vAge2_NoASCT, vMale_NoASCT, vECOG1_NoASCT, vECOG2_NoASCT, vRISS2_NoASCT, vRISS3_NoASCT)
+			pMatrix = (vAge_NoASCT, vAge2_NoASCT, vMale_NoASCT, 
+					   vECOG0_NoASCT, vECOG1_NoASCT, vECOG2_NoASCT, 
+					   vRISS1_NoASCT, vRISS2_NoASCT, vRISS3_NoASCT)
 			if (nCR >= 1) {
 				vCR1_NoASCT = (mTXR[idxNoASCT, 1] :== oL1_CR[1,1])
 				pMatrix = (pMatrix , vCR1_NoASCT)
@@ -203,22 +211,29 @@ if _rc == 0 {
 			vAge_Cont = mAge[idxCont, OMC]
 			vAge2_Cont = vAge_Cont :^ 2
 			vMale_Cont = vMale[idxCont]
+			vECOG0_Cont = (vECOG[idxCont] :== 0)
 			vECOG1_Cont = (vECOG[idxCont] :== 1)
 			vECOG2_Cont = (vECOG[idxCont] :== 2)
+			vRISS1_Cont = (vRISS[idxCont] :== 1)
 			vRISS2_Cont = (vRISS[idxCont] :== 2)
 			vRISS3_Cont = (vRISS[idxCont] :== 3)
 			vCons_Cont = vCons[idxCont]
 			
-			pMatrix = (vAge_Cont, vAge2_Cont, vMale_Cont, vECOG1_Cont, vECOG2_Cont, vRISS2_Cont, vRISS3_Cont, vCons_Cont)
+			pMatrix = (vAge_Cont, vAge2_Cont, vMale_Cont,
+					   vECOG0_Cont, vECOG1_Cont, vECOG2_Cont, 
+					   vRISS1_Cont, vRISS2_Cont, vRISS3_Cont, 
+					   vCons_Cont)
 			
-			// Calculate XB with bL1C_CD coefficients
-			coef_C = bL1C_CD[1, (1, 2, 3, 5, 6, 8, 9, cols(bL1C_CD)-1)]'
-			vXB_C = pMatrix * coef_C
+			// Extract coefficients 
+			nPredictors = cols(pMatrix)
+			coef_C = bL1C_CD[1, 1..nPredictors]'
 			gamma_C = bL1C_CD[1, cols(bL1C_CD)]
-			vRN_Cont = runiform(rows(mMOR), 1)
-			vRN_Cont = vRN_Cont[idxCont]
+
+			// Calculate XB
+			vXB_C = pMatrix * coef_C
 			
 			// Calculate survival time using mata function
+			vRN_Cont = vRN_Cont[idxCont]
 			vDur_C = calcSurvTime(vXB_C, vRN_Cont, fbL1C_CD, gamma_C)
 			
 			// Curtail if beyond observed maximum

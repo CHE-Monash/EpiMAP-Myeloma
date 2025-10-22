@@ -54,6 +54,7 @@ mata {
 	}
 		
 	// Update matrices 
+	vSCT_L1 = oSCT_L1
 	mSCT[., 2] = oSCT_L1           // Column 2 = SCT eligibility at L1E
 	mCore[., cSCT] = oSCT_L1       // Update mCore for backwards compatibility
 }

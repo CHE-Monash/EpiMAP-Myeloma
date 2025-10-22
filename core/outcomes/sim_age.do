@@ -15,18 +15,10 @@ mata {
 	idxEligible = selectindex(vEligible)
 	idxDead = selectindex(vStateValid :& vWasDead)
 	
-	// Update mCore age to missing for dead patients - remove after vectorisation
-	if (rows(idxDead) > 0) {
-		mCore[idxDead, cAge] = J(rows(idxDead), 1, .)
-	}
-	
 	// Update age for alive patients
 	if (rows(idxEligible) > 0 & OMC > 1) {
 		// Age = previous age + time in previous state
 		mAge[idxEligible, OMC] = mAge[idxEligible, OMC-1] :+ mTNE[idxEligible, OMC-1]
-		
-		// Update mCore - removed after vectorisation
-		mCore[idxEligible, cAge] = mAge[idxEligible, OMC]
 		
 		// Check for patients exceeding age limit
 		vExceedsLimit = (mAge[idxEligible, OMC] :> Limit) :& (mAge[idxEligible, OMC] :< .)
@@ -42,23 +34,20 @@ mata {
 			// Mark as dead in PREVIOUS OMC (because age calculation happens AFTER previous state)
 			mMOR[idxExceedsFull, OMC-1] = J(rows(idxExceedsFull), 1, 1)
 			
-			// Update mCore age to missing - remove after vectorisation
-			mCore[idxExceedsFull, cAge] = J(rows(idxExceedsFull), 1, .)
-			
 			// Set outcome time (survival from diagnosis to death at age limit)
 			mOC[idxExceedsFull, 1] = Limit :- mAge[idxExceedsFull, 1]
 			mOC[idxExceedsFull, 2] = J(rows(idxExceedsFull), 1, 1)
 			
 			// Update mTFI or mTXD based on (OMC-1) parity (since death happened at previous OMC)
 			vTimeDays = (mOC[idxExceedsFull, 1] :- mTSD[idxExceedsFull, OMC-1]) :* 365.25
-			
+
 			if (mod(OMC-1, 2) == 0) {
-				// Even OMC-1: update CI
-				mTFI[idxExceedsFull, (OMC-1)/2] = vTimeDays
+				// Even OMC-1: update TXD
+				mTXD[idxExceedsFull, (OMC-1)/2] = vTimeDays
 			}
 			else {
-				// Odd OMC-1: update CD  
-				mTXD[idxExceedsFull, OMC/2] = vTimeDays
+				// Odd OMC-1: update TFI
+				mTFI[idxExceedsFull, (OMC+1)/2] = vTimeDays
 			}
 			
 			// Set mTSD for current OMC to missing

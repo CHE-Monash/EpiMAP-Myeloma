@@ -52,10 +52,12 @@ mata {
 		vTimeDays = (mOS[idxDies, OMC] :- vTSDsafe) :* 365.25
 		
 		if (mod(OMC, 2) == 0) {
-			mTFI[idxDies, OMC/2] = vTimeDays
+			// Even OMC: treatment duration (TXD)
+			mTXD[idxDies, OMC/2] = vTimeDays
 		}
 		else {
-			mTXD[idxDies, (OMC+1)/2] = vTimeDays
+			// Odd OMC: treatment-free interval (TFI)
+			mTFI[idxDies, (OMC+1)/2] = vTimeDays
 		}
 	}
 		

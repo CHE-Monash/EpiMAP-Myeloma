@@ -85,23 +85,32 @@ mata {
         // Calculate for this segment if patients exist
         if (rows(idx) > 0) {
             // Assemble patient matrix for this segment
-			pOS = (vAge[idx], vAge2[idx], vMale[idx], 
-			       vECOG1[idx], vECOG2[idx], vRISS2[idx], vRISS3[idx],
+			pMatrix = (vAge[idx], vAge2[idx], vMale[idx], 
+			       vECOG0[idx], vECOG1[idx], vECOG2[idx], 
+				   vRISS1[idx], vRISS2[idx], vRISS3[idx],
 			       bcr1[idx], bcr2[idx], bcr3[idx],
 			       bcr4[idx], bcr5[idx], bcr6[idx],
 			       vCons[idx])
-            
+			
             // Extract coefficients
-            coefOS = bOS[1, coefCols]'
+            nPredictors = cols(pMatrix)
+			vCoef = bOS[1, 1..nPredictors]'
+			aux =  bOS[1, cols(bOS)]
             
             // Calculate XB
-            xbOS = pOS * coefOS
+            vXB = pMatrix * vCoef
             
-            // Generate random numbers
-            rnOS = runiform(rows(idx), 1)
+            // Calculate probability of survival to current time point
+			if (OMC > 1) {
+				vPR = calcSurvProb(vXB, mTSD[idx, OMC], fbOS, aux)
+				vRN = runiform(rows(idx), 1) :* vPR // Conditional on survival to mTSD
+			}
+			else {
+				vRN = runiform(rows(idx), 1)  // At diagnosis, no conditioning needed
+			}
             
             // Calculate survival time
-            vOS[idx] = calcSurvTime(xbOS, rnOS, fbOS, bOS[1, cols(bOS)])
+            vOS[idx] = calcSurvTime(vXB, vRN, fbOS, aux)
         }
     }
     
