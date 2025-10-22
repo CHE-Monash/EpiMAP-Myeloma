@@ -8,7 +8,7 @@ local line          "0"             // Start from diagnosis
 local coefficients  "base_model"    // Coefficient set to use
 local data_type     "population"    // Use population data
 local min_id        "1"             // First patient ID
-local max_id        "10"            // Last patient ID  
+local max_id        "1000"            // Last patient ID  
 local bootstrap     "0"             // No bootstrap
 local min_bootstrap ""             // (Not used when bootstrap=0)
 local max_bootstrap ""             // (Not used when bootstrap=0)

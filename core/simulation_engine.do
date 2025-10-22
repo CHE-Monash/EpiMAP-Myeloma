@@ -138,7 +138,7 @@ di "Running simulation"
 		quietly do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-exit	
+	
 	di "L2S - Mortality"
 		quietly do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)

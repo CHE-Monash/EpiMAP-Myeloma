@@ -1,4 +1,4 @@
-**********
+	**********
 * SIM OS - Vectorised Implementation
 * 
 * Purpose: Calculate Overall Survival for any line of therapy
@@ -84,17 +84,15 @@ mata {
         
         // Calculate for this segment if patients exist
         if (rows(idx) > 0) {
-            // Assemble patient matrix for this segment
+            // Build patient matrix  - reference categories not required as using coefCols
 			pMatrix = (vAge[idx], vAge2[idx], vMale[idx], 
-			       vECOG0[idx], vECOG1[idx], vECOG2[idx], 
-				   vRISS1[idx], vRISS2[idx], vRISS3[idx],
-			       bcr1[idx], bcr2[idx], bcr3[idx],
-			       bcr4[idx], bcr5[idx], bcr6[idx],
-			       vCons[idx])
+			           vECOG1[idx], vECOG2[idx], 
+				       vRISS2[idx], vRISS3[idx],
+			           bcr1[idx], bcr2[idx], bcr3[idx], bcr4[idx], bcr5[idx], bcr6[idx],
+			           vCons[idx])
 			
             // Extract coefficients
-            nPredictors = cols(pMatrix)
-			vCoef = bOS[1, 1..nPredictors]'
+			vCoef = bOS[1, coefCols]'
 			aux =  bOS[1, cols(bOS)]
             
             // Calculate XB

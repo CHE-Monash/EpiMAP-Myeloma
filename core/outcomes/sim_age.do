@@ -18,15 +18,20 @@ mata {
 	// Update age for alive patients
 	if (rows(idxEligible) > 0 & OMC > 1) {
 		// Age = previous age + time in previous state
-		mAge[idxEligible, OMC] = mAge[idxEligible, OMC-1] :+ mTNE[idxEligible, OMC-1]
+		// Force column vector format to handle single-patient case
+		vPrevAge = mAge[idxEligible, OMC-1]
+		vPrevTNE = mTNE[idxEligible, OMC-1]
+		vNewAge = (rows(idxEligible) == 1 ? vPrevAge + vPrevTNE : vPrevAge :+ vPrevTNE)
+		mAge[idxEligible, OMC] = vNewAge
 		
 		// Check for patients exceeding age limit
-		vExceedsLimit = (mAge[idxEligible, OMC] :> Limit) :& (mAge[idxEligible, OMC] :< .)
+		vCurrentAges = mAge[idxEligible, OMC]
+		vExceedsLimit = (rows(idxEligible) == 1 ? (vCurrentAges > Limit & vCurrentAges < .) : (vCurrentAges :> Limit) :& (vCurrentAges :< .))
 		idxExceeds = selectindex(vExceedsLimit)
 		
 		if (rows(idxExceeds) > 0) {
 			// Map back to full index
-			idxExceedsFull = idxEligible[idxExceeds]
+			idxExceedsFull = (rows(idxExceeds) == 1 ? idxEligible[idxExceeds] : idxEligible[idxExceeds])
 			
 			// Cap age at limit
 			mAge[idxExceedsFull, OMC] = J(rows(idxExceedsFull), 1, Limit)
@@ -35,12 +40,15 @@ mata {
 			mMOR[idxExceedsFull, OMC-1] = J(rows(idxExceedsFull), 1, 1)
 			
 			// Set outcome time (survival from diagnosis to death at age limit)
-			mOC[idxExceedsFull, 1] = Limit :- mAge[idxExceedsFull, 1]
+			vDiagAge = mAge[idxExceedsFull, 1]
+			mOC[idxExceedsFull, 1] = (rows(idxExceedsFull) == 1 ? Limit - vDiagAge : Limit :- vDiagAge)
 			mOC[idxExceedsFull, 2] = J(rows(idxExceedsFull), 1, 1)
 			
 			// Update mTFI or mTXD based on (OMC-1) parity (since death happened at previous OMC)
-			vTimeDays = (mOC[idxExceedsFull, 1] :- mTSD[idxExceedsFull, OMC-1]) :* 365.25
-
+			vPrevTSD = mTSD[idxExceedsFull, OMC-1]
+			vOCTime = mOC[idxExceedsFull, 1]
+			vTimeDays = (rows(idxExceedsFull) == 1 ? (vOCTime - vPrevTSD) * 365.25 : (vOCTime :- vPrevTSD) :* 365.25)
+			
 			if (mod(OMC-1, 2) == 0) {
 				// Even OMC-1: update TXD
 				mTXD[idxExceedsFull, (OMC-1)/2] = vTimeDays
