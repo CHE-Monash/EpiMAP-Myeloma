@@ -19,7 +19,8 @@ mata {
 		pSCT_DN = (vAge, vAge2, vMale, vECOG1, vECOG2, vRISS2, vRISS3, vAge70, vAge75, vCMc1, vCMc2, vCMc3, vCons)
 
 		// Extract coefficients
-		coefSCT_DN = bDN_SCT[1, (1,2,3,5,6,8,9,10,11,13,14,15,16)]'
+		nPredictors = cols(pSCT_DN)
+		coefSCT_DN = bDN_SCT[1, 1..nPredictors]'
 
 		// Calculate XB
 		xbSCT_DN = pSCT_DN * coefSCT_DN

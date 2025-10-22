@@ -32,11 +32,11 @@ mata {
 		vRISS2_e = (mCore[idxEligible, cRISS] :== 2)
 		vRISS3_e = (mCore[idxEligible, cRISS] :== 3)
 		vSCT_e = mCore[idxEligible, cSCT]
-		vCons = J(rows(idxEligible), 1, 1)
+		vCons_e = vCons[idxEligible]
 		
 		// Build patient matrix (all predictors)
 		pMatrix = (vAge_e, vAge2_e, vMale_e, vECOG1_e, vECOG2_e, 
-		           vRISS2_e, vRISS3_e, vSCT_e, vCons)
+		           vRISS2_e, vRISS3_e, vSCT_e, vCons_e)
 		
 		if (nL1 >= 2) {
 			// Extract coefficients for XB2: columns 12-22

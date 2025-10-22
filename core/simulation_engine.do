@@ -58,17 +58,12 @@ di "Running simulation"
 		}
 		
 	di "L1S - Chemo Duration"
-		scalar m = "mL1_CD"
-		scalar c = "cSU_"
 		quietly do "core/outcomes/SIM CD L1 Vector.do"
 		*mata: _matrix_list(bL1_CD, rbL1_CD, cbL1_CD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
 	di "L1S - Overall Survival"
-		scalar m = "mOS_L1S"
-		scalar b = "bOS"
-		scalar c = "cLO_"
 		quietly do "core/outcomes/SIM OS Vector.do"
 		*mata: _matrix_list(mOS_L1S, rmOS_L1S, cmOS_L1S)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
@@ -82,25 +77,23 @@ di "Running simulation"
 	scalar OMC = 3
 	scalar Line = 1
 	scalar LX = 1
+	
+	mata: OMC = 3
+	mata: Line = 1
+	mata: LX = 1
 
 	di "L1E - Age"
-		quietly do "core/outcomes/SIM AGE.do"
+		quietly do "core/outcomes/SIM AGE Vector.do"
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 
 	di "L1E - Best Clinical Response"
-		scalar m = "mL1_BCR"
-		scalar b = "bL1_BCR"
-		scalar c = "cOL_"
-		quietly do "core/outcomes/SIM BCR L1.do"		
-		*mata: _matrix_list(mL1_BCR, rmL1_BCR, cmL1_BCR)
+		quietly do "core/outcomes/SIM BCR Vector.do"
+		*mata: _matrix_list(bL1_BCR, rbL1_BCR, cbL1_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L1E - SCT"
-		scalar m = "mL1_SCT"
-		scalar b = "bL1_SCT"
-		scalar c = "cLO_"
-		quietly do "core/outcomes/SIM SCT L1.do"			
-		*mata: _matrix_list(mL1_SCT, rmL1_SCT, cmL1_SCT)
+		quietly do "core/outcomes/SIM SCT L1 Vector.do"			
+		*mata: _matrix_list(bL1_SCT, rbL1_SCT, cbL1_SCT)
 		*mata: _matrix_list(mSCT, rmSCT, cmSCT)
 
 	di "L1E - SCT Best Clinical Response"
@@ -142,6 +135,8 @@ di "Running simulation"
 **********
 *Chemo Line 2 Start (L2S)
 	scalar OMC = 4
+	
+	mata: OMC = 4
 		
 	di "L2S - Age"
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -185,6 +180,10 @@ di "Running simulation"
 	scalar OMC = 5
 	scalar Line = 2
 	scalar LX = 2
+	
+	mata: OMC = 5
+	mata: Line = 2
+	mata: LX = 2
 
 	di "L2E - Age"
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -222,6 +221,10 @@ di "Running simulation"
 **********
 *Chemo Line 3 Start (L3S)
 	scalar OMC = 6
+	
+	mata: OMC = 6
+	mata: Line = 1
+	mata: LX = 1
 		
 	di "L3S - Age"
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -277,6 +280,10 @@ di "Running simulation"
 	scalar Line = 3
 	scalar LX = 3
 		
+	mata: OMC = 7
+	mata: Line = 3
+	mata: LX = 3
+	
 	di "L3E - Age"
 		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
@@ -313,6 +320,8 @@ di "Running simulation"
 **********
 *Chemo Line 4 Start (L4S)
 	scalar OMC = 8
+	
+	mata: OMC = 8
 		
 	di "L4S - Age"
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -367,6 +376,10 @@ di "Running simulation"
 	scalar OMC = 9
 	scalar Line = 4
 	scalar LX = 4
+	
+	mata: OMC = 9
+	mata: Line = 4
+	mata: LX = 4
 		
 	di "L4E - Age"
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -404,6 +417,8 @@ di "Running simulation"
 **********
 *Chemo Line 5 Start (L5S)
 	scalar OMC = 10
+	
+	mata: OMC = 10
 		
 	di "L5S - Age" 
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -444,6 +459,10 @@ di "Running simulation"
 	scalar OMC = 11
 	scalar Line = 5
 	scalar LX = 5
+	
+	mata: OMC = 11
+	mata: Line = 5
+	mata: LX = 5
 		
 	di "L5E - Age"
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -482,6 +501,8 @@ di "Running simulation"
 *Chemo Line 6 Start (L6S) 
 	scalar OMC = 12
 		
+	mata: OMC = 12
+	
 	di "L6S - Age" 
 		quietly do "core/outcomes/SIM AGE.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
@@ -521,6 +542,10 @@ di "Running simulation"
 	scalar OMC = 13
 	scalar Line = 6
 	scalar LX = 6
+	
+	mata: OMC = 13
+	mata: Line = 6
+	mata: LX = 6
 		
 	di "L6E - Age"
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -558,6 +583,8 @@ di "Running simulation"
 **********
 *Chemo Line 7 Start (L7S) 
 	scalar OMC = 14
+	
+	mata: OMC = 14
 		
 	di "L7S - Age" 
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -597,6 +624,9 @@ di "Running simulation"
 *Chemo Line 7 End (L7E)
 	scalar OMC = 15
 	scalar LX = 7
+	
+	mata: OMC = 15
+	mata: LX = 7
 		
 	di "L7E - Age"
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -634,6 +664,8 @@ di "Running simulation"
 **********
 *Chemo Line 8 Start (L8S) 
 	scalar OMC = 16
+	
+	mata: OMC = 16
 		
 	di "L8S - Age" 
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -673,6 +705,9 @@ di "Running simulation"
 *Chemo Line 8 End (L8E)
 	scalar OMC = 17
 	scalar LX = 8
+	
+	mata: OMC = 17
+	mata: LX = 8
 		
 	di "L8E - Age"
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -710,6 +745,8 @@ di "Running simulation"
 **********
 *Chemo Line 9 Start (L9S) 
 	scalar OMC = 18
+	
+	mata: OMC = 18
 		
 	di "L9S - Age" 
 		quietly do "core/outcomes/SIM AGE.do"	
@@ -749,6 +786,9 @@ di "Running simulation"
 *Chemo Line 9 End (L9E)
 	scalar OMC = 19
 	scalar LX = 9
+	
+	mata: OMC = 19
+	mata: LX = 9
 		
 	di "L9E - Age"
 		quietly do "core/outcomes/SIM AGE.do"	
