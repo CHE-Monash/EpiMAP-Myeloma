@@ -44,6 +44,11 @@ mata {
 	else {
 		lineNum = floor((OMC - 2) / 2)
 		segments = lineNum + 2
+		
+		// Cap at segment 7 (L6) - reuse L6 coefficients for L7-L9
+		if (segments > 7) {
+			segments = 7
+		}	
 	}
  
     // Loop through segments
@@ -113,5 +118,6 @@ mata {
     }
     
     // Update matrix
-    mOS[., OMC] = vOS
+    mOS[., OMC] = round(vOS, 0.1)
+	
 }

@@ -19,10 +19,10 @@ mata {
 		currentTX = mTXR[., Line]
 		
 		// Determine number of treatment regimen dummies
-		if (Line == 1) oVector = oL1_CR
-		else if (Line == 2) oVector = oL2_CR
-		else if (Line == 3) oVector = oL3_CR
-		else if (Line == 4) oVector = oL4_CR
+		if (Line == 1) oVector = oL1_TXR
+		else if (Line == 2) oVector = oL2_TXR
+		else if (Line == 3) oVector = oL3_TXR
+		else if (Line == 4) oVector = oL4_TXR
 		
 		nRegimens = cols(oVector)
 		

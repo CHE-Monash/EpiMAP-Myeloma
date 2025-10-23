@@ -20,7 +20,7 @@ di "Running simulation"
 		
 	di "DN - Treatment-free Interval"		
 		quietly do "core/outcomes/sim_tfi_dn.do"
-		*mata: _matrix_list(bDN_CI, rbDN_CI, cbDN_CI) // Needs renaming to bDN_TFI / bTFI_DN
+		*mata: _matrix_list(bDN_TFI, rbDN_TFI, cbDN_TFI)
 		*mata: _matrix_list(mTFI, rmTFI, cmTFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
@@ -44,7 +44,7 @@ di "Running simulation"
 
 	di "L1S - Treatment Regimen"
 		quietly do "core/outcomes/sim_txr.do"
-		*mata: _matrix_list(bL1_CR, rbL1_CR, cbL1_CR) // Needs renaming
+		*mata: _matrix_list(bL1_TXR, rbL1_TXR, cbL1_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
 		if ("$Data" == "Population" & $Line == 1) {
@@ -53,7 +53,7 @@ di "Running simulation"
 
 	di "L1S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd_l1.do"
-		*mata: _matrix_list(bL1_CD, rbL1_CD, cbL1_CD) // Needs renaming
+		*mata: _matrix_list(bL1_TXD, rbL1_TXD, cbL1_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
@@ -98,7 +98,7 @@ di "Running simulation"
 
 	di "L1E - Treatment-free Interval"
 		quietly do "core/outcomes/sim_tfi_l1.do"			
-		*mata: _matrix_list(bL1_CI, rbL1_CI, cbL1_CI)
+		*mata: _matrix_list(bL1_TFI, rbL1_TFI, cbL1_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 	
@@ -121,7 +121,7 @@ di "Running simulation"
 		
 	di "L2S - Treatment Regimen"
 		quietly do "core/outcomes/sim_txr.do"
-		*mata: _matrix_list(bL2_CR, rbL2_CR, cbL2_CR)
+		*mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
 		if ("$Data" == "Population" & $Line == 2) {
@@ -130,7 +130,7 @@ di "Running simulation"
 
 	di "L2S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd.do"
-		*mata: _matrix_list(bL2_CD, rbL2_CD, cbL2_CD)
+		*mata: _matrix_list(bL2_TXD, rbL2_TXD, cbL2_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
@@ -160,7 +160,7 @@ di "Running simulation"
 
 	di "L2E - Treatment-free Interval"
 		quietly do "core/outcomes/sim_tfi.do"
-		*mata: _matrix_list(bL2_CI, rbL2_CI, cbL2_CI)
+		*mata: _matrix_list(bL2_TFI, rbL2_TFI, cbL2_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
@@ -183,15 +183,15 @@ di "Running simulation"
 		
 	di "L3S - Treatment Regimen"
 		quietly do "core/outcomes/sim_txr.do"
-		*mata: _matrix_list(bL3_CR, rbL3_CR, cbL3_CR)
+		*mata: _matrix_list(bL3_TXR, rbL3_TXR, cbL3_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
 		if ("$Data" == "Population" & $Line == 3) {
 			exit
 		}
 		
-/*		mata: oL3_CR = 0
-		scalar o = "oL3_CR"
+/*		mata: oL3_TXR = 0
+		scalar o = "oL3_TXR"
 		forval i = 1/`=Obs' {
 			mata {
 				if (mMOR[`i',`=OMC'-1] == 0) mCore[`i',cCR] = 0
@@ -200,11 +200,11 @@ di "Running simulation"
 			}
 		}
 */
-		*mata: _matrix_list(mL3_CR, rmL3_CR, cmL3_CR)
+		*mata: _matrix_list(mL3_TXR, rmL3_TXR, cmL3_TXR)
 				
 	di "L3S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd.do"	
-		*mata: _matrix_list(bL3_CD, rbL3_CD, cbL3_CD)
+		*mata: _matrix_list(bL3_TXD, rbL3_TXD, cbL3_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
@@ -234,7 +234,7 @@ di "Running simulation"
 		
 	di "L3E - Treatment-free Interval"
 		quietly do "core/outcomes/sim_tfi.do"		
-		*mata: _matrix_list(bL3_CI, rbL3_CI, cbL3_CI)
+		*mata: _matrix_list(bL3_TFI, rbL3_TFI, cbL3_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
@@ -257,7 +257,7 @@ di "Running simulation"
 
 	di "L4S - Treatment Regimen"
 		quietly do "core/outcomes/sim_txr.do"
-		*mata: _matrix_list(bL4_CR, rbL4_CR, cbL4_CR)
+		*mata: _matrix_list(bL4_TXR, rbL4_TXR, cbL4_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
 		if ("$Data" == "Population" & $Line == 4) {
@@ -280,11 +280,11 @@ di "Running simulation"
 			}
 		}
 */		
-		*mata: _matrix_list(mL4_CR, rmL4_CR, cmL4_CR)
+		*mata: _matrix_list(mL4_TXR, rmL4_TXR, cmL4_TXR)
 			
 	di "L4S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd.do"
-		*mata: _matrix_list(bL4_CD, rbL4_CD, cbL4_CD)
+		*mata: _matrix_list(bL4_TXD, rbL4_TXD, cbL4_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
@@ -315,7 +315,7 @@ di "Running simulation"
 	di "L4E - Treatment-free Interval"
 
 		quietly do "core/outcomes/sim_tfi.do"	
-		*mata: _matrix_list(bL4_CI, rbL4_CI, cbL4_CI)
+		*mata: _matrix_list(bL4_TFI, rbL4_TFI, cbL4_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
@@ -354,11 +354,11 @@ di "Running simulation"
 	}
 
 	di "L5S - Treatment Duration"
-		scalar m = "mL5_CD"
-		scalar b = "bLX_CD"
+		scalar m = "mL5_TXD"
+		scalar b = "bLX_TXD"
 		scalar c = "cSU_"
 		quietly do "core/outcomes/sim_txd.do"		
-		*mata: _matrix_list(bL5_CD, rbL5_CD, cbL5_CD)
+		*mata: _matrix_list(bL5_TXD, rbL5_TXD, cbL5_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
@@ -388,7 +388,7 @@ di "Running simulation"
 	
 	di "L5E - Treatment-free Interval"
 		quietly do "core/outcomes/sim_tfi.do"				
-		*mata: _matrix_list(bL5_CI, rbL5_CI, cbL5_CI)
+		*mata: _matrix_list(bL5_TFI, rbL5_TFI, cbL5_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
@@ -427,11 +427,11 @@ di "Running simulation"
 		}
 
 	di "L6S - Treatment Duration"
-		scalar m = "mL6_CD"
-		scalar b = "bLX_CD" 		
+		scalar m = "mL6_TXD"
+		scalar b = "bLX_TXD" 		
 		scalar c = "cSU_"
 		quietly do "core/outcomes/sim_txd.do"	
-		*mata: _matrix_list(bL6_CD, rbL6_CD, cbL6_CD)
+		*mata: _matrix_list(bL6_TXD, rbL6_TXD, cbL6_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
@@ -461,7 +461,7 @@ di "Running simulation"
 		
 	di "L6E - Treatment-free Interval"
 		quietly do "core/outcomes/sim_tfi.do"				
-		*mata: _matrix_list(bL6_CI, rbL6_CI, cbL6_CI)
+		*mata: _matrix_list(bL6_TFI, rbL6_TFI, cbL6_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 
@@ -501,7 +501,7 @@ di "Running simulation"
 
 	di "L7S - Chemo Duration"
 		quietly do "core/outcomes/sim_txd.do"	
-		*mata: _matrix_list(bL7_CD, rbL7_CD, cbL7_CD)
+		*mata: _matrix_list(bL7_TXD, rbL7_TXD, cbL7_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
@@ -530,7 +530,7 @@ di "Running simulation"
 		
 	di "L7E - Treatment-free Interval"
 		quietly do "core/outcomes/sim_tfi.do"				
-		*mata: _matrix_list(bL7_CI, rbL7_CI, cbL7_CI)
+		*mata: _matrix_list(bL7_TFI, rbL7_TFI, cbL7_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)		
 
@@ -570,7 +570,7 @@ di "Running simulation"
 
 	di "L8S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd.do"	
-		*mata: _matrix_list(bL8_CD, rbL8_CD, cbL8_CD)
+		*mata: _matrix_list(bL8_TXD, rbL8_TXD, cbL8_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
@@ -599,7 +599,7 @@ di "Running simulation"
 		
 	di "L8E - Treatment-free Interval"
 		quietly do "core/outcomes/sim_tfi.do"				
-		*mata: _matrix_list(bL8_CI, rbL8_CI, cbL8_CI)
+		*mata: _matrix_list(bL8_TFI, rbL8_TFI, cbL8_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 
@@ -639,7 +639,7 @@ di "Running simulation"
 
 	di "L9S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd.do"	
-		*mata: _matrix_list(bL9_CD, rbL9_CD, cbL9_CD)
+		*mata: _matrix_list(bL9_TXD, rbL9_TXD, cbL9_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		

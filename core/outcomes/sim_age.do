@@ -2,6 +2,7 @@
 *SIM Age
 * 
 * Purpose: Update patient age and handle age limit deaths
+* Method: Comparing times
 * Outcome: Continuous age in years
 **********
 mata {
@@ -18,44 +19,53 @@ mata {
 	// Update age for alive patients
 	if (rows(idxEligible) > 0 & OMC > 1) {
 		// Age = previous age + time in previous state
-		// Force column vector format to handle single-patient case
 		vPrevAge = mAge[idxEligible, OMC-1]
-		vPrevTNE = mTNE[idxEligible, OMC-1]
-		vNewAge = (rows(idxEligible) == 1 ? vPrevAge + vPrevTNE : vPrevAge :+ vPrevTNE)
-		mAge[idxEligible, OMC] = vNewAge
+		vPrevTNE = mTNE[idxEligible, OMC-1] / 12  // Convert months to years
+		vNewAge = vPrevAge :+ vPrevTNE
+		mAge[idxEligible, OMC] = round(vNewAge, 0.1)
 		
 		// Check for patients exceeding age limit
 		vCurrentAges = mAge[idxEligible, OMC]
-		vExceedsLimit = (rows(idxEligible) == 1 ? (vCurrentAges > Limit & vCurrentAges < .) : (vCurrentAges :> Limit) :& (vCurrentAges :< .))
+		vExceedsLimit = (vCurrentAges :> Limit) :& (vCurrentAges :< .)
 		idxExceeds = selectindex(vExceedsLimit)
 		
 		if (rows(idxExceeds) > 0) {
 			// Map back to full index
-			idxExceedsFull = (rows(idxExceeds) == 1 ? idxEligible[idxExceeds] : idxEligible[idxExceeds])
+			idxExceedsFull = idxEligible[idxExceeds]
 			
 			// Cap age at limit
 			mAge[idxExceedsFull, OMC] = J(rows(idxExceedsFull), 1, Limit)
 			
-			// Mark as dead in PREVIOUS OMC (because age calculation happens AFTER previous state)
+			// Mark as dead in PREVIOUS OMC
 			mMOR[idxExceedsFull, OMC-1] = J(rows(idxExceedsFull), 1, 1)
 			
-			// Set outcome time (survival from diagnosis to death at age limit)
+			// Set outcome time in months (survival from diagnosis to death at age limit)
 			vDiagAge = mAge[idxExceedsFull, 1]
-			mOC[idxExceedsFull, 1] = (rows(idxExceedsFull) == 1 ? Limit - vDiagAge : Limit :- vDiagAge)
+			mOC[idxExceedsFull, 1] = (Limit :- vDiagAge) * 12 
 			mOC[idxExceedsFull, 2] = J(rows(idxExceedsFull), 1, 1)
 			
-			// Update mTFI or mTXD based on (OMC-1) parity (since death happened at previous OMC)
+			// Calculate time for TXD/TFI in months
 			vPrevTSD = mTSD[idxExceedsFull, OMC-1]
 			vOCTime = mOC[idxExceedsFull, 1]
-			vTimeDays = (rows(idxExceedsFull) == 1 ? (vOCTime - vPrevTSD) * 365.25 : (vOCTime :- vPrevTSD) :* 365.25)
+			vTimeMonths = vOCTime :- vPrevTSD 
 			
 			if (mod(OMC-1, 2) == 0) {
 				// Even OMC-1: update TXD
-				mTXD[idxExceedsFull, (OMC-1)/2] = vTimeDays
+				lineIdx = floor((OMC-1)/2)  // Ensure integer index
+				
+				// Bounds check: TXD has 9 columns (L1-L9)
+				if (lineIdx >= 1 & lineIdx <= 9) {
+					mTXD[idxExceedsFull, lineIdx] = vTimeMonths
+				}
 			}
 			else {
 				// Odd OMC-1: update TFI
-				mTFI[idxExceedsFull, (OMC+1)/2] = vTimeDays
+				lineIdx = floor((OMC+1)/2)  // Ensure integer index
+				
+				// Bounds check: TFI has 9 columns (DN, L1-L8)
+				if (lineIdx >= 1 & lineIdx <= 9) {
+					mTFI[idxExceedsFull, lineIdx] = vTimeMonths
+				}
 			}
 			
 			// Set mTSD for current OMC to missing

@@ -1,7 +1,9 @@
 **********
-*SIM TFI L1 - Vectorised Implementation
+*SIM TFI L1
 *
 * Purpose: Treatment-free Interval at Line 1 End (time from L1E to L2S)
+* Method: Parametric survival analysis, split by ASCT status
+* Outcome: Continuous time (Months)
 **********
 
 mata {
@@ -16,9 +18,7 @@ mata {
 		// Initialize outcome vector
 		vOutcome = J(rows(mMOR), 1, .)
 		
-		// ========================================
 		// GROUP 1: ASCT Patients
-		// ========================================
 		vIsASCT = (vSCT_L1[.,1] :== 1) :& vEligible
 		idxASCT = selectindex(vIsASCT)
 		
@@ -50,23 +50,21 @@ mata {
 			
 			// Extract coefficients for ASCT
 			nPredictors = cols(mPat_ASCT)
-			coef_ASCT = bL1_CI_S1[1, 1..nPredictors]' // Needs renaming
-			aux_ASCT = bL1_CI_S1[1, cols(bL1_CI_S1)]`'
+			coef_ASCT = bL1_TFI_ASCT[1, 1..nPredictors]' 
+			aux_ASCT = bL1_TFI_ASCT[1, cols(bL1_TFI_ASCT)]
 			
 			// Calculate XB
 			vXB_ASCT = mPat_ASCT * coef_ASCT
 			
-			// Calculate survival time
+			// Calculate outcome (survival time)
 			vRN_ASCT = vRN[idxASCT]
-			vOutcome[idxASCT] = calcSurvTime(vXB_ASCT, vRN_ASCT, fbL1_CI_S1, aux_ASCT) // Needs renaming
+			vOut[idxASCT] = calcSurvTime(vXB_ASCT, vRN_ASCT, fbL1_TFI_ASCT, aux_ASCT)
 			
 			// Curtail if beyond maximum observed
-			vOutcome[idxASCT] = rowmin((vOutcome[idxASCT], J(rows(idxASCT), 1, maxL1_CI_S1)))
+			vOut[idxASCT] = rowmin((vOut[idxASCT], J(rows(idxASCT), 1, maxL1_TFI_ASCT)))
 		}
 		
-		// ========================================
 		// GROUP 2: NoASCT Patients
-		// ========================================
 		vIsNoASCT = (vSCT_L1[.,1] :== 0) :& vEligible
 		idxNoASCT = selectindex(vIsNoASCT)
 		
@@ -100,30 +98,30 @@ mata {
 			
 			// Extract coefficients for NoASCT
 			nPredictors = cols(mPat_NoASCT)
-			vCoef_NoASCT = bL1_CI_S0[1, 1..nPredictors]' // Needs renaming
-			aux_NoASCT = bL1_CI_S0[1, cols(bL1_CI_S0)]
+			vCoef_NoASCT = bL1_TFI_NoASCT[1, 1..nPredictors]'
+			aux_NoASCT = bL1_TFI_NoASCT[1, cols(bL1_TFI_NoASCT)]
 			
 			// Calculate XB
 			vXB_NoASCT = mPat_NoASCT * vCoef_NoASCT
 			
-			// Calculate survival time
+			// Calculate outcome (survival time)
 			vRN_NoASCT = vRN[idxNoASCT]
-			vOutcome[idxNoASCT] = calcSurvTime(vXB_NoASCT, vRN_NoASCT, fbL1_CI_S0, aux_NoASCT) // Needs renaming
+			vOut[idxNoASCT] = calcSurvTime(vXB_NoASCT, vRN_NoASCT, fbL1_TFI_NoASCT, aux_NoASCT)
 			
 			// Curtail if beyond maximum observed
-			vOutcome[idxNoASCT] = rowmin((vOutcome[idxNoASCT], J(rows(idxNoASCT), 1, maxL1_CI_S0)))
+			vOut[idxNoASCT] = rowmin((vOut[idxNoASCT], J(rows(idxNoASCT), 1, maxL1_TFI_NoASCT)))
 
 		}
 		
 		// Handle prevalent patients
 		prevalent = selectindex(mState[., 1] :> OMC + 1)
 		if (rows(prevalent) > 0) {
-			vOutcome[prevalent] = mTNE[prevalent, OMC] :* 365.25
+			vOutcome[prevalent] = mTNE[prevalent, OMC]
 		}
 		
 		// Update matrices
-		mTNE[., OMC] = vOutcome :/ 365.25
+		mTFI[., LX+1] = round(vOut, 0.1)
+		mTNE[., OMC] = round(vOut, 0.1)
 		mTSD[., OMC+1] = mTSD[., OMC] + mTNE[., OMC]
-		mTFI[., LX+1] = vOutcome
 	}
 }

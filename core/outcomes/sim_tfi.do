@@ -1,7 +1,9 @@
 **********
-*SIM TFI LX - Vectorised Implementation
+*SIM TFI (L2+) 
 *
 * Purpose: Treatment-free Interval at Line 2+ End (time from LXE to L(X+1)S)
+* Method: Parametric survival analysis
+* Outcome: Continous time (months)
 **********
 
 mata {
@@ -18,24 +20,28 @@ mata {
 		
 		// Select coefficient matrix based on Line
 		if (Line == 2) {
-			bCoef = bL2_CI
-			fbCoef = fbL2_CI
-			maxTFI = maxL2_CI
+			vCoef = bL2_TFI
+			fbCoef = fbL2_TFI
+			maxTFI = maxL2_TFI
+			BCR_cat = 6 
 		}
 		else if (Line == 3) {
-			bCoef = bL3_CI
-			fbCoef = fbL3_CI
-			maxTFI = maxL3_CI
+			vCoef = bL3_TFI
+			fbCoef = fbL3_TFI
+			maxTFI = maxL3_TFI
+			BCR_cat = 3 
 		}
 		else if (Line == 4) {
-			bCoef = bL4_CI
-			fbCoef = fbL4_CI
-			maxTFI = maxL4_CI
+			vCoef = bL4_TFI
+			fbCoef = fbL4_TFI
+			maxTFI = maxL4_TFI
+			BCR_cat = 3
 		}
 		else if (Line >= 5) {
-			bCoef = bLX_CI
-			fbCoef = fbLX_CI
-			maxTFI = maxLX_CI
+			vCoef = bLX_TFI
+			fbCoef = fbLX_TFI
+			maxTFI = maxLX_TFI
+			BCR_cat = 3 			
 		}
 		
 		// Patient vectors
@@ -56,36 +62,57 @@ mata {
 		vBCR6_e = (mBCR[idxEligible, Line] :== 6)
 		vCons_e = vCons[idxEligible]
 		
-		// Patient matrix
-		pMatrix = (vAge_e, vAge2_e, vMale_e, 
+		// Build patient matrix
+		mPat = (vAge_e, vAge2_e, vMale_e, 
 				   vECOG0_e, vECOG1_e, vECOG2_e,
-		           vRISS1_e, vRISS2_e, vRISS3_e, 
-				   vBCR1_e, vBCR2_e, vBCR3_e, vBCR4_e, vBCR5_e, vBCR6_e, 
-				   vCons_e)
+		           vRISS1_e, vRISS2_e, vRISS3_e)
+		
+		// Add previous BCR
+		if (BCR_cat == 6) {
+			prevBCR = mBCR[idxEligible, Line]
+			vBCR_CR_e = (prevBCR :== 1)
+			vBCR_VG_e = (prevBCR :== 2)
+			vBCR_PR_e = (prevBCR :== 3)
+			vBCR_MR_e = (prevBCR :== 4)
+			vBCR_SD_e = (prevBCR :== 5)
+			vBCR_PD_e = (prevBCR :== 6)
+			mPat = (mPat, vBCR_CR_e, vBCR_VG_e, vBCR_PR_e, vBCR_MR_e, vBCR_SD_e, vBCR_PD_e)
+		}
+		else if (BCR_cat == 3) {
+			prevBCR = mBCR[idxEligible, Line]
+			vBCR_CR_e = (prevBCR :== 1)
+			vBCR_PR_e = (prevBCR :== 3)
+			vBCR_SD_e = (prevBCR :== 5)
+			mPat = (mPat, vBCR_CR_e, vBCR_PR_e, vBCR_SD_e)
+		}
+				
+		// Add constant
+		mPat = (mPat, vCons_e)		   
 		
 		// Extract coefficients
-		nPredictors = cols(pMatrix)
-		coef = bCoef[1, 1..nPredictors]'
+		aux = vCoef[1, cols(vCoef)]
+		nPredictors = cols(mPat)
+		vCoef = vCoef[1, 1..nPredictors]'
 		
 		// Calculate XB
-		vXB = pMatrix * coef
+		vXB = mPat * vCoef
 		
-		// Calculate survival time
+		// Calculate outcome (survival time)
 		vRN_e = vRN[idxEligible]
-		vOutcome[idxEligible] = calcSurvTime(vXB, vRN_e, fbCoef, bCoef[1, cols(bCoef)])
+		vOut[idxEligible] = calcSurvTime(vXB, vRN_e, fbCoef, aux)
 		
 		// Curtail if beyond maximum observed
-		vOutcome[idxEligible] = rowmin((vOutcome[idxEligible], J(rows(idxEligible), 1, maxTFI)))
+		vOut[idxEligible] = rowmin((vOut[idxEligible], J(rows(idxEligible), 1, maxTFI)))
 		
 		// Handle prevalent patients
 		prevalent = selectindex(mState[., 1] :> OMC + 1)
 		if (rows(prevalent) > 0) {
-			vOutcome[prevalent] = mTNE[prevalent, OMC] :* 365.25
+			vOut[prevalent] = mTNE[prevalent, OMC]
 		}
 		
 		// Update matrices
-		mTNE[., OMC] = vOutcome :/ 365.25
+		mTFI[., LX+1] = round(vOut, 0.1)
+		mTNE[., OMC] = round(vOut, 0.1)
 		mTSD[., OMC+1] = mTSD[., OMC] + mTNE[., OMC]
-		mTFI[., LX+1] = vOutcome
 	}
 }

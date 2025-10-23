@@ -60,10 +60,10 @@ mata:
 	
 	// Extract TXR dummies
 	if (Line <= 4) {
-		if (Line == 1) oVector = oL1_CR
-		if (Line == 2) oVector = oL2_CR
-		if (Line == 3) oVector = oL3_CR
-		if (Line == 4) oVector = oL4_CR
+		if (Line == 1) oVector = oL1_TXR
+		if (Line == 2) oVector = oL2_TXR
+		if (Line == 3) oVector = oL3_TXR
+		if (Line == 4) oVector = oL4_TXR
 		
 		currentTX = mTXR[., Line]
 		
@@ -86,10 +86,10 @@ mata:
 	
 	// Add TXR dummies
 	if (Line <= 4) {
-		if (Line == 1) oVector = oL1_CR
-		if (Line == 2) oVector = oL2_CR
-		if (Line == 3) oVector = oL3_CR
-		if (Line == 4) oVector = oL4_CR
+		if (Line == 1) oVector = oL1_TXR
+		if (Line == 2) oVector = oL2_TXR
+		if (Line == 3) oVector = oL3_TXR
+		if (Line == 4) oVector = oL4_TXR
 		
 		currentTX = mTXR[., Line]
 		
