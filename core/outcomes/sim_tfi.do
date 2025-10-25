@@ -9,9 +9,9 @@
 mata {
 	// Filters
 	vEligible = (mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1)
-	idxEligible = selectindex(vEligible)
+	idx = selectindex(vEligible)
 	
-	if (rows(idxEligible) > 0) {
+	if (rows(idx) > 0) {
 		// Generate random numbers for all patients
 		vRN = runiform(rows(mMOR), 1)
 		
@@ -45,22 +45,22 @@ mata {
 		}
 		
 		// Patient vectors
-		vAge_e = mAge[idxEligible, OMC]
+		vAge_e = mAge[idx, OMC]
 		vAge2_e = vAge_e :^ 2
-		vMale_e = vMale[idxEligible]
-		vECOG0_e = (vECOG[idxEligible] :== 0)
-		vECOG1_e = (vECOG[idxEligible] :== 1)
-		vECOG2_e = (vECOG[idxEligible] :== 2)
-		vRISS1_e = (vRISS[idxEligible] :== 1)
-		vRISS2_e = (vRISS[idxEligible] :== 2)
-		vRISS3_e = (vRISS[idxEligible] :== 3)
-		vBCR1_e = (mBCR[idxEligible, Line] :== 1)
-		vBCR2_e = (mBCR[idxEligible, Line] :== 2)
-		vBCR3_e = (mBCR[idxEligible, Line] :== 3)
-		vBCR4_e = (mBCR[idxEligible, Line] :== 4)
-		vBCR5_e = (mBCR[idxEligible, Line] :== 5)
-		vBCR6_e = (mBCR[idxEligible, Line] :== 6)
-		vCons_e = vCons[idxEligible]
+		vMale_e = vMale[idx]
+		vECOG0_e = (vECOG[idx] :== 0)
+		vECOG1_e = (vECOG[idx] :== 1)
+		vECOG2_e = (vECOG[idx] :== 2)
+		vRISS1_e = (vRISS[idx] :== 1)
+		vRISS2_e = (vRISS[idx] :== 2)
+		vRISS3_e = (vRISS[idx] :== 3)
+		vBCR1_e = (mBCR[idx, Line] :== 1)
+		vBCR2_e = (mBCR[idx, Line] :== 2)
+		vBCR3_e = (mBCR[idx, Line] :== 3)
+		vBCR4_e = (mBCR[idx, Line] :== 4)
+		vBCR5_e = (mBCR[idx, Line] :== 5)
+		vBCR6_e = (mBCR[idx, Line] :== 6)
+		vCons_e = vCons[idx]
 		
 		// Build patient matrix
 		mPat = (vAge_e, vAge2_e, vMale_e, 
@@ -69,7 +69,7 @@ mata {
 		
 		// Add previous BCR
 		if (BCR_cat == 6) {
-			prevBCR = mBCR[idxEligible, Line]
+			prevBCR = mBCR[idx, Line]
 			vBCR_CR_e = (prevBCR :== 1)
 			vBCR_VG_e = (prevBCR :== 2)
 			vBCR_PR_e = (prevBCR :== 3)
@@ -79,7 +79,7 @@ mata {
 			mPat = (mPat, vBCR_CR_e, vBCR_VG_e, vBCR_PR_e, vBCR_MR_e, vBCR_SD_e, vBCR_PD_e)
 		}
 		else if (BCR_cat == 3) {
-			prevBCR = mBCR[idxEligible, Line]
+			prevBCR = mBCR[idx, Line]
 			vBCR_CR_e = (prevBCR :== 1)
 			vBCR_PR_e = (prevBCR :== 3)
 			vBCR_SD_e = (prevBCR :== 5)
@@ -98,11 +98,11 @@ mata {
 		vXB = mPat * vCoef
 		
 		// Calculate outcome (survival time)
-		vRN_e = vRN[idxEligible]
-		vOut[idxEligible] = calcSurvTime(vXB, vRN_e, fbCoef, aux)
+		vRN_e = vRN[idx]
+		vOut[idx] = calcSurvTime(vXB, vRN_e, fbCoef, aux)
 		
 		// Curtail if beyond maximum observed
-		vOut[idxEligible] = rowmin((vOut[idxEligible], J(rows(idxEligible), 1, maxTFI)))
+		vOut[idx] = rowmin((vOut[idx], J(rows(idx), 1, maxTFI)))
 		
 		// Handle prevalent patients
 		prevalent = selectindex(mState[., 1] :> OMC + 1)

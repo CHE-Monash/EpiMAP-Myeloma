@@ -1,9 +1,9 @@
 **********
-* SIM SCT L1 - Vectorised Implementation
+* SIM SCT L1
 * 
 * Purpose: Determine ASCT eligibility at Line 1 End
+* Method: Logistic regression with outcome filters: TXR != 7 AND BCR != 6
 * Outcome: Binary (0 = Not eligible, 1 = Eligible)
-* Additional filters: CR != 7 AND BCR != 6
 **********
 	
 mata {
@@ -15,46 +15,66 @@ mata {
 		
 	// Calculate for valid patients
 	if (rows(idx) > 0) {
-	
-		// Extract BCR from matrix (Line 1 BCR is in column 1 of mBCR)
-		vBCR_L1 = mBCR[., 1]
 		
-		// Create BCR dummy variables
-		vBCR2 = (vBCR_L1 :== 2)
-		vBCR3 = (vBCR_L1 :== 3)
-		vBCR4 = (vBCR_L1 :== 4)
-		vBCR5 = (vBCR_L1 :== 5)
+		// Patient vectors
+		vAge_e = mAge[idx, OMC]
+		vAge2_e = vAge_e :^ 2
+		vMale_e = vMale[idx]
+		vECOG0_e = (vECOG[idx] :== 0)
+		vECOG1_e = (vECOG[idx] :== 1)
+		vECOG2_e = (vECOG[idx] :== 2)
+		vRISS1_e = (vRISS[idx] :== 1)
+		vRISS2_e = (vRISS[idx] :== 2)
+		vRISS3_e = (vRISS[idx] :== 3)
+		vBCR1_e = (mBCR[idx, Line] :== 1)
+		vBCR2_e = (mBCR[idx, Line] :== 2)
+		vBCR3_e = (mBCR[idx, Line] :== 3)
+		vBCR4_e = (mBCR[idx, Line] :== 4)
+		vBCR5_e = (mBCR[idx, Line] :== 5)
+		vAge70_e = vAge70[idx]
+		vAge75_e = vAge75[idx]
+		vCMc0_e = vCMc0[idx]
+		vCMc1_e = vCMc1[idx]
+		vCMc2_e = vCMc2[idx]
+		vCMc3_e = vCMc3[idx]
+		vCons_e = vCons[idx]
 		
 		// Assemble patient matrix
-		// Note: Coefficient order matches bL1_SCT structure
-		pSCT_L1 = (vAge, vAge2, vMale, vECOG1, vECOG2, vRISS2, vRISS3, vBCR2, vBCR3, vBCR4, vBCR5, vAge70, vAge75, vCMc1, vCMc2, vCMc3, vCons)
+		mPat = (vAge_e, vAge2_e, vMale_e, 
+		        vECOG0_e, vECOG1_e, vECOG2_e, 
+				vRISS1_e, vRISS2_e, vRISS3_e, 
+				vBCR1_e, vBCR2_e, vBCR3_e, vBCR4_e, vBCR5_e,
+				vAge70_e, vAge75_e, 
+				vCMc0_e, vCMc1_e, vCMc2_e, vCMc3_e, 
+				vCons_e)
 
 		// Extract coefficients
-		nPredictors = cols(pSCT_L1)
-		coefSCT_L1 = bL1_SCT[1, 1..nPredictors]'
+		nPredictors = cols(mPat)
+		vCoef = bL1_SCT[1, 1..nPredictors]'
 
 		// Calculate XB
-		xbSCT_L1 = pSCT_L1 * coefSCT_L1
+		vXB = mPat * vCoef
 		
 		// Calculate probabilities
-		prSCT_L1 = 1 :/ (1 :+ exp(-xbSCT_L1))
+		vPR = 1 :/ (1 :+ exp(-vXB))
 		
 		// Generate random numbers
-		rnSCT_L1 = runiform(rows(pSCT_L1), 1)
+		vRN = runiform(rows(idx), 1)
 		
-		// Extract CR from matrix (Line 1 CR is in column 1 of mTXR)
-		vCR_L1 = mTXR[., 1]
+		// Extract TXR from matrix
+		vTXR_L1_e = mTXR[idx, 1]
 			
-		// Determine outcome with additional filters
-		// Eligible if: probability > random number AND CR != 7 AND BCR != 6
-		oSCT_L1 = (prSCT_L1 :> rnSCT_L1) :& (vCR_L1 :!= 7) :& (vBCR_L1 :!= 6)
+		// Determine outcome: PR > RN AND TXR != 7 AND BCR != 6
+		vOC = (vPR :> vRN) :& (vTXR_L1_e :!= 7) :& (vBCR1_e :!= 6)		
 		
 		// Convert logical to numeric (0/1)
-		oSCT_L1 = oSCT_L1 :* 1
+		vOC = vOC :* 1
+		
+		// Update ONLY the filtered patients (0 or 1)
+		oSCT_L1[idx] = vOC
 	}
 		
 	// Update matrices 
 	vSCT_L1 = oSCT_L1
-	mSCT[., 2] = oSCT_L1           // Column 2 = SCT eligibility at L1E
-	mCore[., cSCT] = oSCT_L1       // Update mCore for backwards compatibility
+	mSCT[., 2] = oSCT_L1
 }

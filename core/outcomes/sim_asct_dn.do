@@ -1,13 +1,14 @@
 **********
-* SIM SCT DN - Vectorised Implementation
+* SIM SCT DN
 * 
 * Purpose: Determine ASCT eligibility at diagnosis
+* Method: Logistic regression
 * Outcome: Binary (0 = Not eligible, 1 = Eligible)
 **********
 	
 mata {
 	// Initialize outcome
-	oSCT_DN = J(st_nobs(), 1, .)
+	vOC = J(st_nobs(), 1, .)
 	
 	// Filter for valid patients
 	idx = selectindex(mState[., 1] :<= OMC + 1)
@@ -16,28 +17,32 @@ mata {
 	if (rows(idx) > 0) {
 	
 		// Assemble patient matrix
-		pSCT_DN = (vAge, vAge2, vMale, vECOG1, vECOG2, vRISS2, vRISS3, vAge70, vAge75, vCMc1, vCMc2, vCMc3, vCons)
+		mPat = (vAge, vAge2, vMale, 
+				vECOG0, vECOG1, vECOG2, 
+				vRISS1, vRISS2, vRISS3, 
+				vAge70, vAge75, 
+				vCMc0, vCMc1, vCMc2, vCMc3,
+				vCons)
 
 		// Extract coefficients
-		nPredictors = cols(pSCT_DN)
-		coefSCT_DN = bDN_SCT[1, 1..nPredictors]'
+		nPredictors = cols(mPat)
+		vCoef = bDN_SCT[1, 1..nPredictors]'
 
 		// Calculate XB
-		xbSCT_DN = pSCT_DN * coefSCT_DN
+		vXB = mPat * vCoef
 		
 		// Calculate probabilities
-		prSCT_DN = 1 :/ (1 :+ exp(-xbSCT_DN))
+		vPR = 1 :/ (1 :+ exp(-vXB))
 		
 		// Generate random numbers
-		rnSCT_DN = runiform(rows(pSCT_DN), 1)
+		vRN = runiform(rows(idx), 1)
 			
 		// Determine outcome 
-		oSCT_DN = (prSCT_DN :> rnSCT_DN)
+		vOC = (vPR :> vRN)
 	}
 		
 	// Update matrices 
-	vSCT_DN = oSCT_DN 
-	mSCT[., 1] = oSCT_DN           // Column 1 = SCT eligibility at DN
-	mCore[., cSCT] = oSCT_DN       // Update mCore for use in other outcomes
+	vSCT_DN = vOC 
+	mSCT[., 1] = vOC
 } 
 	

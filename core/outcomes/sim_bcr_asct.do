@@ -21,6 +21,7 @@ mata {
 		vBCR_L1 = mBCR[., 1]
 		
 		// Create BCR dummy variables
+		pBCR_1 = (vBCR_L1 :== 1)
 		pBCR_2 = (vBCR_L1 :== 2)
 		pBCR_3 = (vBCR_L1 :== 3)
 		pBCR_4 = (vBCR_L1 :== 4)
@@ -28,16 +29,16 @@ mata {
 		
 		// Assemble patient matrix
 		pBCR_SCT = (vAge[idx], vAge2[idx], vMale[idx], 
-		            vECOG1[idx], vECOG2[idx], 
-		            vRISS2[idx], vRISS3[idx],
-		            pBCR_2[idx], pBCR_3[idx], pBCR_4[idx], pBCR_5[idx])
+		            vECOG0[idx], vECOG1[idx], vECOG2[idx], 
+		            vRISS1[idx], vRISS2[idx], vRISS3[idx],
+		            pBCR_1[idx], pBCR_2[idx], pBCR_3[idx], pBCR_4[idx], pBCR_5[idx])
 		
 		// Extract coefficients
 		nPredictors = cols(pBCR_SCT)
 		coefBCR_SCT = bSCT_BCR[1, 1..nPredictors]'
 		
 		// Extract cut points
-		nCutPoints = 4
+		nCutPoints = 3
 		cutPointIndices = (cols(bSCT_BCR) - nCutPoints + 1)..cols(bSCT_BCR)
 		cutPoints = bSCT_BCR[1, cutPointIndices]
 		
@@ -51,7 +52,7 @@ mata {
 		RN = runiform(rows(idx), 1)
 		
 		// Assign outcomes
-		categoryValues = (1, 2, 3, 4, 5)
+		categoryValues = (1, 2, 3, 4)
 		vOutcome = assignOrdOutcome(RN, cumProbs, categoryValues)
 		
 		// Update outcome vector

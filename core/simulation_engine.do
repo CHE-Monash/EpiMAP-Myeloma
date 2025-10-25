@@ -87,7 +87,7 @@ di "Running simulation"
 		*mata: _matrix_list(mSCT, rmSCT, cmSCT)
 
 	di "L1E - SCT Best Clinical Response"
-		quietly do "core/outcomes/sim_bcr_asct.do"			
+		quietly do "core/outcomes/sim_bcr_asct2.do"			
 		*mata: _matrix_list(bSCT_BCR, rbSCT_BCR, cbSCT_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
