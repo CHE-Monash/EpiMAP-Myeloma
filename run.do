@@ -23,7 +23,7 @@ local max_bootstrap ""             // (Not used when bootstrap=0)
 local report        "1"             // Generate report after simulation
 
 // Execute simulation
-do "EpiMAP_Myeloma_v2.0_with_reports.do" ///
+do "EpiMAP_Myeloma.do" ///
     `analysis' `intervention' `line' `coefficients' `data_type' ///
     `min_id' `max_id' `bootstrap' `min_bootstrap' `max_bootstrap' ///
 	`report'
