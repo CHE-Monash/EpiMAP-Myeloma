@@ -2,7 +2,6 @@
 *SIM CD L1
 *
 * Purpose: Chemotherapy Duration for Line 1
-* Note: No mCore references except final update for backwards compatibility
 **********
 
 mata {

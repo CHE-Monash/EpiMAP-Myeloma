@@ -82,6 +82,5 @@ mata {
 	}
 	
 	// Update matrices
-	mCore[., cMNT] = oMNT
 	vMNT = oMNT
 }

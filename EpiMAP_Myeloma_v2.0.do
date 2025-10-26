@@ -19,6 +19,7 @@
 	global Boot `8'          // Bootstrap flag
 	global MinBS `9'         // Min bootstrap sample
 	global MaxBS `10'        // Max bootstrap sample
+	global Report `11'       // Report flag
 
 **********
 *Parse Data parameter for population-specific requests
@@ -83,3 +84,40 @@
 	do "$analysis_path/${Analysis}.do"
 	
 	di "Analysis completed successfully."
+	
+**********
+*Generate report if requested
+	if ("$Report" == "1" & "$Boot" == "0") {
+		di as text _n(2) "{hline 78}"
+		di as text "{bf:Generating Baseline Characteristics Report}"
+		di as text "{hline 78}"
+		
+		capture confirm file "generate_report.do"
+		if _rc == 0 {
+			do "generate_report.do"
+		}
+		else {
+			di as error _n "Warning: generate_report.do not found"
+			di as text "  Skipping report generation"
+		}
+	}
+	else if ("$Report" == "1" & "$Boot" == "1") {
+		di as text _n(2) "{bf:Note:} Report generation skipped for bootstrap runs"
+		di as text "Generate report manually after bootstrap completion"
+	}
+
+**********
+*Final summary
+	di as result "{bf:EpiMAP Myeloma v2.0 - Execution Complete}"
+	di as text "Simulated data saved to:"
+	if ("$Boot" == "0") {
+		di as result "  $simulated_path/$Int $Line $Data $MinID $MaxID.dta"
+	}
+	else {
+		di as result "  $simulated_path/bootstrap/ (samples $MinBS to $MaxBS)"
+	}
+	if ("$Report" == "1") {
+		di as text "Report saved to:"
+		di as result "  $simulated_path/reports/"
+	}
+	

@@ -1,4 +1,12 @@
-// Test 1: Simple population simulation
+****************************************
+* EpiMAP Myeloma v2.0 - Execution Script
+* 
+* Purpose: Execute simulation based on settings
+*
+* Author: EpiMAP Research Team
+* Date: October 2025
+*****************************************
+
 cd "/Users/adami/Documents/Monash/Research/Blood Disorders/Myeloma/EpiMAP/Simulation/"
 
 // Define settings
@@ -12,8 +20,10 @@ local max_id        "10000"            // Last patient ID
 local bootstrap     "0"             // No bootstrap
 local min_bootstrap ""             // (Not used when bootstrap=0)
 local max_bootstrap ""             // (Not used when bootstrap=0)
+local report        "1"             // Generate report after simulation
 
 // Execute simulation
-do "EpiMAP_Myeloma_v2.0.do" ///
+do "EpiMAP_Myeloma_v2.0_with_reports.do" ///
     `analysis' `intervention' `line' `coefficients' `data_type' ///
-    `min_id' `max_id' `bootstrap' `min_bootstrap' `max_bootstrap'
+    `min_id' `max_id' `bootstrap' `min_bootstrap' `max_bootstrap' ///
+	`report'
