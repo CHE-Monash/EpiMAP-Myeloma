@@ -66,7 +66,7 @@ The `run.do` file contains example parameters. Edit this file to customise your 
 | 8 | **Bootstrap** | Bootstrap flag (0/1) | `0` (no), `1` (yes) |
 | 9 | **MinBS** | Minimum bootstrap sample | `1` |
 | 10 | **MaxBS** | Maximum bootstrap sample | `5`, `100` |
-| 11| **Report** | Report flat | `0' (no), `1' (yes) |
+| 11| **Report** | Report flag | `0' (no), `1' (yes) |
 
 ### Example Commands
 
@@ -89,8 +89,8 @@ The simulation will generate results in `analyses/[analysis_name]/data/simulated
 EpiMAP-Myeloma/
 ├── core/                  # Core simulation ine
 │   ├── matrix_setup.do   # Matrix initialisation
-│   ├ load_patients.do  # Patient data loading
-│   ├ mata_functions.do # Mata utility functions
+│   ├── load_patients.do  # Patient data loading
+│   ├── mata_functions.do # Mata utility functions
 │   └── outcomes/         # Outcome simulation modules
 ├── analyses/             # Analysis-specific configurations
 │   ├── base_model/       # Base model with all regimens
@@ -101,8 +101,8 @@ EpiMAP-Myeloma/
 ├── tests/                # Validation test suite
 │   ├── validate_vectors.do
 │   └── test_*.do
-├─EpiMAP_Myeloma.do    # Main simulation dispatcher
-├─run.do               # Example wrapper script
+├─EpiMAP_Myeloma.do       # Main simulation dispatcher
+├─run.do                  # Example wrapper script
 ├─README.md
 ├─CHANGELOG.md
 └── LICENSE
