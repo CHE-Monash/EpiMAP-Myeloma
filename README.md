@@ -1,4 +1,4 @@
-# EpiMAP Myeloma v2.0
+# EpiMAP Myeloma v2.1
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Stata](https://img.shields.io/badge/Stata-15.0%2B-red.svg)](https://www.stata.com/)
@@ -8,12 +8,12 @@
 
 A comprehensive discrete-event simulation model for multiple myeloma disease outcomes and treatment pathways, developed through collaboration between Monash University's Centre for Health Economics and Transfusion Research Unit.
 
-## What's New in v2.0
+## What's New in v2.1
 
-- **Reorganised Architecture**: Clear version-specific folder structure (`v1.0/`, `v2.0/`)
-- **Extended Treatment Options**: Additional anticancer regimens modelled for later lines of therapy (LoT 3+)
-- **Comprehensive Documentation**: Detailed user guides and technical specifications
-- **Improved Accuracy**: Updated risk equations reflecting latest registry data
+- **Vectorised Implementation**: Complete rewrite using Mata's vector and matrix operations for dramatically improved performance
+- **Enhanced Code Organisation**: `mata_setup.do` provides clean, maintainable vector-based architecture
+- **Improved Efficiency**: Matrix-based computations replace patient-level loops for faster large-scale simulations
+- **Modernised Repository**: Git-based versioning with clean structure (no version folders)
 
 ## Model Overview
 
@@ -21,12 +21,13 @@ EpiMAP Myeloma simulates the complete treatment journey of multiple myeloma pati
 
 ### Key Features
 
-- **Patient Characteristics**: Age, sex, ECOG performance score, R-ISS staging
+- **Patient Characteristics**: Age, sex, ECOG performance score, R-ISS staging & co-morbidity score
 - **Treatment Pathways**: Comprehensive modelling of up to 9 lines of therapy
 - **Clinical Outcomes**: Best Clinical Response (BCR) and Overall Survival (OS)
 - **ASCT Modelling**: Separate pathways for transplant-eligible patients
 - **Maintenance Therapy**: Post-induction treatment modelling
 - **Parametric Survival Models**: Time-to-event analysis for all outcomes
+- **High Performance**: Mata implementation for efficient large-scale simulations
 
 ## Quick Start
 
@@ -38,178 +39,120 @@ EpiMAP Myeloma simulates the complete treatment journey of multiple myeloma pati
 ### Installation
 
 ```bash
-git clone https://github.com/your-org/epimap-myeloma.git
-cd epimap-myeloma
+git clone https://github.com/CHE-Monash/EpiMAP-Myeloma.git
+cd EpiMAP-Myeloma
 ```
 
 ### Basic Usage
 
 ```stata
 cd "path/to/epimap-myeloma"
-do "EpiMAP_Myeloma_v2.0.do" [Analysis] [Intervention] [Line] [Coefficients] [Data] [MinID] [MaxID] [Bootstrap] [MinBS] [MaxBS]
+do "run.do"
 ```
+
+The `run.do` file contains example parameters. Edit this file to customise your simulation with the following arguments:
 
 #### Arguments Description
 
 | Position | Argument | Description | Example Values |
 |:--------:|:---------|:------------|:---------------|
-| 1 | **Analysis** | Analysis identifier | `vrdpost` |
-| 2 | **Intervention** | Treatment intervention | `VRd`, `SoC` |
+| 1 | **Analysis** | Analysis identifier | `base_model`, `vrd_l1_post` |
+| 2 | **Intervention** | Treatment intervention | `VRd`, `SoC`, `all` |
 | 3 | **Line** | Line of therapy (1-9) | `1`, `2`, `3` |
-| 4 | **Coefficients** | Coefficient set to use | `VRd`, `SoC` |
+| 4 | **Coefficients** | Coefficient set to use | `base_model`, `VRd`, `SoC` |
 | 5 | **Data** | Dataset type | `Predicted`, `Population` |
 | 6 | **MinID** | Minimum patient ID | `1` |
-| 7 | **MaxID** | Maximum patient ID | `4884`, `1000` |
+| 7 | **MaxID** | Maximum patient ID | `10`, `1000`, `4884` |
 | 8 | **Bootstrap** | Bootstrap flag (0/1) | `0` (no), `1` (yes) |
 | 9 | **MinBS** | Minimum bootstrap sample | `1` |
 | 10 | **MaxBS** | Maximum bootstrap sample | `5`, `100` |
+| 11| **Report** | Report flat | `0' (no), `1' (yes) |
 
-Example Commands
+### Example Commands
 
-The simulation will generate `EpiMAP_Simulated_v2.dta` containing comprehensive patient outcomes.
+```stata
+// Quick test with 10 patients
+do "main.do" base_model all 0 base_model population 1 10 0 0 0 0
+
+// Full population simulation
+do "main.do" base_model all 0 base_model population 1 4884 0 0 0 1
+
+// Bootstrap analysis
+do "main.do" base_model VRd 1 base_model predicted 1 1000 1 1 100 1
+```
+
+The simulation will generate results in `analyses/[analysis_name]/data/simulated/`.
 
 ## Repository Structure
 
-- **v2.0/**
-  - `EpiMAP_Myeloma_v2.0.do` - Main simulation script
-  - **functions/** - Core simulation functions
-    - `SIM_BCR_L*.do` - Best Clinical Response models
-    - `SIM_CR_L*.do` - Chemotherapy regimen selection
-    - `SIM_OS_*.do` - Overall survival models
-  - **data/**
-    - **coefficients/** - Universal risk equation coefficients
-      - `EpiMAP_Coefficients_v2.mmat`
-    - **populations_2025-2030/** - 10 alternative MM populations for 2025-2030
-      - `EpiMAP_Myeloma_Population_1.dta`
-      - ...
-      - `EpiMAP_Myeloma_Population_10.dta`
-  - **analyses/** - Analysis-specific data and scripts
-    - **vrd_l1_post/** - VRd LoT 1 post-market analysis
-    - `EpiMAP_Myeloma_VRd_L1_Post.do`
-      - **data/**
-        - **coefficients/** - Risk equation coefficients that exclude VRd at LoT 1
-          - `EpiMAP_Myeloma_Coefficients_VRd_L1_Post.dta`
-          - **bootstrap/** - 500 bootstrapped risk equation coefficients
-            - `EpiMAP_Myeloma_Coefficients_VRd_L1_Post_B1.dta`
-            - ...
-            - `EpiMAP_Myeloma_Coefficients_VRd_L1_Post_B500.dta`
-        - **patients/**
-          - `EpiMAP_Myeloma_Patients_VRd_L1_Post.dta` - Synthetic patient cohort predicted to receive VRd at LoT 1
-        - **simulated/**
-  - **documentation/** - Comprehensive user guides
-    - `User_Guide.md`
-    - `Technical_Specifications.md`
-    - `Parameter_Reference.md`
-
-## Clinical Applications
-
-### Treatment Regimens Modelled
-
-**Line 1 (LoT 1)**
-- VCd (Bortezomib, Cyclophosphamide, Dexamethasone): 58%
-- VRd (Bortezomib, Lenalidomide, Dexamethasone): 15%
-- Other regimens: 26%
-
-**Line 2 (LoT 2)**
-- Rd (Lenalidomide, Dexamethasone): 16%
-- DVd (Daratumumab, Bortezomib, Dexamethasone): 11%
-- Other regimens: 73%
-
-**Lines 3-9 (LoT 3+)**
-- Averaged survival benefit approach for emerging therapies
-
-### Risk Equations (30 Total)
-
-| Category | Equations | Purpose |
-|----------|-----------|---------|
-| **Survival** | Overall Survival | Primary endpoint modelling |
-| **Treatment Planning** | ASCT eligibility, regimen selection | Clinical decision support |
-| **Response Prediction** | BCR for each LoT | Treatment effectiveness |
-| **Time Intervals** | Chemotherapy duration, treatment-free periods | Disease progression modelling |
-
-## Validation and Performance
-
-- **Calibrated** against MRDR registry data (2008-2023)
-- **Validated** survival curves match observed patient outcomes
-- **Benchmarked** treatment distributions reflect real-world practice
-- **Tested** across diverse patient populations and scenarios
-
-## Advanced Usage
-
-### Custom Patient Populations
-
-Replace the hypothetical dataset with your institution's data:
-
-```stata
-// Edit line 24 in EpiMAP_Myeloma_v2.0.do
-use "your_patient_data.dta", clear
+```
+EpiMAP-Myeloma/
+├── core/                  # Core simulation ine
+│   ├── matrix_setup.do   # Matrix initialisation
+│   ├ load_patients.do  # Patient data loading
+│   ├ mata_functions.do # Mata utility functions
+│   └── outcomes/         # Outcome simulation modules
+├── analyses/             # Analysis-specific configurations
+│   ├── base_model/       # Base model with all regimens
+│   └── vrd_l1_post/      # VRd post-market analysis
+├── patients/             # Patient cohort data
+│   ├── population/       # Population projections
+│   └── predicted/        # Predicted cohorts
+├── tests/                # Validation test suite
+│   ├── validate_vectors.do
+│   └── test_*.do
+├─EpiMAP_Myeloma.do    # Main simulation dispatcher
+├─run.do               # Example wrapper script
+├─README.md
+├─CHANGELOG.md
+└── LICENSE
 ```
 
-**Required variables**: `age`, `male`, `ecog`, `riss`, `cmscore`
+## Performance Improvements in v2.1
 
-CMScore is a categorical variable between 0 and 6 that counts the number of the following comorbidities: cardiac disease, pulmonary disease, diabetes, liver disease, peripheral neuropathy, and other malignancy
+The vectorised implementation provides significant performance benefits:
 
-### Scenario Analyses
+- **Faster Execution**: Matrix operations process all patients simultaneously
+- **Better Memory Efficiency**: Reduced overhead from loop-based processing
+- **Scalability**: Handles large cohorts (10,000+ patients) more efficiently
+- **Maintainability**: Cleaner code structure with modular vector setup
 
-Run specific treatment comparisons:
+## Validation
 
-```stata
-// VRd post-market analysis
-do "analyses/vrdpost/EpiMAP_Myeloma_Analysis_VRd-Post.do"
+The model has been comprehensively validated:
 
-// DVd pre-market analysis  
-do "analyses/dvdpre/EpiMAP_Myeloma_Analysis_DVd-Pre.do"
-```
+- **Published Validation**: See Irving et al. (2024) in PLOS ONE
+- **Out-of-Sample Testing**: 70/30 split validation with 100 bootstrap iterations
+- **Survival Curve Accuracy**: No significant difference in 90% of 120 months post-diagnosis
+- **Vectorisation Validation**: Comprehensive test suite confirms identical results to original implementation
 
-### Bootstrap Validation
+## Version History
 
-Enable uncertainty quantification:
+Access previous versions via Git tags:
 
-```stata
-global Bootstrap = 1
-global BSMin = 1
-global BSMax = 100
-do "EpiMAP_Myeloma_v2.0.do"
-```
-
-## Output Variables
-
-The simulation generates comprehensive outcomes for each patient:
-
-- **Survival**: Overall survival time, mortality indicators
-- **Treatment**: Regimen assignments, duration, response rates
-- **Progression**: Treatment-free intervals, line progression
-- **Clinical**: ASCT receipt, maintenance therapy, ECOG changes
-
-## Contributing
-
-We welcome collaborative research! Please see our [contribution guidelines](CONTRIBUTING.md) for:
-
-- Bug reports and feature requests
-- Model validation with external datasets
-- Extension to new treatment regimens
-- Integration with health economic models
-
-## Documentation
-
-- **[User Guide](documentation/User_Guide.md)**: Step-by-step instructions
-- **[Technical Specifications](documentation/Technical_Specifications.md)**: Detailed model description
-- **[Parameter Reference](documentation/Parameter_Reference.md)**: Complete coefficient listing
-- **[Migration Guide](documentation/Migration_Guide.md)**: Upgrading from v1.0
+- **v2.1**: Current version (vectorised implementation)
+- **v2.0**: Reorganised architecture with extended treatment options
+- **v1.0**: Initial public release (August 2024) - `git checkout v1.0`
 
 ## Citation
 
-### Primary Publication
-> Irving A, Petrie D, Harris A, et al. Developing and validating a discrete-event simulation model of multiple myeloma disease outcomes and treatment pathways using a national clinical registry. *PLOS ONE*. 2024;19(8):e0308812. [doi:10.1371/journal.pone.0308812](https://doi.org/10.1371/journal.pone.0308812)
+### Model Paper
+
+Irving A, Petrie D, Harris A, Fanning L, Wood EM, Moore E, et al. Developing and validating a discrete-event simulation model of multiple myeloma disease outcomes and treatment pathways using a national clinical registry. *PLOS ONE*. 2024;19(8):e0308812. [doi:10.1371/journal.pone.0308812](https://doi.org/10.1371/journal.pone.0308812)
 
 ### Software Citation
+
 ```bibtex
-@software{epimap_myeloma_v2,
+@software{epimap_myeloma_v2_1,
   title = {EpiMAP Myeloma: Epidemiological Modelling of Australian Patients with Myeloma},
-  author = {Irving, Adam and Petrie, Dennis and Harris, Anthony and others},
-  version = {2.0.0},
+  author = {Irving, Adam and Petrie, Dennis and Harris, Anthony and Fanning, Laura and 
+            Wood, Erica M and Moore, Elizabeth and Wellard, Cameron and Waters, Neil and
+            Augustson, Bradley and Cook, Gordon and Gay, Francesca and McCaughan, Georgia and
+            Mollee, Peter and Spencer, Andrew and McQuilten, Zoe K},
+  version = {2.1},
   year = {2025},
-  url = {https://github.com/your-org/epimap-myeloma},
+  url = {https://github.com/CHE-Monash/EpiMAP-Myeloma},
+  doi = {10.1371/journal.pone.0308812},
   institution = {Monash University}
 }
 ```
@@ -227,19 +170,20 @@ We welcome collaborative research! Please see our [contribution guidelines](CONT
 ## Data Access
 
 ### MRDR Patient Data
+
 For access to genuine patient data from the Australia and New Zealand Myeloma and Related Diseases Registry:
 - Submit applications to the MRDR Steering Committee
 - Visit: [mrdr.net.au](https://www.mrdr.net.au/)
 
-## Licence
-
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
-
 ## Support
 
 - **Model Questions**: [adam.irving@monash.edu](mailto:adam.irving@monash.edu)
-- **Technical Issues**: [Create an issue](https://github.com/your-org/epimap-myeloma/issues)
+- **Technical Issues**: [Create an issue](https://github.com/CHE-Monash/EpiMAP-Myeloma/issues)
 - **Collaboration Enquiries**: Contact the research team
+
+## Licence
+
+This project is licenced under the GNU General Public Licence v3.0 - see the [LICENSE](LICENSE) file for details.
 
 ## Related Resources
 
@@ -249,7 +193,7 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ## Acknowledgements
 
-The EpiMAP Myeloma project was supported by Medical Research Future Fund grant 1200706 to Prof Zoe K McQuilten. We thank patients, clinicians, and research staff at participating centres for their invaluable contributions to the MRDR.
+The EpiMAP Myeloma project was supported by Medical Research Future Fund GNT1200706 and GNT2017480 and by National Health and Medical Research Council GNT1189490, GNT2024876 and GNT2036025. We thank patients, clinicians, and research staff at participating centres for their invaluable contributions to the MRDR.
 
 ---
 
