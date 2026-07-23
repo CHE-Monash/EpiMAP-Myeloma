@@ -73,6 +73,20 @@ program define save_coefs
 	ereturn clear
 end
 
+cap program drop save_max
+program define save_max
+	// Ceiling over ALL records, censored included. Correct for a MAXIMUM: a patient censored while
+	// still on treatment proves durations at least that long occur, which is what a curtailment
+	// ceiling needs to know. Used by the L1_MND arms, which are ~47.5% censored - see the comment
+	// at those calls. Everything else uses save_max_obs.
+	args mat
+
+	qui summarize _t if _st == 1, meanonly
+	di as txt "  ceiling `mat': " %7.1f r(max) " months over " %6.0f r(N) " records (censored included)"
+	mata: max`mat' = st_numscalar("r(max)")
+	global Coeffs $Coeffs max`mat'
+end
+
 cap program drop save_max_obs
 program define save_max_obs
 	// As save_max, but the ceiling is the longest duration observed to actually END. This is the
@@ -686,7 +700,23 @@ program define risk_equations
 
 	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 1 & BCR_SCT != 0), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
-	save_max_obs L1_MND_LEN_ASCT
+	// CEILING FROM ALL RECORDS, censored included - deliberately NOT save_max_obs.
+	//
+	// A curtailment ceiling asks "what is the longest duration the data supports". A patient
+	// censored at 108.5 months WHILE STILL ON MAINTENANCE is direct evidence that durations that
+	// long occur; an observed end at 59.8 is evidence that 59.8 occurs. For a MAXIMUM, the censored
+	// record is the stronger evidence, not the weaker one - which is the opposite of the argument
+	// save_max_obs was built on, and the understatement scales with censoring. This arm is 47.5%
+	// censored: observed ends top out at 59.8 while follow-up runs to 108.5.
+	//
+	// Using 59.8 truncated the whole distribution: E[min(MND_raw,c)] collapsed to a flat 29.7
+	// against registry RMST of 35.23 / 42.91 / 51.01 at 84 / 120 / 158, and out-of-sample went
+	// 151 -> 150. At 60 months the simulation matched exactly (29.7 vs 29.48) - the gap only opened
+	// past the ceiling, which is the signature of curtailment rather than misfit.
+	//
+	// TXD and TFI keep save_max_obs: they are far less censored and the swap measured better there.
+	// Whether the same objection applies to them is open, and belongs on its own branch.
+	save_max L1_MND_LEN_ASCT
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_SCT, d($dTFI)
 	save_coefs L1_MND_LEN_ASCT
 	mata: _matrix_list(bL1_MND_LEN_ASCT, rbL1_MND_LEN_ASCT, cbL1_MND_LEN_ASCT)
@@ -731,7 +761,7 @@ program define risk_equations
 
 	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 0), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
-	save_max_obs L1_MND_LEN_NoASCT
+	save_max L1_MND_LEN_NoASCT
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.MND_BCR_L1, d($dTFI)
 	save_coefs L1_MND_LEN_NoASCT
 	mata: _matrix_list(bL1_MND_LEN_NoASCT, rbL1_MND_LEN_NoASCT, cbL1_MND_LEN_NoASCT)
