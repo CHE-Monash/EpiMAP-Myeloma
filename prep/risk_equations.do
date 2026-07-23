@@ -658,13 +658,13 @@ program define risk_equations
 	// Evidence: scratch/mnd_bcr.log. This also makes MND structurally match L1_TFI, which has been
 	// split this way all along and reads BCR_SCT / BCR_L1 in the same two arms.
 	//
-	// THE AMBIGUOUS CELL RESOLVES ITSELF. 22.7% of transplanted maintenance patients have no
-	// recorded ASCT response. In a POOLED equation, BCR_SCT == 0 would have to mean both "not
-	// transplanted" and "transplanted, not recorded" - two different things in one level. Inside an
-	// ASCT-only arm, 0 unambiguously means "not recorded", because never-transplanted patients are
-	// in the other equation. So no synthetic level is needed. NOTE this differs from L1_TFI_ASCT,
-	// which EXCLUDES BCR_SCT == 0 from its fit while its engine arm silently treats those patients
-	// as the base level - an inconsistency inherited there, not repeated here.
+	// BCR_SCT == 0 IS EXCLUDED, matching L1_TFI_ASCT. The registry codes 0 as "transplanted,
+	// response not recorded" and it is common - 22.7% of transplanted maintenance records - but
+	// THE ENGINE CANNOT PRODUCE IT: sim_bcr_asct.do draws from categoryValues = (1,2,3,4). Fitting
+	// a level the engine never assigns would make it the base category, so every simulated patient
+	// would be measured against a group that does not exist in the simulation. This is the
+	// "test with what the engine will have" rule, and it is why L1_TFI_ASCT carries the same
+	// exclusion - that is deliberate, not the oversight an earlier draft of this comment called it.
 	//
 	// ON THE CEILING AND THE FAMILY, both settled and neither is the lever they looked like:
 	// $dTFI is lognormal and returns sigma = 1.81, so the fitted mean is 5.2x the fitted median.
@@ -677,7 +677,7 @@ program define risk_equations
 	// Evidence: scratch/mnd_dist.log, scratch/mnd_failtype.log, ../scratch/maintenance/_notes.md.
 
 	// ---- Lenalidomide, ASCT ----
-	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 1), ///
+	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 1 & BCR_SCT != 0), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
 	save_max_obs L1_MND_LEN_ASCT
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_SCT, d($dTFI)

@@ -7,10 +7,10 @@
 * Notes:   THREE arms: lenalidomide with ASCT, lenalidomide without, and thalidomide pooled across
 *          transplant. Lenalidomide is split so each arm can carry the response depth that exists
 *          for it - i.BCR_SCT after transplant, i.BCR_L1 otherwise. The signal is entirely in the
-*          transplant response (LR p = 0.0021 against 0.50 for BCR_L1), and it cannot be carried by
-*          a pooled equation because BCR_SCT == 0 would have to mean both "not transplanted" and
-*          "transplanted, response not recorded" - 22.7% of the arm. Splitting resolves that
-*          without a synthetic level. Mirrors sim_tfi_l1.do, which splits the same way.
+*          transplant response (LR p = 0.0021 against 0.50 for BCR_L1), and a pooled equation
+*          cannot carry it: BCR_SCT does not exist for never-transplanted patients, and the
+*          registry's 0 code cannot stand in for them because the engine never draws 0 either.
+*          Mirrors sim_tfi_l1.do, which splits the same way for the same reason.
 *
 *          No ln(TFI) covariate: it restricted the fit to patients with an observed L2. The
 *          ordering (maintenance must fit inside the gap) is enforced downstream instead -
@@ -30,10 +30,14 @@
 *          levels, then _cons, then aux. Base-level dummies carry a 0 coefficient in e(b) and are
 *          included as columns, exactly as sim_tfi_l1.do does.
 *
-*          BCR LEVELS. The ASCT arm uses BCR_SCT 0-4, where 0 IS A REAL LEVEL meaning "transplanted,
-*          response not recorded" - it is not a base-level fallback and must be a column. The
-*          NoASCT arm uses BCR_L1 1-6. If a level was empty in the fit, e(b) is short and the
-*          dimension guard below fires rather than silently misaligning the design.
+*          BCR LEVELS, set by what the ENGINE can draw, not by what the registry codes:
+*              ASCT arm    BCR_SCT 1-4   sim_bcr_asct.do categoryValues = (1,2,3,4)
+*              NoASCT arm  BCR_L1  1-6   sim_bcr.do      categoryValues = (1,2,3,4,5,6)
+*          The registry also codes BCR_SCT == 0 ("transplanted, response not recorded", 22.7% of
+*          transplanted maintenance records) but the engine never assigns it, so the fit excludes
+*          it - otherwise it would become the base category and every simulated patient would be
+*          measured against a group that does not exist. If a level is empty in the fit, e(b) is
+*          short and the guard below fires rather than silently misaligning the design.
 **********
 
 mata {
@@ -51,8 +55,9 @@ mata {
 			if (cols(vCoefA) > 0) {
 				iA = idx[selectindex((vMNR[idx] :== 1) :& (vSCT_L1[idx] :== 1))]
 				if (rows(iA) > 0) {
-					// BCR_SCT: 0 is a modelled level, not the absence of one.
-					vB0 = (mBCR[iA, 10] :== 0)
+					// BCR_SCT levels 1-4 only. sim_bcr_asct.do draws categoryValues = (1,2,3,4),
+					// so 0 ("transplanted, response not recorded" in the registry) is unreachable
+					// here and is excluded from the fit to match. Same as sim_tfi_l1.do's ASCT arm.
 					vB1 = (mBCR[iA, 10] :== 1)
 					vB2 = (mBCR[iA, 10] :== 2)
 					vB3 = (mBCR[iA, 10] :== 3)
@@ -61,13 +66,13 @@ mata {
 					mPatA = (vAge[iA], vAge2[iA], vMale[iA],
 							 vECOG0[iA], vECOG1[iA], vECOG2[iA],
 							 vRISS1[iA], vRISS2[iA], vRISS3[iA],
-							 vB0, vB1, vB2, vB3, vB4,
+							 vB1, vB2, vB3, vB4,
 							 vCons[iA])
 					nPredA = cols(mPatA)
 
 					if (cols(vCoefA) != nPredA + 1) {
-						errprintf("sim_mnd (len ASCT): design/coefficient mismatch - mPat has %g columns so %g were expected (mean + ancillary), but bL1_MND_LEN_ASCT has %g. An ECOG/RISS/BCR_SCT level was likely empty in the fit.\n",
-							nPredA, nPredA + 1, cols(vCoefA))
+						errprintf("sim_mnd (len ASCT): design/coefficient mismatch - mPat has %g columns so %g were expected (mean + ancillary), but bL1_MND_LEN_ASCT has %g. The fit implies %g BCR_SCT levels against the %g assumed here (design is Age Age2 Male + ECOG 3 + RISS 3 + BCR + _cons).\n",
+							nPredA, nPredA + 1, cols(vCoefA), cols(vCoefA) - 11, 4)
 						exit(459)
 					}
 
@@ -99,8 +104,8 @@ mata {
 					nPredN = cols(mPatN)
 
 					if (cols(vCoefN) != nPredN + 1) {
-						errprintf("sim_mnd (len NoASCT): design/coefficient mismatch - mPat has %g columns so %g were expected (mean + ancillary), but bL1_MND_LEN_NoASCT has %g. An ECOG/RISS/BCR_L1 level was likely empty in the fit.\n",
-							nPredN, nPredN + 1, cols(vCoefN))
+						errprintf("sim_mnd (len NoASCT): design/coefficient mismatch - mPat has %g columns so %g were expected (mean + ancillary), but bL1_MND_LEN_NoASCT has %g. The fit implies %g BCR_L1 levels against the %g assumed here (design is Age Age2 Male + ECOG 3 + RISS 3 + BCR + _cons).\n",
+							nPredN, nPredN + 1, cols(vCoefN), cols(vCoefN) - 11, 6)
 						exit(459)
 					}
 
