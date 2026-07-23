@@ -853,6 +853,31 @@ if _rc == 0 {
 //
 // Regimen groups match analyses/default/outcomes/mnr_full.do ($MNR_L1 "1 5"): lenalidomide,
 // thalidomide, everything else pooled to 0. If that list changes this must change with it.
+//
+// DEATH IS A FAILURE HERE AND CENSORING IN THE FIT. That asymmetry is deliberate - do NOT
+// "correct" prep/risk_equations.do to match, it would double-count death.
+//
+// The fit is cause-specific: censoring death estimates how long maintenance runs for MAINTENANCE
+// reasons, and the engine then imposes death itself (sim_mort curtails TFI_L1, process_data clips
+// MND_L1 to it). Draw the cause-specific duration, kill patients separately. That is the right
+// division of labour and both halves are correct.
+//
+// But it means the two sides measure different things. The engine EXPORTS delivered exposure,
+// while a death-censored KM estimates the duration that would be seen if nobody died. This target
+// benchmarked the first against the second, so a gap was guaranteed and it was large: with death
+// censored the registry RMST(158) is 51.0 months against a simulated 35.7. Adding death as a
+// failure makes the target delivered exposure, which is what the engine produces and what cost
+// bills.
+//
+// The model itself was never wrong. The DRAWN duration (MND_raw, exported by process_data.do for
+// exactly this check) reproduces the death-censored registry at every horizon - E[min(MND_raw,c)]
+// of 35.6 / 42.7 / 48.5 against RMST of 35.23 / 42.91 / 51.01 at c = 84 / 120 / 158. Curtailment
+// then costs 12.8 months, and that is real exposure lost, not an error. See ../scratch/maintenance
+// /_notes.md and docs/refractory.md.
+//
+// One caveat to state rather than fix: censoring death in the fit assumes death is uninformative
+// about maintenance duration, and it is not - patients who die are sicker and would have come off
+// maintenance sooner anyway. So the fitted duration is biased slightly long.
 preserve
 	// stset the maintenance episode as risk_equations.do fits L1_MND: origin at the maintenance
 	// start, failure at the recorded end or the next line. Patients still on maintenance at the cut
@@ -869,7 +894,7 @@ preserve
 	// A stset covering everyone, purely so the _t guard below has something to confirm. Each group
 	// re-stsets itself inside the loop.
 	capture stset Date1 if(MNT == 1), ///
-		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
+		id(ID_BS) failure(Event1 == 20 111 104) origin(Event1 == 110) scale(30.4375)
 
 	matrix MND_L1 = J(3, 5, .)
 	matrix colnames MND_L1 = "N" "Failures" "Median" "P25" "P75"
@@ -892,12 +917,12 @@ preserve
 			// running on the thalidomide-only risk set and returning nothing.
 			if `g' == 5 {
 				capture stset Date1 if(MNT == 1 & MNR_L1 == 5), ///
-					id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375) ///
+					id(ID_BS) failure(Event1 == 20 111 104) origin(Event1 == 110) scale(30.4375) ///
 					exit(time MND_origin + `=18 * 30.4375')
 			}
 			else {
 				capture stset Date1 if(MNT == 1), ///
-					id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
+					id(ID_BS) failure(Event1 == 20 111 104) origin(Event1 == 110) scale(30.4375)
 			}
 
 			quietly count if (`gcond') & _t0 == 0
