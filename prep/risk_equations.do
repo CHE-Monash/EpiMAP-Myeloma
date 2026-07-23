@@ -709,6 +709,18 @@ program define risk_equations
 	di as txt "  L1_MND_LEN_NoASCT - collapsed response distribution:"
 	tab MND_BCR_L1 if MNT == 1 & MNR_L1 == 1 & SCT == 0, missing
 
+	// WHY MNT IS NOT RESTRICTED TO NON-PD PATIENTS, which looks like the tidier fix.
+	// PD-then-maintenance is REAL: among no-transplant maintenance patients the registry has 82
+	// rows at BCR_L1 == 6. What is empty is specifically LENALIDOMIDE maintenance after PD, which
+	// is why this arm returns five levels. Excluding PD from MNT outright would delete genuine
+	// patients, lower the overall maintenance rate, and damage the thalidomide arm to fix a
+	// lenalidomide problem. The MNT logit already handles it correctly by conditioning on
+	// i.BCR_L1 - PD gets a low probability, not a zero one.
+	// This cross-tab is the evidence for that claim; if the PD row turns out to be empty across
+	// ALL regimens on a future cut, the restriction becomes worth revisiting.
+	di as txt "  PD-then-maintenance by regimen - the reason MNT is not restricted:"
+	tab BCR_L1 MNR_L1 if MNT == 1 & SCT == 0, missing
+
 	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 0), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
 	save_max_obs L1_MND_LEN_NoASCT
