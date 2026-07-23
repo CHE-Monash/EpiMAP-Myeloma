@@ -276,7 +276,8 @@ if _rc local have_lenrefr = 0
 if `have_lenrefr' {
 
 	// Prevalence of TRUE len-refractory (treatment OR maintenance) AS AT ENTRY to each line (= the
-	// sim's LenRefr_L`l' | LenRefr_Mnt), one value per patient per line. Both flags are held within a
+	// sim's LenRefr_L`l', which IS the union - the engine keeps one latched flag that both arms write
+	// into), one value per patient per line. Both registry flags are held within a
 	// line, so their value on a patient's line-l rows is the entry-to-l state; egen max over those rows
 	// recovers it (missing if the line is unreached). L1 is 0 by construction; L2+ carry the accrual.
 	matrix LENREFR = J(6, 2, .)
@@ -296,7 +297,7 @@ if `have_lenrefr' {
 	}
 
 	// OS from L2 start, split by TRUE len-refractory as at L2 entry (treatment OR maintenance, vs
-	// neither). Mirrors the OS-by-BCR_L2 benchmark; the sim scores OS_L2S by (LenRefr_L2 | LenRefr_Mnt)
+	// neither). Mirrors the OS-by-BCR_L2 benchmark; the sim scores OS_L2S by LenRefr_L2 (the union)
 	// the same way. The direct check on the subgroup OS split (5.6) the whole-population OS cannot see.
 	capture drop lr2 lr2_pt
 	gen byte lr2 = (LenRefr_Tx_in == 1 | LenRefr_Mnt_in == 1) if Line == 2
@@ -331,8 +332,12 @@ if `have_lenrefr' {
 			}
 			drop surv_temp
 
-			quietly count if lr2_pt == `r' & _d == 0 & last_record == 1
-			matrix OS_LENREFR[`row', 12] = r(N) / `n' * 100
+			// Censored PATIENTS = N less failures. A spell fails at most once, so counting _d == 1
+			// counts patients; the earlier idiom counted in-spell ROWS at a fixed record position
+			// (`last_record'), which double-counted patients with several records and was retired
+			// from this file. This block came back from a branch that predates that change.
+			quietly count if lr2_pt == `r' & _d == 1
+			matrix OS_LENREFR[`row', 12] = (`n' - r(N)) / `n' * 100
 		}
 	}
 	drop lr2 lr2_pt
