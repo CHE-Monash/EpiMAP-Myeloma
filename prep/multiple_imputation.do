@@ -122,7 +122,7 @@ end
 // Define function
 cap program drop multiple_imputation
 program define multiple_imputation
-	args RN1 RN2 RN3
+	args RN1 RN2 RN3 RN4
 
 	// Drop variables to be derived from imputed
 	qui cap drop ISS
@@ -227,35 +227,64 @@ program define multiple_imputation
 		qui mi passive: replace pBCR = BCR_L8 if Event0 == 90
 		label values pBCR BCR_label
 
-		// Generate BCR_SCT - the post-transplant response, taken from the Event0 == 100 row.
+		// Generate BCR_SCT - the post-transplant response, taken from the Event0 == 100 row and
+		// IMPUTED where that row carries no response.
 		//
-		// THE 0 IS ONLY FOR NON-TRANSPLANT PATIENTS. It used to be applied to every missing value,
-		// which silently merged two different things into one code:
-		//     SCT == 0                      no transplant, so no post-transplant response exists
-		//     SCT == 1 with no 100-row      transplanted, response never recorded - MISSING DATA
-		// The second group is 2,521 records, 22.7% of transplanted maintenance patients, and coding
-		// them 0 made missing data look like a category. Five equations use BCR_SCT and they split
-		// three ways on it without anything saying the difference was deliberate: the pooled L2 BCR
-		// ologit needs 0 = "no transplant" and is correct; OS_L1E_ASCT and the MNT logit are fitted
-		// on SCT == 1, where 0 can only mean "unrecorded", and silently carried it as a level;
-		// L1_TFI_ASCT excluded it. See scratch/maintenance/_notes.md.
+		// WHY IMPUTED HERE RATHER THAN INHERITED FROM BCR. The ASCT block above imputes BCR at
+		// Event0 == 100, but it leaves 548 of 2,135 transplanted patients (25.7%) still missing -
+		// it runs without error and simply does not cover them. Deriving BCR_SCT passively then
+		// propagated that hole to every row of those patients, and the old
+		// "replace BCR_SCT = 0 if BCR_SCT == ." absorbed it into the non-transplant code, so a
+		// quarter of the transplant arm looked like a category. Four equations then built different
+		// workarounds on it. See scratch/maintenance/_notes.md.
 		//
-		// Left MISSING for the transplanted-unrecorded group, so listwise deletion drops them from
-		// the SCT-only equations rather than each one having to remember a != 0 clause. Note they
-		// CANNOT be imputed as things stand: BCR_SCT is passive, derived from a row these patients
-		// do not have. Making it imputable would need its own imputation model.
+		// Imputing BCR_SCT directly sidesteps whatever is stopping the chained block from reaching
+		// those rows, and it can use BCR_L1 - the pre-transplant response, generated above and the
+		// strongest available predictor of the post-transplant one.
+		//
+		// ORDER MATTERS, three ways:
+		//   - it must run AFTER BCR_L1 exists and is forward-filled (just above), since that is a
+		//     predictor
+		//   - it imputes at Event0 == 100 ONLY, one row per transplanted patient, and broadcasts
+		//     afterwards. Imputing the long form directly would give one patient different
+		//     responses on different rows
+		//   - the zero-fill comes LAST and only for SCT == 0. BCR_SCT == 0 must mean "no transplant"
+		//     and nothing else; mi_diagnostics.do now checks that invariant directly
+		//
+		// ASSUMPTION, stated rather than buried: this treats a missing post-transplant assessment as
+		// MAR. If it is informative - patients who died or progressed before assessment - imputing
+		// from assessed patients biases toward better responses. Worth revisiting if the transplant
+		// arm's survival drifts optimistic.
 		qui mi passive: gen BCR_SCT = BCR if Event0 == 100
+		mi unregister BCR_SCT
+		mi register imputed BCR_SCT
+		cap noi mi impute ologit BCR_SCT = Age i.ECOGcc i.RISS i.BCR_L1 if Event0 == 100, ///
+			replace augment rseed(`RN4')
+		if _rc {
+			di as error "  BCR_SCT imputation failed (rc = " _rc "). BCR_SCT will be missing for"
+			di as error "  transplanted patients with no recorded response - the SCT == 1 equations"
+			di as error "  will drop them, which is safe but loses ~a quarter of that arm."
+		}
 		_bcast_idbs BCR_SCT
 		qui mi xeq 0/$imp: replace BCR_SCT = 0 if BCR_SCT == . & SCT == 0
 		qui mi xeq 0/$imp: label values BCR_SCT BCR_label
 
-		// Report the size of the group now left missing, so the change is visible in the log rather
-		// than surfacing later as an unexplained drop in some equation's N.
+		// The invariant: BCR_SCT == 0 must count SCT == 0 patients EXACTLY. Anything else means the
+		// zero-fill has caught missing data again, which is the fault this whole block exists to fix.
+		qui count if _mi_m == 1 & SCT == 1 & BCR_SCT == 0
+		local _nbad = r(N)
 		qui count if _mi_m == 1 & SCT == 1 & mi(BCR_SCT)
-		local _nunrec = r(N)
-		qui count if _mi_m == 1 & SCT == 1
-		di as txt "  BCR_SCT: " `_nunrec' " of " r(N) " transplanted records have no recorded" ///
-			" response and are left MISSING (previously coded 0)." 
+		local _nmiss = r(N)
+		if `_nbad' > 0 {
+			di as error "  BCR_SCT: " `_nbad' " TRANSPLANTED records still coded 0 - the invariant is broken."
+		}
+		if `_nmiss' > 0 {
+			di as txt "  BCR_SCT: " `_nmiss' " transplanted records remain missing after imputation" ///
+				" (they will drop from the SCT == 1 equations)."
+		}
+		if `_nbad' == 0 & `_nmiss' == 0 {
+			di as txt "  BCR_SCT: complete for all transplanted records; 0 means no transplant only."
+		}
 
 		// Refresh mi system variables after the direct-column carryforwards/broadcasts (replaces the
 		// mi update that used to live inside the now-removed pBCR merge block).
@@ -296,9 +325,10 @@ if "$boot" == "0" {
 	local RN1 = 3949
 	local RN2 = 6192
 	local RN3 = 8273
+	local RN4 = 5117
 
 	// Execute function
-		multiple_imputation `RN1' `RN2' `RN3'
+		multiple_imputation `RN1' `RN2' `RN3' `RN4'
 
 	// Save Long MI
 	save "${data_path}/${mi_outdir}MRDR Long MI${mi_outtag}.dta", replace
