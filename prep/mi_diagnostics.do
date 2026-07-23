@@ -110,6 +110,32 @@ di as text _n(2) "{hline 74}"
 di as text "Best clinical response -- imputation sample (CStart==1 & Duration != .), pooled"
 di as text "{hline 74}"
 mi estimate, vartable: proportion BCR if CStart == 1 & Duration != .
+
+* THE PER-LINE VARIABLES - what the equations and the engine actually consume.
+*
+* BCR above carries real imputation uncertainty (FMI 0.06-0.81). The question this answers is
+* whether BCR_L1..L9 and BCR_SCT INHERIT it. They are passive derivations of BCR followed by an LOCF
+* carryforward, and this file's own header asserts they come back at FMI = 0 - deterministic, so no
+* uncertainty about response reaches OS, TXD, TXR, MNT, TFI or MND. That assertion has never been
+* printed here; the tables above deliberately measure at CStart instead, which is where FMI is
+* non-zero. Measure it rather than assume it.
+*
+* If FMI is ~0 here, the case for imputing the per-line variables directly is strong and is the main
+* argument in scratch/bcr/_notes.md. If it is materially non-zero, that argument largely falls away
+* and the refactor is a tidiness change. BCR_SCT is now imputed in its own right, so it is the
+* control: it SHOULD show non-zero FMI, and if it does not, the conversion did not take.
+di as text _n(2) "{hline 74}"
+di as text "Per-line response -- does the imputation uncertainty survive the LOCF carryforward?"
+di as text "{hline 74}"
+foreach L in 1 2 3 {
+    capture confirm variable BCR_L`L'
+    if !_rc {
+        di as text _n "  BCR_L`L' at its own line-start record (Event0 == `L'0):"
+        capture noisily mi estimate, vartable: proportion BCR_L`L' if Event0 == `L'0
+    }
+}
+di as text _n "  BCR_SCT among transplanted patients -- the control, now imputed directly:"
+capture noisily mi estimate, vartable: proportion BCR_SCT if Event0 == 100
 foreach L in 1 2 {
     di as text _n(2) "{hline 74}"
     di as text "Best clinical response at line `L' (CStart==1 & Duration != . & CLine==`L')"
