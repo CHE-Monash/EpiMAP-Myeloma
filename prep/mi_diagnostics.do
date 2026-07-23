@@ -66,6 +66,24 @@ foreach L in 1 2 {
     misstable summarize BCR if Event0 == `L'0
 }
 
+* THE POST-TRANSPLANT ROW, which this file did not look at until 23 July 2026 and which is the one
+* place BCR is imputed by its OWN block (multiple_imputation.do ~line 183, "if Event0 == 100"),
+* wrapped in `cap noi' so a failure prints once and is then lost. 548 of 2,135 transplanted patients
+* had BCR still missing there at m = 1 - a quarter of the arm - and it was invisible from here for
+* two reasons: this loop only covered Event0 == L0, and BCR_SCT reported ZERO missing in mi describe
+* because the old `replace BCR_SCT = 0 if BCR_SCT == .' had already absorbed it.
+* Downstream, four equations then treated that 0 as either a category or an exclusion. Watch BOTH
+* lines: BCR missing here means the imputation block is not covering these rows; BCR_SCT missing
+* here is the CORRECT presentation of that, not a new fault.
+di as text _n "  BCR at the post-SCT response record (Event0 == 100) -- its own imputation block:"
+misstable summarize BCR if Event0 == 100
+di as text "  ... and among transplanted patients specifically:"
+capture noisily misstable summarize BCR if Event0 == 100 & SCT == 1
+di as text "  BCR_SCT as carried (should be missing, NOT 0, for transplanted patients with no response):"
+capture noisily misstable summarize BCR_SCT if SCT == 1
+di as text "  and BCR_SCT == 0 should now equal the SCT == 0 count exactly:"
+capture noisily tab BCR_SCT SCT if _mi_m == 1, missing
+
 * -- MI diagnostics at the current M --
 use "${data_path}/MRDR Long MI.dta", clear
 mi describe
