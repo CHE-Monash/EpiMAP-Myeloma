@@ -58,7 +58,12 @@ misstable summarize `miss_vars' if Event0 == 3
 
 * Response (BCR) missingness. BCR is stochastically imputed only at treatment starts (CStart==1 &
 * Duration != ., per multiple_imputation.do); at the line-start records (Event0==L0) missing BCR is
-* instead LOCF-carried (deterministic), so it returns FMI=0. Show both so the distinction is logged.
+* instead LOCF-carried. An earlier version of this comment said that carryforward is DETERMINISTIC
+* and "returns FMI=0" - MEASURED 23 July 2026 AND IT IS NOT. BCR_L1 comes back with FMI up to 0.769
+* and BCR_L2 up to 0.791 (see the per-line table further down). _cf fills the imputation columns
+* separately with `nomaster', so imputation-to-imputation variation survives the carryforward and
+* the equations that use response are NOT losing their uncertainty. Do not re-derive the FMI=0
+* claim - a plan to restructure the whole BCR chain was written on it before anyone checked.
 di as text _n "  BCR at treatment starts (CStart==1 & Duration != .) -- the imputation sample:"
 misstable summarize BCR if CStart == 1 & Duration != .
 foreach L in 1 2 {
@@ -79,14 +84,20 @@ di as text _n "  BCR at the post-SCT response record (Event0 == 100) -- its own 
 misstable summarize BCR if Event0 == 100
 di as text "  ... and among transplanted patients specifically:"
 capture noisily misstable summarize BCR if Event0 == 100 & SCT == 1
-di as text "  BCR_SCT as carried (should be missing, NOT 0, for transplanted patients with no response):"
-capture noisily misstable summarize BCR_SCT if SCT == 1
-di as text "  and BCR_SCT == 0 should now equal the SCT == 0 count exactly:"
-capture noisily tab BCR_SCT SCT if _mi_m == 1, missing
+
 
 * -- MI diagnostics at the current M --
 use "${data_path}/MRDR Long MI.dta", clear
 mi describe
+
+* BCR_SCT invariant: 0 must mean "no transplant" and nothing else. Checked INSIDE an imputation -
+* BCR_SCT is now registered imputed, so m = 0 legitimately retains the original gaps and reading the
+* master would report every one of them as a failure. `mi xeq 1:' is style-agnostic; this file's
+* data is mi set WIDE, where _mi_m does not exist at all.
+di as text _n(2) "{hline 74}"
+di as text "BCR_SCT -- 0 must count SCT == 0 patients exactly (checked in m = 1)"
+di as text "{hline 74}"
+capture noisily mi xeq 1: tab BCR_SCT SCT, missing
 
 di as text _n(2) "{hline 74}"
 di as text "Binary / continuous covariates -- variance information (RVI, FMI, rel. efficiency)"
