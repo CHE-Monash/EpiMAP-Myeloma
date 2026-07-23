@@ -614,23 +614,24 @@ program define risk_equations
 	qui egen double MND_origin = min(_mxMNDo), by(ID_BS)
 	qui drop _mxMNDo
 
-	// Lenalidomide. The CEILING and the FIT use different failure definitions, deliberately.
+	// Lenalidomide.
 	//
-	// A failure at 111 is a recorded maintenance cessation, so the duration is observed. A failure
-	// at 20 only means line 2 started, which dates the end of maintenance ONLY IF the maintenance
-	// record was closed - if it was not, the duration is imputed as running all the way to relapse,
-	// so a patient with a long gap manufactures years of lenalidomide. Those records are usable in
-	// the FIT, where each is one observation among many and genuine continuous-to-progression
-	// maintenance looks the same, but they must not set a curtailment ceiling that the engine then
-	// draws right up to. The old ceiling was 157.96 months (13.2 years), which 441 of 20,826
-	// simulated patients sat exactly on.
-	mi stset Date1 if(MNT == 1 & MNR_L1 == 1), ///
-		id(ID_BS) failure(Event1 == 111) origin(Event1 == 110) scale(30.4375)
-	save_max_obs L1_MND_LEN
-	mata: printf("  L1_MND_LEN ceiling, recorded cessations only: %8.1f months (was 158.0)\n", maxL1_MND_LEN)
-
+	// The 157.96-month (13.2 year) ceiling was investigated and is REAL: scratch/mnd_failtype.log
+	// shows it is a recorded cessation (Event1 == 111), not a censored record and not a spell dated
+	// only by relapse. Restricting the failure definition does not move it - all three definitions
+	// return 158.0. Only 19 of 1,020 lenalidomide patients have their maintenance dated solely by
+	// Event1 == 20, so that route is closed. Do not re-open it.
+	//
+	// The ceiling is not the problem anyway. $dTFI is LOGNORMAL and this fit returns sigma = 1.81,
+	// so the fitted mean is exp(sigma^2/2) = 5.2 times the fitted median: median 20.8 months
+	// against a mean of 107.8. The observed data has 0.2% of spells beyond 60 months. The simulated
+	// mean of 38.0 is low only because the ceiling truncates a tail the equation invented. The
+	// family needs choosing on its own evidence rather than inherited from the TFI equation, and
+	// COST BILLS THE MEAN - so score candidates on the fitted mean and the beyond-60-month share,
+	// not on AIC alone. The covariates carry nothing here either: LR chi2(8) = 7.53, p = 0.48.
 	mi stset Date1 if(MNT == 1 & MNR_L1 == 1), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
+	save_max_obs L1_MND_LEN
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS SCT, d($dTFI)
 	save_coefs L1_MND_LEN
 	mata: _matrix_list(bL1_MND_LEN, rbL1_MND_LEN, cbL1_MND_LEN)
