@@ -24,6 +24,15 @@ if _rc {
 }
 
 if "$repo_path" != "" cd "$repo_path"   // cd to repo root only if config.do set it; a bare cd "" goes to home on Mac/Unix
+
+* Log. Adam runs this and Claude reads the result, per CLAUDE.md - and without one a failure here is
+* INVISIBLE: the targets simply keep their previous contents and the next validation scores against
+* a stale file. That happened on 23 July, twice, and cost two full validation cycles before the
+* timestamps gave it away. Named so it coexists with an interactive session's own log.
+cap mkdir "scratch"
+cap log close gbm
+log using "scratch/generate_benchmarks.log", replace text name(gbm)
+
 capture run "config.do"     // machine-specific paths: $data_path (git-ignored)
 
 local Date "$data_cut"
@@ -1109,3 +1118,5 @@ svmat Pathways, names(col)
 export delimited using "`bench_out'/pathways.csv", replace
 
 restore
+
+cap log close gbm
