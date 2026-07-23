@@ -77,6 +77,21 @@ program define save_max
 	global Coeffs $Coeffs max`mat'
 end
 
+cap program drop save_max_obs
+program define save_max_obs
+	// As save_max, but the ceiling is the longest duration observed to actually END.
+	//
+	// save_max takes r(max) as stset leaves it, which is the maximum analysis time over ALL
+	// records - so a patient still under follow-up sets the ceiling without ever being observed
+	// to finish. For a heavily censored quantity that is not an observed duration at all.
+	// The _st == 1 filter matters: records excluded by stset's `if' keep stale _t values.
+	args mat
+
+	qui summarize _t if _st == 1 & _d == 1, meanonly
+	mata: max`mat' = st_numscalar("r(max)")
+	global Coeffs $Coeffs max`mat'
+end
+
 cap program drop gen_mnr
 program define gen_mnr
 	// MNR_L1 arrives from the extraction as a RAW 6-level maintenance drug code (see
@@ -599,10 +614,23 @@ program define risk_equations
 	qui egen double MND_origin = min(_mxMNDo), by(ID_BS)
 	qui drop _mxMNDo
 
-	// Lenalidomide
+	// Lenalidomide. The CEILING and the FIT use different failure definitions, deliberately.
+	//
+	// A failure at 111 is a recorded maintenance cessation, so the duration is observed. A failure
+	// at 20 only means line 2 started, which dates the end of maintenance ONLY IF the maintenance
+	// record was closed - if it was not, the duration is imputed as running all the way to relapse,
+	// so a patient with a long gap manufactures years of lenalidomide. Those records are usable in
+	// the FIT, where each is one observation among many and genuine continuous-to-progression
+	// maintenance looks the same, but they must not set a curtailment ceiling that the engine then
+	// draws right up to. The old ceiling was 157.96 months (13.2 years), which 441 of 20,826
+	// simulated patients sat exactly on.
+	mi stset Date1 if(MNT == 1 & MNR_L1 == 1), ///
+		id(ID_BS) failure(Event1 == 111) origin(Event1 == 110) scale(30.4375)
+	save_max_obs L1_MND_LEN
+	mata: printf("  L1_MND_LEN ceiling, recorded cessations only: %8.1f months (was 158.0)\n", maxL1_MND_LEN)
+
 	mi stset Date1 if(MNT == 1 & MNR_L1 == 1), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
-	save_max L1_MND_LEN
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS SCT, d($dTFI)
 	save_coefs L1_MND_LEN
 	mata: _matrix_list(bL1_MND_LEN, rbL1_MND_LEN, cbL1_MND_LEN)
