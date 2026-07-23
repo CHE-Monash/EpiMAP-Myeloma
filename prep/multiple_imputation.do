@@ -179,7 +179,22 @@ program define multiple_imputation
 			exit _rc
 		}
 
-		// ASCT imputation
+		// ASCT imputation. KEPT, but its job is now the CARRYFORWARD below, not BCR_SCT.
+		//
+		// It leaves 548 of 2,135 transplanted patients missing - it runs without error and simply
+		// does not cover them - which is why BCR_SCT is imputed on its own further down rather than
+		// derived from this. But this block still matters: _cf propagates BCR forward from the
+		// Event0 == 100 row, so for a transplanted patient the post-transplant response becomes
+		// BCR_L2 onward at the next line start. That is right - the most recent assessment before L2
+		// IS the post-transplant one - and deleting this would carry the PRE-transplant L1 response
+		// into L2 instead.
+		//
+		// KNOWN REDUNDANCY: two models now impute the same quantity. BCR_SCT inherits this block's
+		// values where it succeeded and imputes the rest with its own ologit, so the 548 come from a
+		// different model than the others. The clean end state is to impute BCR_SCT ONCE, write it
+		// back to BCR at Event0 == 100, and carry forward from there - one model, one value, and no
+		// dependence on the chained block reaching every row. That needs the BCR_L1 generation moved
+		// above this point and belongs on the branch that retires the running BCR variable.
 		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc if Event0 == 100, replace rseed(`RN3')
 		if _rc {
 			exit _rc
