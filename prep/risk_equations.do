@@ -98,11 +98,12 @@ program define save_max_obs
 
 	// Report both, with the counts behind them, so the refit log carries the size of the
 	// correction per equation. The counts also expose the one soft spot in reading _st/_d/_t
-	// directly: with `mi set wide' those are the m = 0 copy, so an equation whose stset `if'
-	// conditions on an IMPUTED variable could in principle be summarised over a different set of
-	// rows from the one the fit uses. Only L1_TFI_ASCT does (BCR_SCT), and a missing BCR_SCT
-	// satisfies `!= 0', so no rows are lost - but an N that collapses here is the symptom to look
-	// for if a future equation gains such a condition.
+	// directly: under "mi set wide" those are the m = 0 copy, so an equation whose stset condition
+	// uses an IMPUTED variable could in principle be summarised over a different set of rows from
+	// the one the fit uses. Only L1_TFI_ASCT does (BCR_SCT), and a missing BCR_SCT still satisfies
+	// "!= 0", so no rows are lost - but an N that collapses here is the symptom to look for if a
+	// future equation gains such a condition. An N of 0 leaves the ceiling missing, which Mata's
+	// rowmin() treats as no curtailment rather than as an error.
 	qui summarize _t if _st == 1, meanonly
 	local all = r(max)
 	local n_all = r(N)
