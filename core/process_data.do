@@ -216,11 +216,30 @@ cap mata: mata drop mRN
 		// maintenance duration, so MND_L1 > TFI_L1 should now be impossible. It is kept because the
 		// alternative to a stray overshoot is billing maintenance the patient could not have had,
 		// and because it still catches the death curtailment sim_mort applies after both draws.
-		// If it fires on any material share of patients the truncation is not working - count it.
+		// GUARD, testing the right quantity. sim_tfi_l1.do draws the gap truncated below at the
+		// maintenance duration, so TFI >= MND holds AT DRAW TIME. The only thing that can break it
+		// afterwards is sim_mort curtailing the gap at death - which is common, not exceptional:
+		// it runs about 11% of maintenance patients, cutting ~24 months each. An earlier version of
+		// this guard counted every clip and called death "an aside", so it fired on 2,864 patients
+		// and looked like a fault when nothing was wrong.
+		//
+		// What genuinely indicates a broken truncation is a clip among patients whose gap was NEVER
+		// curtailed - i.e. who reached L2. That count should be ~0 (it measured exactly 1, a
+		// rounding artefact at 0.0 months).
 		qui count if MNT == 1 & !mi(MND_L1) & !mi(TFI_L1) & MND_L1 > TFI_L1 + 0.01
-		if r(N) > 0 {
-			di as error "  NOTE: MND_L1 exceeded TFI_L1 for " r(N) " patients despite the truncated"
-			di as error "        TFI draw. Expected ~0 (death curtailment aside); investigate if large."
+		local _nclip = r(N)
+		local _nbad  = .
+		capture confirm variable TXD_L2
+		if _rc == 0 {
+			qui count if MNT == 1 & !mi(MND_L1) & !mi(TFI_L1) & MND_L1 > TFI_L1 + 0.01 & !mi(TXD_L2)
+			local _nbad = r(N)
+		}
+		if `_nclip' > 0 {
+			di as txt "  MND_L1 clipped at TFI_L1 for " `_nclip' " patients (death curtailment; expected)."
+		}
+		if `_nbad' > 5 {
+			di as error "  WARNING: " `_nbad' " of those REACHED L2, so their gap was never curtailed."
+			di as error "           The truncated TFI draw in sim_tfi_l1.do is not holding. Investigate."
 		}
 		// DIAGNOSTIC. The drawn duration, after sim_mnd's 158-month ceiling but BEFORE the clip
 		// below, which is otherwise unrecoverable from the exported file. It exists to decompose a
