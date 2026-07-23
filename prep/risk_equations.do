@@ -69,19 +69,12 @@ program define save_coefs
 	ereturn clear
 end
 
-cap program drop save_max
-program define save_max
-	args mat
-
-	mata: max`mat' = st_numscalar("r(max)")
-	global Coeffs $Coeffs max`mat'
-end
-
 cap program drop save_max_obs
 program define save_max_obs
 	// As save_max, but the ceiling is the longest duration observed to actually END. This is the
-	// DEFAULT for every duration ceiling the engine curtails against (TXD, TFI, MND); save_max
-	// survives only where the stored value is overwritten immediately (L1_MND_THAL).
+	// ONLY way a duration ceiling is computed (TXD, TFI, MND). The old save_max, which took
+	// r(max) as stset left it, is retired - it has no callers and keeping a dead alternative
+	// invites the next equation to pick the wrong one.
 	//
 	// save_max takes r(max) as stset leaves it, which is the maximum analysis time over ALL
 	// records - so a patient still under follow-up sets the ceiling without ever being observed
@@ -102,14 +95,28 @@ program define save_max_obs
 	// uses an IMPUTED variable could in principle be summarised over a different set of rows from
 	// the one the fit uses. Only L1_TFI_ASCT does (BCR_SCT), and a missing BCR_SCT still satisfies
 	// "!= 0", so no rows are lost - but an N that collapses here is the symptom to look for if a
-	// future equation gains such a condition. An N of 0 leaves the ceiling missing, which Mata's
-	// rowmin() treats as no curtailment rather than as an error.
+	// future equation gains such a condition. An N of 0 would leave the ceiling missing, which
+	// Mata's rowmin() treats as no curtailment rather than as an error - guarded below.
 	qui summarize _t if _st == 1, meanonly
 	local all = r(max)
 	local n_all = r(N)
 	qui summarize _t if _st == 1 & _d == 1, meanonly
 	di as txt "  ceiling `mat': " %7.1f r(max) " months over " %6.0f r(N) " observed ends" ///
 		"  (all " %6.0f `n_all' " records incl. censored: " %7.1f `all' ")"
+
+	// GUARD for the N = 0 case named above. Leaving the ceiling missing fails SILENTLY and in the
+	// PERMISSIVE direction - no curtailment at all - which is the worst of the three outcomes.
+	// Fall back to the all-records maximum and say so: wrong but bounded beats absent. Late lines
+	// are where this could bite, since follow-up runs out before treatment does.
+	if r(N) == 0 {
+		di as error "  save_max_obs `mat': NO observed ends. Ceiling fell back to the all-records"
+		di as error "                     maximum of " %8.1f `all' " months - PROVISIONAL, it"
+		di as error "                     includes censored follow-up."
+		mata: max`mat' = `all'
+		global Coeffs $Coeffs max`mat'
+		exit
+	}
+
 	mata: max`mat' = st_numscalar("r(max)")
 	global Coeffs $Coeffs max`mat'
 end
@@ -560,7 +567,7 @@ program define risk_equations
 	// L6 (superseded by LX; kept for reference)
 /*
 	mi stset Date1, id(ID_BS) failure(Event1 == 61) origin(Event1 == 60) scale(30.4375)
-	save_max L6_TXD
+	save_max_obs L6_TXD
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
 	save_coefs L6_TXD
 	mata: _matrix_list(bL6_TXD, rbL6_TXD, cbL6_TXD)
@@ -674,8 +681,10 @@ program define risk_equations
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375) ///
 		exit(time MND_origin + `=18 * 30.4375')
 	// The engine caps the thalidomide draw at the same 18 months, so overwrite the observed maximum
-	// rather than letting save_max pick up a record the fit has just declared untrustworthy.
-	save_max L1_MND_THAL
+	// rather than letting the observed maximum pick up a record the fit has just declared
+	// untrustworthy. The call is kept so every ceiling is computed the same way and the refit log
+	// reports this one too; the next line is what actually binds.
+	save_max_obs L1_MND_THAL
 	mata: maxL1_MND_THAL = 18
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS SCT, d($dTFI)
 	save_coefs L1_MND_THAL
@@ -748,7 +757,7 @@ program define risk_equations
 	// L6 (superseded by LX; kept for reference)
 /*
 	mi stset Date1, id(ID_BS) failure(Event1 == 70) origin(Event1 == 61) scale(30.4375)
-	save_max L6_TFI
+	save_max_obs L6_TFI
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTFI)
 	save_coefs L6_TFI
 	mata: _matrix_list(bL6_TFI, rbL6_TFI, cbL6_TFI)
