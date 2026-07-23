@@ -842,20 +842,6 @@ if _rc == 0 {
 }
 
 
-// Lenalidomide-refractory benchmarks: prevalence by line, and OS from L2 by refractory status
-if `have_lenrefr' {
-	clear
-	svmat LENREFR, names(col)
-	gen Line = _n
-	order Line
-	export delimited using "`bench_out'/lenrefr.csv", replace
-
-	clear
-	svmat OS_LENREFR, names(col)
-	gen Refr = _n - 1
-	order Refr
-	export delimited using "`bench_out'/os_lenrefr.csv", replace
-}
 
 // MND benchmark - L1 maintenance DURATION by regimen, censoring-aware.
 //
@@ -961,6 +947,21 @@ foreach M in OS_L1_NoASCT OS_ASCT OS_L2 OS_L3 OS_CM ///
 **********
 
 preserve
+
+// Lenalidomide-refractory benchmarks: prevalence by line, and OS from L2 by refractory status
+if `have_lenrefr' {
+	clear
+	svmat LENREFR, names(col)
+	gen Line = _n
+	order Line
+	export delimited using "`bench_out'/lenrefr.csv", replace
+
+	clear
+	svmat OS_LENREFR, names(col)
+	gen Refr = _n - 1
+	order Refr
+	export delimited using "`bench_out'/os_lenrefr.csv", replace
+}
 
 // OS benchmarks
 clear
