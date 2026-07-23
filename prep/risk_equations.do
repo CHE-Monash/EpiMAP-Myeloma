@@ -79,15 +79,36 @@ end
 
 cap program drop save_max_obs
 program define save_max_obs
-	// As save_max, but the ceiling is the longest duration observed to actually END.
+	// As save_max, but the ceiling is the longest duration observed to actually END. This is the
+	// DEFAULT for every duration ceiling the engine curtails against (TXD, TFI, MND); save_max
+	// survives only where the stored value is overwritten immediately (L1_MND_THAL).
 	//
 	// save_max takes r(max) as stset leaves it, which is the maximum analysis time over ALL
 	// records - so a patient still under follow-up sets the ceiling without ever being observed
 	// to finish. For a heavily censored quantity that is not an observed duration at all.
+	//
+	// The engine applies these as a hard rowmin() curtailment (core/outcomes/sim_txd.do,
+	// sim_tfi.do, sim_txd_l1.do, sim_tfi_l1.do), so the ceiling is a claim about the longest
+	// duration the data supports. A censored record supports "at least this long", not "this
+	// long", and the two differ most exactly where curtailment bites - the late lines, where
+	// follow-up runs out before treatment does.
+	//
 	// The _st == 1 filter matters: records excluded by stset's `if' keep stale _t values.
 	args mat
 
+	// Report both, with the counts behind them, so the refit log carries the size of the
+	// correction per equation. The counts also expose the one soft spot in reading _st/_d/_t
+	// directly: with `mi set wide' those are the m = 0 copy, so an equation whose stset `if'
+	// conditions on an IMPUTED variable could in principle be summarised over a different set of
+	// rows from the one the fit uses. Only L1_TFI_ASCT does (BCR_SCT), and a missing BCR_SCT
+	// satisfies `!= 0', so no rows are lost - but an N that collapses here is the symptom to look
+	// for if a future equation gains such a condition.
+	qui summarize _t if _st == 1, meanonly
+	local all = r(max)
+	local n_all = r(N)
 	qui summarize _t if _st == 1 & _d == 1, meanonly
+	di as txt "  ceiling `mat': " %7.1f r(max) " months over " %6.0f r(N) " observed ends" ///
+		"  (all " %6.0f `n_all' " records incl. censored: " %7.1f `all' ")"
 	mata: max`mat' = st_numscalar("r(max)")
 	global Coeffs $Coeffs max`mat'
 end
@@ -482,7 +503,7 @@ program define risk_equations
 	count if(TXR_L1 == 7)
 	if r(N) > 0 { // If Rd is included
 		mi stset Date1 if(TXR_L1 == 7), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) scale(30.4375)
-		save_max L1_TXD_Cont
+		save_max_obs L1_TXD_Cont
 		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
 		save_coefs L1_TXD_Cont
 	}
@@ -498,28 +519,28 @@ program define risk_equations
 
 	// L2
 	mi stset Date1, id(ID_BS) failure(Event1 == 21) origin(Event1 == 20) scale(30.4375)
-	save_max L2_TXD
+	save_max_obs L2_TXD
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L2 i.TXR_L2, d($dTXD)
 	save_coefs L2_TXD
 	mata: _matrix_list(bL2_TXD, rbL2_TXD, cbL2_TXD)
 
 	// L3
 	mi stset Date1, id(ID_BS) failure(Event1 == 31) origin(Event1 == 30) scale(30.4375)
-	save_max L3_TXD
+	save_max_obs L3_TXD
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L3 i.TXR_L3, d($dTXD)
 	save_coefs L3_TXD
 	mata: _matrix_list(bL3_TXD, rbL3_TXD, cbL3_TXD)
 
 	// L4
 	mi stset Date1, id(ID_BS) failure(Event1 == 41) origin(Event1 == 40) scale(30.4375)
-	save_max L4_TXD
+	save_max_obs L4_TXD
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L4 i.TXR_L4, d($dTXD)
 	save_coefs L4_TXD
 	mata: _matrix_list(bL4_TXD, rbL4_TXD, cbL4_TXD)
 
 	// L5
 	mi stset Date1, id(ID_BS) failure(Event1 == 51) origin(Event1 == 50) scale(30.4375)
-	save_max L5_TXD
+	save_max_obs L5_TXD
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L5, d($dTXD)
 	save_coefs L5_TXD
 	mata: _matrix_list(bL5_TXD, rbL5_TXD, cbL5_TXD)
@@ -530,7 +551,7 @@ program define risk_equations
 	qui replace fail = 0 if(Event1 == 60 | Event1 == 70 | Event1 == 80 | Event1 == 90)
 	qui bysort ID_BS (Date0): replace fail = fail[_n-1] if(fail == .)
 	mi stset Date1, id(ID_BS) failure(fail) origin(Event1 == 60) exit(time .) scale(30.4375)
-	save_max LX_TXD
+	save_max_obs LX_TXD
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
 	save_coefs LX_TXD
 	mata: _matrix_list(bLX_TXD, rbLX_TXD, cbLX_TXD)
@@ -622,13 +643,24 @@ program define risk_equations
 	// return 158.0. Only 19 of 1,020 lenalidomide patients have their maintenance dated solely by
 	// Event1 == 20, so that route is closed. Do not re-open it.
 	//
-	// The ceiling is not the problem anyway. $dTFI is LOGNORMAL and this fit returns sigma = 1.81,
-	// so the fitted mean is exp(sigma^2/2) = 5.2 times the fitted median: median 20.8 months
-	// against a mean of 107.8. The observed data has 0.2% of spells beyond 60 months. The simulated
-	// mean of 38.0 is low only because the ceiling truncates a tail the equation invented. The
-	// family needs choosing on its own evidence rather than inherited from the TFI equation, and
-	// COST BILLS THE MEAN - so score candidates on the fitted mean and the beyond-60-month share,
-	// not on AIC alone. The covariates carry nothing here either: LR chi2(8) = 7.53, p = 0.48.
+	// The ceiling is not the problem, and neither is the family in the way first thought.
+	// $dTFI is LOGNORMAL, inherited from the TFI equation rather than chosen here, and returns
+	// sigma = 1.81 - a fitted mean of 107.8 months against a fitted median of 20.8. That LOOKS
+	// like an invented tail and is not: censoring-aware, the KM puts p50 at 24.6 months and p75 at
+	// 74.7, so roughly 30% of these patients are still on maintenance at 60 months. The tail is
+	// real (scratch/mnd_dist.log).
+	//
+	// The actual problem is that the full MEAN IS NOT IDENTIFIED. Every family lands the observed
+	// region - medians 21-24 against KM 24.6, S(60) 25-33% against ~30% - and they disagree
+	// three-fold on the mean, 34.9 (exponential) to 112.0 (lognormal), entirely beyond p75 where
+	// nothing constrains them. KM p90 and p95 both come back as 157.963 with no CI at either end,
+	// because ONE patient drags the curve there, and that same patient sets maxL1_MND_LEN.
+	//
+	// COST BILLS THE MEAN, so the family choice IS a costing assumption. Do not settle it on AIC:
+	// the AIC winner (ggamma) cannot produce a mean at all, nor can gompertz or loglogistic
+	// (-283.7, infinite at the fitted shape). Settle it on restricted mean survival against the
+	// KM, which is identified, and state the beyond-74.7-month extrapolation explicitly.
+	// The covariates carry nothing here either: LR chi2(8) = 7.53, p = 0.48.
 	mi stset Date1 if(MNT == 1 & MNR_L1 == 1), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
 	save_max_obs L1_MND_LEN
@@ -661,42 +693,42 @@ program define risk_equations
 
 	// L1 - ASCT
 	mi stset Date1 if(SCT == 1 & BCR_SCT != 0), id(ID_BS) failure(Event1 == 20) origin(Event1 == 11) scale(30.4375)
-	save_max L1_TFI_ASCT
+	save_max_obs L1_TFI_ASCT
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT i.BCR_SCT, d($dTFI)
 	save_coefs L1_TFI_ASCT
 	mata: _matrix_list(bL1_TFI_ASCT, rbL1_TFI_ASCT, cbL1_TFI_ASCT)
 
 	// L1 - No ASCT
 	mi stset Date1 if(SCT == 0), id(ID_BS) failure(Event1 == 20) origin(Event1 == 11) scale(30.4375)
-	save_max L1_TFI_NoASCT
+	save_max_obs L1_TFI_NoASCT
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT i.BCR_L1, d($dTFI)
 	save_coefs L1_TFI_NoASCT
 	mata: _matrix_list(bL1_TFI_NoASCT, rbL1_TFI_NoASCT, cbL1_TFI_NoASCT)
 
 	// L2
 	mi stset Date1, id(ID_BS) failure(Event1 == 30) origin(Event1 == 21) scale(30.4375)
-	save_max L2_TFI
+	save_max_obs L2_TFI
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L2, d($dTFI)
 	save_coefs L2_TFI
 	mata: _matrix_list(bL2_TFI, rbL2_TFI, cbL2_TFI)
 
 	// L3
 	mi stset Date1, id(ID_BS) failure(Event1 == 40) origin(Event1 == 31) scale(30.4375)
-	save_max L3_TFI
+	save_max_obs L3_TFI
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L3, d($dTFI)
 	save_coefs L3_TFI
 	mata: _matrix_list(bL3_TFI, rbL3_TFI, cbL3_TFI)
 
 	// L4
 	mi stset Date1, id(ID_BS) failure(Event1 == 50) origin(Event1 == 41) scale(30.4375)
-	save_max L4_TFI
+	save_max_obs L4_TFI
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L4, d($dTFI)
 	save_coefs L4_TFI
 	mata: _matrix_list(bL4_TFI, rbL4_TFI, cbL4_TFI)
 
 	// L5
 	mi stset Date1, id(ID_BS) failure(Event1 == 60) origin(Event1 == 51) scale(30.4375)
-	save_max L5_TFI
+	save_max_obs L5_TFI
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L5, d($dTFI)
 	save_coefs L5_TFI
 	mata: _matrix_list(bL5_TFI, rbL5_TFI, cbL5_TFI)
@@ -707,7 +739,7 @@ program define risk_equations
 	qui replace fail = 0 if(Event1 == 61 | Event1 == 71 | Event1 == 81)
 	qui bysort ID_BS (Date0): replace fail = fail[_n-1] if(fail == .)
 	mi stset Date1, id(ID_BS) failure(fail) origin(Event1 == 61) exit(time .) scale(30.4375)
-	save_max LX_TFI
+	save_max_obs LX_TFI
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTFI)
 	save_coefs LX_TFI
 	mata: _matrix_list(bLX_TFI, rbLX_TFI, cbLX_TFI)
