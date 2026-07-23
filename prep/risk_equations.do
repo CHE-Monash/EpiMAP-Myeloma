@@ -693,19 +693,27 @@ program define risk_equations
 
 	// ---- Lenalidomide, no ASCT ----
 	//
-	// SD AND PD ARE COLLAPSED, and the fit forces it rather than it being a preference. Fitted on
-	// raw i.BCR_L1 this arm returns FIVE levels, not six: nobody starts lenalidomide maintenance
-	// after progressive disease at L1, which is the same reason the post-transplant response fit
-	// carries "& BCR_L1 != 6". But sim_bcr.do CAN draw BCR_L1 == 6, so a simulated PD patient who
-	// reaches maintenance would have no coefficient - and with six dummies against five levels the
-	// design silently misaligns, while with five dummies they fall through to the base level, CR,
-	// the BEST response. Both are wrong; collapsing is the honest option, and it puts a simulated
-	// PD patient on the SD coefficient, the nearest observed neighbour.
-	// It also removes the sparsest cell, which is where the pooled fit's 361-month predicted median
-	// came from (scratch/mnd_bcr.log). sim_mnd.do's NoASCT arm mirrors this: vC5 is 5 OR 6.
+	// EVERYTHING BELOW PR IS COLLAPSED, and the data forces it twice over.
+	//
+	// (1) PD is empty here. Nobody starts lenalidomide maintenance after progressive disease at L1,
+	//     the same fact behind "& BCR_L1 != 6" in the post-transplant response fit. But sim_bcr.do
+	//     CAN draw BCR_L1 == 6, so a simulated PD patient reaching maintenance would have no
+	//     coefficient - and would fall through every dummy to the BASE level, CR, the best response.
+	// (2) MR IS FOLD-DEPENDENT, which is the trap. It has SEVEN rows in the full sample and ZERO in
+	//     the 70% training fold, so the full fit returns five levels and the train fit four. A
+	//     design hard-coded to either is wrong for the other, and the OOS validation runs both.
+	//
+	// So the levels are CR / VG / PR / everything worse. Cell counts full 275 / 394 / 254 / 62 and
+	// train 174 / 280 / 192 / 46 - all populated in both folds, which is the property that matters.
+	// This also removes the sparse cell behind the pooled fit's 361-month predicted median
+	// (scratch/mnd_bcr.log). sim_mnd.do's NoASCT arm mirrors it: vC4 is BCR_L1 >= 4.
+	//
+	// GENERAL LESSON: any factor level with a handful of rows is a fold-dependent landmine, because
+	// e(b) gains or loses a column between the full and train fits while the engine design is fixed.
+	// The ASCT arm is safe here only because its MR cell holds 190 rows full / 136 train.
 	capture drop MND_BCR_L1
-	qui gen byte MND_BCR_L1 = min(BCR_L1, 5) if !mi(BCR_L1)
-	qui label variable MND_BCR_L1 "BCR_L1 with SD and PD collapsed (for L1_MND_LEN_NoASCT)"
+	qui gen byte MND_BCR_L1 = min(BCR_L1, 4) if !mi(BCR_L1)
+	qui label variable MND_BCR_L1 "BCR_L1, MR/SD/PD collapsed (for L1_MND_LEN_NoASCT)"
 	di as txt "  L1_MND_LEN_NoASCT - collapsed response distribution:"
 	tab MND_BCR_L1 if MNT == 1 & MNR_L1 == 1 & SCT == 0, missing
 
