@@ -22,6 +22,10 @@ global min_bs `6'
 global max_bs `7'
 global sample `8'   // "" = standard MI data; "train"/"test" = OOS fold under ${data_path}/oos/
 
+cap mkdir "scratch"
+cap log close req
+log using "scratch/risk_equations_$coeffs.log", replace text name(req)
+
 if "$repo_path" != "" cd "$repo_path"   // cd to repo root only if config.do set it; a bare cd "" goes to home on Mac/Unix
 capture run "config.do"     // machine-specific paths: $data_path (git-ignored)
 
@@ -677,6 +681,9 @@ program define risk_equations
 	// Evidence: scratch/mnd_dist.log, scratch/mnd_failtype.log, ../scratch/maintenance/_notes.md.
 
 	// ---- Lenalidomide, ASCT ----
+	di as txt "  L1_MND_LEN_ASCT - response distribution (0 excluded, see above):"
+	tab BCR_SCT if MNT == 1 & MNR_L1 == 1 & SCT == 1, missing
+
 	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 1 & BCR_SCT != 0), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
 	save_max_obs L1_MND_LEN_ASCT
@@ -685,10 +692,27 @@ program define risk_equations
 	mata: _matrix_list(bL1_MND_LEN_ASCT, rbL1_MND_LEN_ASCT, cbL1_MND_LEN_ASCT)
 
 	// ---- Lenalidomide, no ASCT ----
+	//
+	// SD AND PD ARE COLLAPSED, and the fit forces it rather than it being a preference. Fitted on
+	// raw i.BCR_L1 this arm returns FIVE levels, not six: nobody starts lenalidomide maintenance
+	// after progressive disease at L1, which is the same reason the post-transplant response fit
+	// carries "& BCR_L1 != 6". But sim_bcr.do CAN draw BCR_L1 == 6, so a simulated PD patient who
+	// reaches maintenance would have no coefficient - and with six dummies against five levels the
+	// design silently misaligns, while with five dummies they fall through to the base level, CR,
+	// the BEST response. Both are wrong; collapsing is the honest option, and it puts a simulated
+	// PD patient on the SD coefficient, the nearest observed neighbour.
+	// It also removes the sparsest cell, which is where the pooled fit's 361-month predicted median
+	// came from (scratch/mnd_bcr.log). sim_mnd.do's NoASCT arm mirrors this: vC5 is 5 OR 6.
+	capture drop MND_BCR_L1
+	qui gen byte MND_BCR_L1 = min(BCR_L1, 5) if !mi(BCR_L1)
+	qui label variable MND_BCR_L1 "BCR_L1 with SD and PD collapsed (for L1_MND_LEN_NoASCT)"
+	di as txt "  L1_MND_LEN_NoASCT - collapsed response distribution:"
+	tab MND_BCR_L1 if MNT == 1 & MNR_L1 == 1 & SCT == 0, missing
+
 	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 0), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
 	save_max_obs L1_MND_LEN_NoASCT
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L1, d($dTFI)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.MND_BCR_L1, d($dTFI)
 	save_coefs L1_MND_LEN_NoASCT
 	mata: _matrix_list(bL1_MND_LEN_NoASCT, rbL1_MND_LEN_NoASCT, cbL1_MND_LEN_NoASCT)
 
@@ -819,3 +843,5 @@ else if("$boot" == "1") {
 		mata: mata matsave "analyses/$analysis/coefficients/bootstrap/coefficients_${coeffs}_B`b'" $Coeffs, replace
 	}
 }
+
+cap log close req

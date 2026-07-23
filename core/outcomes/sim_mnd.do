@@ -32,7 +32,9 @@
 *
 *          BCR LEVELS, set by what the ENGINE can draw, not by what the registry codes:
 *              ASCT arm    BCR_SCT 1-4   sim_bcr_asct.do categoryValues = (1,2,3,4)
-*              NoASCT arm  BCR_L1  1-6   sim_bcr.do      categoryValues = (1,2,3,4,5,6)
+*              NoASCT arm  BCR_L1  1-5   sim_bcr.do draws 1-6, but SD and PD are COLLAPSED:
+*                                          nobody starts maintenance after PD, so 6 is empty in
+*                                          the fit while the engine can still draw it
 *          The registry also codes BCR_SCT == 0 ("transplanted, response not recorded", 22.7% of
 *          transplanted maintenance records) but the engine never assigns it, so the fit excludes
 *          it - otherwise it would become the base category and every simulated patient would be
@@ -93,19 +95,22 @@ mata {
 					vC2 = (mBCR[iN, 1] :== 2)
 					vC3 = (mBCR[iN, 1] :== 3)
 					vC4 = (mBCR[iN, 1] :== 4)
-					vC5 = (mBCR[iN, 1] :== 5)
-					vC6 = (mBCR[iN, 1] :== 6)
+					// SD and PD COLLAPSED, matching i.MND_BCR_L1 in the fit. Nobody in the registry
+					// starts lenalidomide maintenance after PD, so level 6 is empty there - but
+					// sim_bcr.do can draw it. Without this, a simulated PD patient would fall
+					// through every dummy to the base level, CR, the BEST response.
+					vC5 = (mBCR[iN, 1] :>= 5)
 
 					mPatN = (vAge[iN], vAge2[iN], vMale[iN],
 							 vECOG0[iN], vECOG1[iN], vECOG2[iN],
 							 vRISS1[iN], vRISS2[iN], vRISS3[iN],
-							 vC1, vC2, vC3, vC4, vC5, vC6,
+							 vC1, vC2, vC3, vC4, vC5,
 							 vCons[iN])
 					nPredN = cols(mPatN)
 
 					if (cols(vCoefN) != nPredN + 1) {
 						errprintf("sim_mnd (len NoASCT): design/coefficient mismatch - mPat has %g columns so %g were expected (mean + ancillary), but bL1_MND_LEN_NoASCT has %g. The fit implies %g BCR_L1 levels against the %g assumed here (design is Age Age2 Male + ECOG 3 + RISS 3 + BCR + _cons).\n",
-							nPredN, nPredN + 1, cols(vCoefN), cols(vCoefN) - 11, 6)
+							nPredN, nPredN + 1, cols(vCoefN), cols(vCoefN) - 11, 5)
 						exit(459)
 					}
 
