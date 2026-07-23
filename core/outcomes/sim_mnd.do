@@ -4,62 +4,116 @@
 * Purpose: Draw L1 maintenance DURATION by parametric survival, among patients on maintenance
 *          (MNT == 1). Continuous time in months.
 *
-* Notes:   Two arms, split by REGIMEN and pooled across transplant, with SCT as a covariate and no
-*          BCR. No ln(TFI) covariate: it restricted the fit to patients with an observed L2. The
-*          ordering (maintenance must fit inside the gap) is enforced downstream instead -
-*          sim_tfi_l1.do draws the gap truncated below at the duration drawn here, so nothing is
-*          clipped. Thalidomide is capped at 18 months, matching the censoring in its fit.
-*          Reasoning and the rejected alternatives: prep/risk_equations.do and
-*          scratch/maintenance/_notes.md.
+* Notes:   THREE arms: lenalidomide with ASCT, lenalidomide without, and thalidomide pooled across
+*          transplant. Lenalidomide is split so each arm can carry the response depth that exists
+*          for it - i.BCR_SCT after transplant, i.BCR_L1 otherwise. The signal is entirely in the
+*          transplant response (LR p = 0.0021 against 0.50 for BCR_L1), and it cannot be carried by
+*          a pooled equation because BCR_SCT == 0 would have to mean both "not transplanted" and
+*          "transplanted, response not recorded" - 22.7% of the arm. Splitting resolves that
+*          without a synthetic level. Mirrors sim_tfi_l1.do, which splits the same way.
 *
-* ORDER:   AFTER sim_mnr.do (needs vMNR) and sim_bcr_asct.do (needs mBCR).
-*          BEFORE sim_tfi_l1.do, which now depends on vMND. This is a REVERSAL of the previous order
+*          No ln(TFI) covariate: it restricted the fit to patients with an observed L2. The
+*          ordering (maintenance must fit inside the gap) is enforced downstream instead -
+*          sim_tfi_l1.do draws the gap truncated below at the duration drawn here. Thalidomide is
+*          capped at 18 months, matching the censoring in its fit; the lenalidomide ceilings are
+*          the observed maxima and are NOT to be lowered (scratch/maintenance/_notes.md).
+*
+* ORDER:   AFTER sim_mnr.do (needs vMNR) and sim_bcr_asct.do (needs mBCR[.,10] = BCR_SCT).
+*          BEFORE sim_tfi_l1.do, which depends on vMND. This is a REVERSAL of the previous order
 *          and the whole point of the design: maintenance first, then the gap that must contain it.
 *
 *          Must match the fits in prep/risk_equations.do:
-*              len   streg Age Age2 Male i.ECOGcc i.RISS SCT
-*              thal  streg Age Age2 Male i.ECOGcc i.RISS SCT   (exit at 18 months)
-*          e(b) order: Age Age2 Male, ECOG(0,1,2), RISS(1,2,3), SCT, _cons, aux. The base-level
-*          dummies are 0-coef in e(b), as sim_tfi_l1.do does.
+*              len ASCT    streg Age Age2 Male i.ECOGcc i.RISS i.BCR_SCT
+*              len NoASCT  streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L1
+*              thal        streg Age Age2 Male i.ECOGcc i.RISS SCT        (exit at 18 months)
+*          e(b) order follows the command: Age Age2 Male, ECOG(0,1,2), RISS(1,2,3), then the BCR
+*          levels, then _cons, then aux. Base-level dummies carry a 0 coefficient in e(b) and are
+*          included as columns, exactly as sim_tfi_l1.do does.
+*
+*          BCR LEVELS. The ASCT arm uses BCR_SCT 0-4, where 0 IS A REAL LEVEL meaning "transplanted,
+*          response not recorded" - it is not a base-level fallback and must be a column. The
+*          NoASCT arm uses BCR_L1 1-6. If a level was empty in the fit, e(b) is short and the
+*          dimension guard below fires rather than silently misaligning the design.
 **********
 
 mata {
-	vCoefL = get_mnd_coef_len()
+	vCoefA = get_mnd_coef_len_asct()
+	vCoefN = get_mnd_coef_len_noasct()
 	vCoefT = get_mnd_coef_thal()
 
-	if (cols(vCoefL) > 0 | cols(vCoefT) > 0) {
+	if (cols(vCoefA) > 0 | cols(vCoefN) > 0 | cols(vCoefT) > 0) {
 
 		// Alive, eligible AND receiving maintenance. Same population sim_mnr drew for.
 		idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC) :& (vMNT :== 1))
 		if (rows(idx) > 0) {
 
-			// ---- Lenalidomide ----
-			if (cols(vCoefL) > 0) {
-				iL = idx[selectindex(vMNR[idx] :== 1)]
-				if (rows(iL) > 0) {
-					mPatL = (vAge[iL], vAge2[iL], vMale[iL],
-							 vECOG0[iL], vECOG1[iL], vECOG2[iL],
-							 vRISS1[iL], vRISS2[iL], vRISS3[iL],
-							 vSCT_L1[iL],
-							 vCons[iL])
-					nPredL = cols(mPatL)
+			// ---- Lenalidomide, ASCT ----
+			if (cols(vCoefA) > 0) {
+				iA = idx[selectindex((vMNR[idx] :== 1) :& (vSCT_L1[idx] :== 1))]
+				if (rows(iA) > 0) {
+					// BCR_SCT: 0 is a modelled level, not the absence of one.
+					vB0 = (mBCR[iA, 10] :== 0)
+					vB1 = (mBCR[iA, 10] :== 1)
+					vB2 = (mBCR[iA, 10] :== 2)
+					vB3 = (mBCR[iA, 10] :== 3)
+					vB4 = (mBCR[iA, 10] :== 4)
 
-					if (cols(vCoefL) != nPredL + 1) {
-						errprintf("sim_mnd (len): design/coefficient mismatch - mPat has %g columns so %g were expected (mean + ancillary), but bL1_MND_LEN has %g. An ECOG/RISS level was likely empty in the fit.\n",
-							nPredL, nPredL + 1, cols(vCoefL))
+					mPatA = (vAge[iA], vAge2[iA], vMale[iA],
+							 vECOG0[iA], vECOG1[iA], vECOG2[iA],
+							 vRISS1[iA], vRISS2[iA], vRISS3[iA],
+							 vB0, vB1, vB2, vB3, vB4,
+							 vCons[iA])
+					nPredA = cols(mPatA)
+
+					if (cols(vCoefA) != nPredA + 1) {
+						errprintf("sim_mnd (len ASCT): design/coefficient mismatch - mPat has %g columns so %g were expected (mean + ancillary), but bL1_MND_LEN_ASCT has %g. An ECOG/RISS/BCR_SCT level was likely empty in the fit.\n",
+							nPredA, nPredA + 1, cols(vCoefA))
 						exit(459)
 					}
 
-					vBetaL = vCoefL[1, 1..nPredL]'
-					auxL   = vCoefL[1, cols(vCoefL)]
-					vXBl   = mPatL * vBetaL
-					vRNl   = rnDraw(iL, rn_mnd())
-					vOCl   = calcSurvTime(vXBl, vRNl, fbL1_MND_LEN, auxL)
-					vMND[iL] = rowmin((vOCl, J(rows(iL), 1, maxL1_MND_LEN)))
+					vBetaA = vCoefA[1, 1..nPredA]'
+					auxA   = vCoefA[1, cols(vCoefA)]
+					vXBa   = mPatA * vBetaA
+					vRNa   = rnDraw(iA, rn_mnd())
+					vOCa   = calcSurvTime(vXBa, vRNa, fbL1_MND_LEN_ASCT, auxA)
+					vMND[iA] = rowmin((vOCa, J(rows(iA), 1, maxL1_MND_LEN_ASCT)))
 				}
 			}
 
-			// ---- Thalidomide ----
+			// ---- Lenalidomide, no ASCT ----
+			if (cols(vCoefN) > 0) {
+				iN = idx[selectindex((vMNR[idx] :== 1) :& (vSCT_L1[idx] :!= 1))]
+				if (rows(iN) > 0) {
+					vC1 = (mBCR[iN, 1] :== 1)
+					vC2 = (mBCR[iN, 1] :== 2)
+					vC3 = (mBCR[iN, 1] :== 3)
+					vC4 = (mBCR[iN, 1] :== 4)
+					vC5 = (mBCR[iN, 1] :== 5)
+					vC6 = (mBCR[iN, 1] :== 6)
+
+					mPatN = (vAge[iN], vAge2[iN], vMale[iN],
+							 vECOG0[iN], vECOG1[iN], vECOG2[iN],
+							 vRISS1[iN], vRISS2[iN], vRISS3[iN],
+							 vC1, vC2, vC3, vC4, vC5, vC6,
+							 vCons[iN])
+					nPredN = cols(mPatN)
+
+					if (cols(vCoefN) != nPredN + 1) {
+						errprintf("sim_mnd (len NoASCT): design/coefficient mismatch - mPat has %g columns so %g were expected (mean + ancillary), but bL1_MND_LEN_NoASCT has %g. An ECOG/RISS/BCR_L1 level was likely empty in the fit.\n",
+							nPredN, nPredN + 1, cols(vCoefN))
+						exit(459)
+					}
+
+					vBetaN = vCoefN[1, 1..nPredN]'
+					auxN   = vCoefN[1, cols(vCoefN)]
+					vXBn   = mPatN * vBetaN
+					vRNn   = rnDraw(iN, rn_mnd())
+					vOCn   = calcSurvTime(vXBn, vRNn, fbL1_MND_LEN_NoASCT, auxN)
+					vMND[iN] = rowmin((vOCn, J(rows(iN), 1, maxL1_MND_LEN_NoASCT)))
+				}
+			}
+
+			// ---- Thalidomide, pooled across transplant ----
 			if (cols(vCoefT) > 0) {
 				iT = idx[selectindex(vMNR[idx] :== 5)]
 				if (rows(iT) > 0) {
@@ -93,7 +147,7 @@ mata {
 		// No model - leave vMND missing. process_data.do bills nothing where the duration is
 		// missing, which is the safe direction: no maintenance cost beats silently reverting to
 		// the old whole-gap bill. sim_tfi_l1.do also falls back to an untruncated draw.
-		errprintf("sim_mnd: bL1_MND_LEN / bL1_MND_THAL not found - maintenance duration will not be costed. Re-run prep/risk_equations.do.\n")
+		errprintf("sim_mnd: no L1_MND coefficients found - maintenance duration will not be costed. Re-run prep/risk_equations.do.\n")
 	}
 }
 

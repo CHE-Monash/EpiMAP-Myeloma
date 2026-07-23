@@ -643,40 +643,59 @@ program define risk_equations
 	qui egen double MND_origin = min(_mxMNDo), by(ID_BS)
 	qui drop _mxMNDo
 
-	// Lenalidomide.
+	// Lenalidomide, SPLIT BY TRANSPLANT so each arm can carry the response that exists for it.
 	//
-	// The 157.96-month (13.2 year) ceiling was investigated and is REAL: scratch/mnd_failtype.log
-	// shows it is a recorded cessation (Event1 == 111), not a censored record and not a spell dated
-	// only by relapse. Restricting the failure definition does not move it - all three definitions
-	// return 158.0. Only 19 of 1,020 lenalidomide patients have their maintenance dated solely by
-	// Event1 == 20, so that route is closed. Do not re-open it.
+	// This reverts the mid-session pooling (one equation with an SCT covariate). That pooling was
+	// justified on the KM curves being similar, which is a claim about the BASELINE HAZARD. The
+	// reason to split is different and stronger: the covariate that actually carries signal only
+	// exists in one arm.
+	//     ASCT arm    i.BCR_SCT   LR chi2(4) = 16.86, p = 0.0021, AIC -8.9 vs baseline
+	//     NoASCT arm  i.BCR_L1
+	// BCR_L1 carried nothing in the pooled fit (p = 0.50, AIC worse than baseline) and produced
+	// unstable predictions - a sparse level drove the mean predicted median to 361 months. It is
+	// kept here because in the NoASCT arm it is the ONLY response available, but watch that
+	// diagnostic: if the arm's predicted median blows up, a level needs collapsing.
+	// Evidence: scratch/mnd_bcr.log. This also makes MND structurally match L1_TFI, which has been
+	// split this way all along and reads BCR_SCT / BCR_L1 in the same two arms.
 	//
-	// The ceiling is not the problem, and neither is the family in the way first thought.
-	// $dTFI is LOGNORMAL, inherited from the TFI equation rather than chosen here, and returns
-	// sigma = 1.81 - a fitted mean of 107.8 months against a fitted median of 20.8. That LOOKS
-	// like an invented tail and is not: censoring-aware, the KM puts p50 at 24.6 months and p75 at
-	// 74.7, so roughly 30% of these patients are still on maintenance at 60 months. The tail is
-	// real (scratch/mnd_dist.log).
+	// THE AMBIGUOUS CELL RESOLVES ITSELF. 22.7% of transplanted maintenance patients have no
+	// recorded ASCT response. In a POOLED equation, BCR_SCT == 0 would have to mean both "not
+	// transplanted" and "transplanted, not recorded" - two different things in one level. Inside an
+	// ASCT-only arm, 0 unambiguously means "not recorded", because never-transplanted patients are
+	// in the other equation. So no synthetic level is needed. NOTE this differs from L1_TFI_ASCT,
+	// which EXCLUDES BCR_SCT == 0 from its fit while its engine arm silently treats those patients
+	// as the base level - an inconsistency inherited there, not repeated here.
 	//
-	// The actual problem is that the full MEAN IS NOT IDENTIFIED. Every family lands the observed
-	// region - medians 21-24 against KM 24.6, S(60) 25-33% against ~30% - and they disagree
-	// three-fold on the mean, 34.9 (exponential) to 112.0 (lognormal), entirely beyond p75 where
-	// nothing constrains them. KM p90 and p95 both come back as 157.963 with no CI at either end,
-	// because ONE patient drags the curve there, and that same patient sets maxL1_MND_LEN.
-	//
-	// COST BILLS THE MEAN, so the family choice IS a costing assumption. Do not settle it on AIC:
-	// the AIC winner (ggamma) cannot produce a mean at all, nor can gompertz or loglogistic
-	// (-283.7, infinite at the fitted shape). Settle it on restricted mean survival against the
-	// KM, which is identified, and state the beyond-74.7-month extrapolation explicitly.
-	// The covariates carry nothing here either: LR chi2(8) = 7.53, p = 0.48.
-	mi stset Date1 if(MNT == 1 & MNR_L1 == 1), ///
-		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
-	save_max_obs L1_MND_LEN
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS SCT, d($dTFI)
-	save_coefs L1_MND_LEN
-	mata: _matrix_list(bL1_MND_LEN, rbL1_MND_LEN, cbL1_MND_LEN)
+	// ON THE CEILING AND THE FAMILY, both settled and neither is the lever they looked like:
+	// $dTFI is lognormal and returns sigma = 1.81, so the fitted mean is 5.2x the fitted median.
+	// That LOOKS like an invented tail and is not - censoring-aware, the KM puts p75 at 74.7
+	// months, so ~30% are still on maintenance at 60 months. The drawn duration reproduces the
+	// registry restricted mean at every horizon (35.6 / 42.7 / 48.5 against 35.23 / 42.91 / 51.01
+	// at 84 / 120 / 158). The 157.96-month ceiling is a genuine recorded cessation and RMST(158) is
+	// the only unflagged KM estimate, so the curve reaches zero there. Do not lower it: an
+	// 84-month ceiling gives a mean of 30.5 against a registry 35.23.
+	// Evidence: scratch/mnd_dist.log, scratch/mnd_failtype.log, ../scratch/maintenance/_notes.md.
 
-	// Thalidomide, censored at 18 months
+	// ---- Lenalidomide, ASCT ----
+	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 1), ///
+		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
+	save_max_obs L1_MND_LEN_ASCT
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_SCT, d($dTFI)
+	save_coefs L1_MND_LEN_ASCT
+	mata: _matrix_list(bL1_MND_LEN_ASCT, rbL1_MND_LEN_ASCT, cbL1_MND_LEN_ASCT)
+
+	// ---- Lenalidomide, no ASCT ----
+	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 0), ///
+		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
+	save_max_obs L1_MND_LEN_NoASCT
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L1, d($dTFI)
+	save_coefs L1_MND_LEN_NoASCT
+	mata: _matrix_list(bL1_MND_LEN_NoASCT, rbL1_MND_LEN_NoASCT, cbL1_MND_LEN_NoASCT)
+
+	// Thalidomide, censored at 18 months. POOLED across transplant with an SCT covariate and no
+	// BCR: n is roughly 311 patients against lenalidomide's 1,020, so splitting it three ways would
+	// leave cells that cannot support a factor. Thalidomide maintenance also ended with the 2020
+	// PBS listing, so it matters to historical validation rather than to any current analysis.
 	mi stset Date1 if(MNT == 1 & MNR_L1 == 5), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375) ///
 		exit(time MND_origin + `=18 * 30.4375')

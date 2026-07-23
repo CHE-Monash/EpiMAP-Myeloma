@@ -105,7 +105,7 @@ di "Running simulation"
 	// No CRN consequence: both files consume the same slots they always did.
 	di "L1E - MNT Duration (drawn first; the gap is then truncated to contain it)"
 		qui do "core/outcomes/sim_mnd.do"
-		*mata: _matrix_list(bL1_MND_LEN, rbL1_MND_LEN, cbL1_MND_LEN)
+		*mata: _matrix_list(bL1_MND_LEN_ASCT, rbL1_MND_LEN_ASCT, cbL1_MND_LEN_ASCT)
 		*mata: _matrix_list(vMND)
 
 	di "L1E - Treatment-free Interval (truncated below at vMND for maintenance patients)"

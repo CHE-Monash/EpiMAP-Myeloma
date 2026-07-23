@@ -78,9 +78,16 @@ real scalar mnr_model_exists() {
 // are different processes - thalidomide is a fixed course (9% censored), lenalidomide runs on (47%)
 // - while the two transplant arms have near-identical Kaplan-Meier curves. SCT enters as a covariate
 // instead. See prep/risk_equations.do.
-real matrix get_mnd_coef_len() {
-	external bL1_MND_LEN
-	if (rows(bL1_MND_LEN) > 0) return(bL1_MND_LEN)
+real matrix get_mnd_coef_len_asct() {
+	external bL1_MND_LEN_ASCT
+	if (rows(bL1_MND_LEN_ASCT) > 0) return(bL1_MND_LEN_ASCT)
+	return(J(0, 0, .))
+}
+
+// Helper function: Get MND coefficients, LENALIDOMIDE without ASCT (carries i.BCR_L1)
+real matrix get_mnd_coef_len_noasct() {
+	external bL1_MND_LEN_NoASCT
+	if (rows(bL1_MND_LEN_NoASCT) > 0) return(bL1_MND_LEN_NoASCT)
 	return(J(0, 0, .))
 }
 
@@ -115,7 +122,7 @@ real scalar lenrefr_model_exists() {
 
 // Helper function: MND model exists if EITHER transplant arm was fitted
 real scalar mnd_model_exists() {
-	return(cols(get_mnd_coef_len()) > 0 | cols(get_mnd_coef_thal()) > 0)
+	return(cols(get_mnd_coef_len_asct()) > 0 | cols(get_mnd_coef_len_noasct()) > 0 | cols(get_mnd_coef_thal()) > 0)
 }
 
 end
