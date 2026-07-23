@@ -698,7 +698,7 @@ program define risk_equations
 	di as txt "  L1_MND_LEN_ASCT - response distribution (0 excluded, see above):"
 	tab BCR_SCT if MNT == 1 & MNR_L1 == 1 & SCT == 1, missing
 
-	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 1 & BCR_SCT != 0), ///
+	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 1 & inrange(BCR_SCT, 1, 4)), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
 	// CEILING FROM ALL RECORDS, censored included - deliberately NOT save_max_obs.
 	//
@@ -795,7 +795,11 @@ program define risk_equations
 	mata: _matrix_list(bDN_TFI, rbDN_TFI, cbDN_TFI)
 
 	// L1 - ASCT
-	mi stset Date1 if(SCT == 1 & BCR_SCT != 0), id(ID_BS) failure(Event1 == 20) origin(Event1 == 11) scale(30.4375)
+	// inrange(BCR_SCT, 1, 4), NOT "BCR_SCT != 0". Since multiple_imputation.do stopped coding
+	// transplanted-but-unrecorded patients as 0, they are MISSING - and in Stata `. != 0' is TRUE,
+	// so the old condition would have quietly let them into the risk set. They would still drop out
+	// of the estimation listwise, but not before affecting _st == 1, and therefore the ceiling.
+	mi stset Date1 if(SCT == 1 & inrange(BCR_SCT, 1, 4)), id(ID_BS) failure(Event1 == 20) origin(Event1 == 11) scale(30.4375)
 	save_max_obs L1_TFI_ASCT
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT i.BCR_SCT, d($dTFI)
 	save_coefs L1_TFI_ASCT
