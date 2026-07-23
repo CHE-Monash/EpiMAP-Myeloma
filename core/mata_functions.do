@@ -91,6 +91,28 @@ real matrix get_mnd_coef_thal() {
 	return(J(0, 0, .))
 }
 
+// Helper function: Get LENREFR_TX residual-arm logit coefficients (empty if not fitted)
+// `external' creates the symbol empty when an analysis did not fit the block, so rows() can be
+// tested and sim_lenrefr.do becomes a no-op rather than failing on an undefined symbol.
+real matrix get_lenrefr_coef() {
+	external bLENREFR_TX
+	if (rows(bLENREFR_TX) > 0) return(bLENREFR_TX)
+	return(J(0, 0, .))
+}
+
+// Helper function: Get the lenalidomide-containing regimen codes the analysis declared
+real rowvector get_lenrefr_regimens() {
+	external LENREFR_regimens
+	if (cols(LENREFR_regimens) > 0) return(LENREFR_regimens)
+	return(J(1, 0, .))
+}
+
+// Helper function: LenRefr treatment arm runs only if BOTH the logit and a len-regimen list exist.
+// The MAINTENANCE arm needs no helper: it is arithmetic on TFI_L1 and MND_L1, not a fitted model.
+real scalar lenrefr_model_exists() {
+	return(rows(get_lenrefr_coef()) > 0 & cols(get_lenrefr_regimens()) > 0)
+}
+
 // Helper function: MND model exists if EITHER transplant arm was fitted
 real scalar mnd_model_exists() {
 	return(cols(get_mnd_coef_len()) > 0 | cols(get_mnd_coef_thal()) > 0)

@@ -342,7 +342,22 @@ program define mata_setup
 		// vMND is the maintenance DURATION in months (the raw survival draw); process_data.do
 		// caps it at the realised TFI_L1 at billing time. See docs/refractory.md 4.4.
 		vMNR = J(Obs, 1, .)                       // L1 maintenance regimen (1 = len, 5 = thal)
-		vMND = J(Obs, 1, .)                       // L1 maintenance duration, months (capped at TFI when billed)
+		vMND = J(Obs, 1, .)
+
+		// Lenalidomide-refractory, the LATCHED at-line-entry state. 0 = not yet refractory, which is
+		// the correct resting value and is 0 at L1 entry by construction. sim_lenrefr.do flips it at
+		// a line's END (after that line's OS), so every equation reads the state from STRICTLY PRIOR
+		// lines. See docs/refractory.md 3.5 / 4.
+		//
+		// ONE vector, not two. The treatment-dose and maintenance-dose flags were kept separate
+		// while it was open whether they carried different prognostic weight; os_lenrefr_check.do
+		// settled it at p = 0.97, so they collapse and the union is what the OS equations read.
+		vLenRefr_in = J(Obs, 1, 0)
+
+		// Per-line SNAPSHOT for export and validation: mLenRefr_in[.,l] is the entry-to-Ll value,
+		// recorded at each line end before the state updates. Missing for a line never reached,
+		// matching mBCR. process_data.do writes it out as LenRefr_L1..L9.
+		mLenRefr_in = J(Obs, 9, .)                       // L1 maintenance duration, months (capped at TFI when billed)
 
 	}
 end

@@ -117,6 +117,19 @@ di "Running simulation"
 
 	di "L1E - Overall Survival"
 		qui do "core/outcomes/sim_os.do"
+
+	// LenRefr (treatment lines): fires AFTER this line's OS, so every equation reads the state from
+	// STRICTLY PRIOR lines - which is how the covariate was fitted. Latched 0 -> 1.
+	di "L1E - LenRefr (treatment)"
+		qui do "core/outcomes/sim_lenrefr.do"
+
+	// Maintenance len-refractory. The tail (TFI_L1 - MND_L1) needs both draws, which happened
+	// earlier at this OMC, but this runs AFTER L1E's OS for the same reason the treatment arm does:
+	// the refractory event occurs at the END of the gap, when L2 starts, so it must not influence
+	// survival ACROSS that gap. Read from L2 on. Arithmetic, not a fitted model, so no CRN slot.
+	di "L1E - Maintenance len-refractory (tail < 60 days)"
+		qui do "core/outcomes/sim_mnt_refr.do"
+		*mata: _matrix_list(vLenRefr_in)
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
@@ -174,6 +187,11 @@ di "Running simulation"
 
 	di "L2E - Overall Survival"
 		qui do "core/outcomes/sim_os.do"
+
+	// LenRefr (treatment lines): fires AFTER this line's OS, so every equation reads the state from
+	// STRICTLY PRIOR lines - which is how the covariate was fitted. Latched 0 -> 1.
+	di "L2E - LenRefr (treatment)"
+		qui do "core/outcomes/sim_lenrefr.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS))
 
@@ -231,6 +249,11 @@ di "Running simulation"
 
 	di "L3E - Overall Survival"
 		qui do "core/outcomes/sim_os.do"
+
+	// LenRefr (treatment lines): fires AFTER this line's OS, so every equation reads the state from
+	// STRICTLY PRIOR lines - which is how the covariate was fitted. Latched 0 -> 1.
+	di "L3E - LenRefr (treatment)"
+		qui do "core/outcomes/sim_lenrefr.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
@@ -288,6 +311,11 @@ di "Running simulation"
 
 	di "L4E - Overall Survival"
 		qui do "core/outcomes/sim_os.do"
+
+	// LenRefr (treatment lines): fires AFTER this line's OS, so every equation reads the state from
+	// STRICTLY PRIOR lines - which is how the covariate was fitted. Latched 0 -> 1.
+	di "L4E - LenRefr (treatment)"
+		qui do "core/outcomes/sim_lenrefr.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
@@ -345,6 +373,11 @@ di "Running simulation"
 
 	di "L5E - Overall Survival"
 		qui do "core/outcomes/sim_os.do"
+
+	// LenRefr (treatment lines): fires AFTER this line's OS, so every equation reads the state from
+	// STRICTLY PRIOR lines - which is how the covariate was fitted. Latched 0 -> 1.
+	di "L5E - LenRefr (treatment)"
+		qui do "core/outcomes/sim_lenrefr.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 

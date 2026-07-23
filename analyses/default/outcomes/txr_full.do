@@ -20,5 +20,13 @@ global TXR_L1 "4 31"
 global TXR_L2 "7 80"
 global TXR_L3 "7 49"
 global TXR_L4 "49 56"
+
+* Lenalidomide-containing regimen codes, for the refractory gate. The FIT conditions on the true
+* drug binary (Lenalidomide == 1); the engine has no drug field, so sim_lenrefr.do counts a line as
+* lenalidomide iff the DRAWN regimen is one of these. 'other' (code 0) is treated as non-len, which
+* under-counts: some of that bucket contains lenalidomide. That asymmetry is deliberate and is one
+* of the two causes of the treatment-arm under-generation in docs/refractory.md 5(6).
+* Declared per analysis alongside the TXR lists so a change of modelled regimens carries the gate.
+global LENREFR_regimens "7 31"
 * L5-L9 unset => all 'other'
 

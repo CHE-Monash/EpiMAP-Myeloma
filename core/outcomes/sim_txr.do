@@ -48,10 +48,14 @@ mata {
 				}
 			}
 			
-			// Build patient matrix (L2+) - Age only (regimen choice is availability-driven).
-			// Must match the fit in prep/risk_equations.do: mlogit TXR_L{2..4} Age Age2.
+			// Build patient matrix (L2+). L2-L4 carry the len-refractory flag: refractory status
+			// drives regimen choice almost deterministically (docs/refractory.md 3.4), which Age
+			// alone cannot reproduce. L5+ carry Age only - refractoriness is saturated there (5(3))
+			// and only L2-L4 were fitted with it. Column order must match the fit:
+			// mlogit TXR_L{2..4} Age Age2 LenRefr_any.
 			else if (Line >= 2) {
-				mPat = (vAge[idx], vAge2[idx], vCons[idx])
+				if (Line <= 4) mPat = (vAge[idx], vAge2[idx], vLenRefr_in[idx], vCons[idx])
+				else           mPat = (vAge[idx], vAge2[idx], vCons[idx])
 
 				nPredictors = cols(mPat)
 
