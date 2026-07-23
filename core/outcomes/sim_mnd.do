@@ -94,7 +94,6 @@ mata {
 					vC1 = (mBCR[iN, 1] :== 1)
 					vC2 = (mBCR[iN, 1] :== 2)
 					vC3 = (mBCR[iN, 1] :== 3)
-					vC4 = (mBCR[iN, 1] :== 4)
 					// MR, SD and PD COLLAPSED, matching i.MND_BCR_L1 in the fit. PD is empty in the
 					// registry (nobody starts lenalidomide maintenance after progressive disease)
 					// while sim_bcr.do can still draw it, and MR is FOLD-DEPENDENT - 7 rows in the
