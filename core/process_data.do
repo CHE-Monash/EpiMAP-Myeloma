@@ -222,6 +222,21 @@ cap mata: mata drop mRN
 			di as error "  NOTE: MND_L1 exceeded TFI_L1 for " r(N) " patients despite the truncated"
 			di as error "        TFI draw. Expected ~0 (death curtailment aside); investigate if large."
 		}
+		// DIAGNOSTIC. The drawn duration, after sim_mnd's 158-month ceiling but BEFORE the clip
+		// below, which is otherwise unrecoverable from the exported file. It exists to decompose a
+		// 9.6-month shortfall: the fitted lognormal implies RMST(158) = 47.6 months and the
+		// registry KM 51.0, but the exported MND_L1 averages 38.0.
+		//     MND_raw vs the fitted RMST  isolates the draw and the cohort's case mix
+		//     MND_raw vs MND_L1           isolates curtailment (death, and one ceiling cutting
+		//                                 another - 923 patients sit on maxL1_TFI_ASCT, not on
+		//                                 the maintenance ceiling)
+		// Every subgroup of the exported file is selected on the quantity being measured, which is
+		// why the decomposition cannot be done without this. Costed on MND_L1, never on MND_raw.
+		// L1 analyses only, which is where maintenance is costed; nothing downstream reads it.
+		capture drop MND_raw
+		qui gen double MND_raw = MND_L1
+		qui label variable MND_raw "L1 maintenance duration as drawn, before the TFI clip (diagnostic)"
+
 		qui replace MND_L1 = TFI_L1 if MNT == 1 & !mi(MND_L1) & MND_L1 > TFI_L1
 		qui replace cost_tx_mnt = `cMNT' * (MND_L1 * 30.4375 / 28) if MNT == 1 & !mi(MND_L1)
 	}
