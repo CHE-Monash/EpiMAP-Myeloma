@@ -286,19 +286,27 @@ program define multiple_imputation
 
 		// The invariant: BCR_SCT == 0 must count SCT == 0 patients EXACTLY. Anything else means the
 		// zero-fill has caught missing data again, which is the fault this whole block exists to fix.
-		qui count if _mi_m == 1 & SCT == 1 & BCR_SCT == 0
+		//
+		// CHECK INSIDE AN IMPUTATION, not the master. BCR_SCT is now a REGISTERED IMPUTED variable,
+		// so m = 0 correctly keeps the original gaps and only m = 1..M are complete - that is how mi
+		// works, not a fault. An earlier version of this check read the master and reported all 4,330
+		// records as "still missing after imputation" when the imputation had in fact filled every
+		// one of the 548 patients. `mi xeq 1:' is style-agnostic (wide or flong) where reading
+		// _mi_m or _1_BCR_SCT directly is not.
+		mi xeq 1: qui count if SCT == 1 & BCR_SCT == 0
 		local _nbad = r(N)
-		qui count if _mi_m == 1 & SCT == 1 & mi(BCR_SCT)
+		mi xeq 1: qui count if SCT == 1 & mi(BCR_SCT)
 		local _nmiss = r(N)
 		if `_nbad' > 0 {
 			di as error "  BCR_SCT: " `_nbad' " TRANSPLANTED records still coded 0 - the invariant is broken."
 		}
 		if `_nmiss' > 0 {
-			di as txt "  BCR_SCT: " `_nmiss' " transplanted records remain missing after imputation" ///
-				" (they will drop from the SCT == 1 equations)."
+			di as error "  BCR_SCT: " `_nmiss' " transplanted records still missing IN m = 1 after" ///
+				" imputation - the model did not cover them; they will drop from the SCT == 1 equations."
 		}
 		if `_nbad' == 0 & `_nmiss' == 0 {
-			di as txt "  BCR_SCT: complete for all transplanted records; 0 means no transplant only."
+			di as txt "  BCR_SCT: complete in m = 1 for all transplanted records; 0 means no transplant only."
+			di as txt "           (m = 0 retains the original gaps, as an imputed variable should.)"
 		}
 
 		// Refresh mi system variables after the direct-column carryforwards/broadcasts (replaces the
