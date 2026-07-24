@@ -257,16 +257,23 @@ program define impute_bcr_sct
 			di as txt "           (m = 0 retains the original gaps, as an imputed variable should.)"
 		}
 end
-		// Refresh mi system variables after the direct-column carryforwards/broadcasts (replaces the
-		// mi update that used to live inside the now-removed pBCR merge block).
-		mi update
+
+// Finalise. Was left at top level by the split into separate programs, where it would have run at
+// file-read time with no data loaded - and the bootstrap branch never reached it at all, so that
+// output would have kept every auxiliary variable.
+cap program drop finalise_mi
+program define finalise_mi
+
+	// AFTER every direct-column write. _cf and _bcast_idbs bypass mi to write the `_m_var' columns,
+	// so _mi_miss is stale until this runs; and BEFORE the unregister, which needs a consistent mi
+	// object. This is the one mi update in the file, in the same position the original had it.
+	mi update
 
 	// Unregister, keep, sort & order
 	mi unregister AlkalinePhosphatase BMPlasmaCells SerumCalcium SerumCreatinine EQ5D_Diagnosis LTHaemoglobinGL WhiteCellCount NeutrophillCount PlateletCount CRABScore ExtraMedullaryD LyticLesion Para Lambda Kappa FLC dPara dLambda dKappa dFLC
 	keep ID ID_BS Event* Date* Age* Male ECOGcc ISS RISS SCT MNT MND_L1 MNR_L1 LineRefr LenRefr_Tx_in LenRefr_Mnt_in MNT_LenRefr_L1 CM* BCR* pBCR* Reg* OS Line Duration CID CLine CStart CEnd Country F_* CN_* Year Albumin SerumB2Microglobulin LactateDehydrogenase LDHUpperLimit LDHRisk FISHRisk eGFR _* Bortezomib Carfilzomib Cisplatin Cyclophosphamide Daratumamab Dexamethasone Doxorubicin Elotuzamab Etoposide Lenalidomide Melphalan Methylprednisolone Panobinostat Prednisolone Thalidomide Pomalidomide Ixazomib TXD* TFI*
 	sort ID_BS Date0
 	order $core Age Male ECOGcc RISS BCR Reg Regimen Line Duration
-
 end
 
 **********
@@ -302,6 +309,7 @@ if "$boot" == "0" {
 	impute_diagnosis `RN_diag'
 	impute_bcr_txr   `RN_txr'
 	impute_bcr_sct   `RN_sct'
+	finalise_mi
 
 	// Save Long MI
 	save "${data_path}/${mi_outdir}MRDR Long MI${mi_outtag}.dta", replace
@@ -406,6 +414,7 @@ else if "$boot" == "1" {
 				impute_diagnosis `a_diag'
 				impute_bcr_txr   `a_txr'
 				impute_bcr_sct   `a_sct'
+				finalise_mi
 			}
 
 			if _rc == 0 {
