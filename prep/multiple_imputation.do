@@ -8,31 +8,15 @@
 **********
 
 * -------------------------------------------------------------------------------------------------
-* WHAT CHANGED vs multiple_imputation.do (intended to produce IDENTICAL output for a given seed):
-*   The post-imputation carryforward/broadcast step was the bottleneck: ~27 `mi xeq 0/$imp: bysort`
-*   calls, each re-sorting the full long dataset M+1 times (~O(M) full sorts). Fixes (helpers _cf /
-*   _bcast_idbs, above): operate DIRECTLY on the wide per-imputation columns (`_m_var`) + the original
-*   (`var`), sorting ONCE and using plain `by` - instead of looping `mi xeq 0/$imp`. Two reasons this
-*   is the right lever: (a) `mi xeq` does NOT preserve the sort order across its per-imputation passes
-*   (a `sort` + `by` inside it fails "not sorted"), and (b) replacing a non-sort-key never clears the
-*   sort, so one sort covers all variables and all imputations. The baseline block drops from
-*   ~9*(M+1) sorts to a single sort; the BCR_L broadcast from 9*(M+1) value-sorts to two.
-*     - Temporal LOCF (_cf): forward fill by Date0 across m=0..M. Identical to the old
-*       `bysort ID_BS (Date0): replace v = v[_n-1] if v==.`.
-*     - Broadcast (_bcast_idbs): forward + backward fill by Date0, identical to the old value-sort
-*       `bysort ID_BS (VAR): ...` when there is one non-missing value per patient (true for the
-*       diagnosis-/line-/SCT-anchored vars it is used on: RISS, BCR_L1..9, BCR_SCT).
-*   The pBCR block keeps its original `mi xeq: bysort ID` form (single call, uncertain _m_ storage),
-*   and all no-`by` `mi xeq` calls (BCR collapse, BCR_SCT default, labels) are unchanged. Everything
-*   else (imputation models, ISS/RISS/LDHRisk/CM_CKD derivations, keeps, reshape, outputs, bootstrap
-*   retry logic) is byte-for-byte the same. VERIFY by diffing the saved MRDR Long MI / Wide MI against
-*   the original for a fixed seed before switching over.
+* PERFORMANCE. The post-imputation carryforward was the bottleneck (~27 `mi xeq 0/$imp: bysort'
+* calls, each re-sorting the full long dataset M+1 times). The _cf / _bcast_idbs helpers below work
+* directly on the wide per-imputation columns instead, sorting ONCE: `mi xeq' does not preserve sort
+* order across its passes, and replacing a non-sort-key never clears the sort. Output is identical
+* for a given seed.
 *
-* NOT changed here (deliberately): the larger structural win of imputing baseline covariates on a
-*   one-row-per-patient `keep if Event0==3` extract and mi merge-ing back. That would shrink the mi
-*   object ~10x and remove the baseline carryforward entirely, but it risks changing results (the
-*   current carryforward is forward-LOCF, not a pure diagnosis-value broadcast) so it needs its own
-*   equivalence check. Left as a follow-up.
+* DEFERRED: imputing baseline covariates on a one-row-per-patient `keep if Event0==3' extract and
+* mi merge-ing back would shrink the mi object ~10x, but the current carryforward is forward-LOCF
+* rather than a pure broadcast, so it needs its own equivalence check first.
 * -------------------------------------------------------------------------------------------------
 
 clear
@@ -50,46 +34,12 @@ global imp 2
 global boot 0
 */
 
-* Usage:
-*   do prep/multiple_imputation.do <imps> <diag> <bcr_txr> <bcr_asct> <boot> <min_bs> <max_bs> [sample]
-*
-*   imps      number of imputations
-*   diag      1/0  run the diagnosis-covariate imputation
-*   bcr_txr   1/0  run the treatment-start BCR imputation (and BCR_L1..L9, pBCR)
-*   bcr_asct  1/0  run the post-transplant BCR / BCR_SCT imputation
-*   boot      1/0  bootstrap mode (always runs all three; stage flags are ignored)
-*
-*   e.g.  do prep/multiple_imputation.do 2 1 1 1 0 0 0        full run
-*         do prep/multiple_imputation.do 2 0 0 1 0 0 0        re-run only the ASCT stage
-*
-* THE STAGES ARE SEQUENTIAL AND DEPENDENT, so "skip" cannot mean "run on raw data":
-*   diag      mi set + mi register, then imputes ECOGcc / RISS / comorbidities
-*   bcr_txr   needs ECOGcc from diag; produces BCR_L1..L9
-*   bcr_asct  needs ECOGcc, RISS from diag AND BCR_L1 from bcr_txr
-* So a skipped stage is RESUMED FROM A CHECKPOINT written by the previous stage, not omitted. Each
-* stage saves one on completion. Asking for a later stage without its checkpoint is an error, and so
-* is leaving a GAP (diag + bcr_asct with bcr_txr skipped) - the gap would silently use stale
-* BCR_L1 values from the checkpoint while the diagnosis covariates around them had been redrawn.
-*
-* Final outputs (MRDR Long MI / Wide MI) are written ONLY when the last stage runs. A partial run
-* leaves a checkpoint and says so, rather than saving a half-imputed file over the good one.
-
 global imp `1'
-global diag `2'
-global bcr_txr `3'
-global bcr_asct `4'
-global boot `5'
-global min_bs `6'
-global max_bs `7'
-global sample `8'   // "" = full cohort (main model); "train"/"test" = OOS fold (analyses/default/)
+global boot `2'
+global min_bs `3'
+global max_bs `4'
+global sample `5'   // "" = full cohort (main model); "train"/"test" = OOS fold (analyses/default/)
 
-* Default the stage flags to "run everything" when called with the old 5-argument signature, so an
-* existing runbook line does not silently impute nothing.
-if "$diag" == "" & "$bcr_txr" == "" & "$bcr_asct" == "" {
-	di as error "multiple_imputation: called with the OLD argument order. Expected"
-	di as error "  <imps> <diag> <bcr_txr> <bcr_asct> <boot> <min_bs> <max_bs> [sample]"
-	exit 198
-}
 
 * OOS routing: when $sample is set, restrict to that fold (split crosswalk written by
 * analyses/default/prep/split.do) and write outputs under ${data_path}/oos/. Empty = main model.
@@ -103,24 +53,16 @@ else {
 	capture mkdir "${data_path}/oos"
 	capture mkdir "${data_path}/oos/bootstrap"
 }
-capture mkdir "${data_path}/${mi_outdir}checkpoints"
 
 **********
-// Helpers: carry values across a patient's rows by operating DIRECTLY on the wide per-imputation
-// columns (`_m_var`) plus the original (m=0, `var`). This deliberately avoids `mi xeq`, which does
-// NOT preserve the sort order across its per-imputation passes ("not sorted" errors) and pays a
-// context switch each imputation. With direct columns we sort ONCE and use plain `by` (replacing a
-// non-sort-key never clears the sort), so the whole baseline block costs one sort instead of
-// ~9*(M+1). The file already reads `_i_var` directly at the Wide-MI step, so this is in-house style.
-// Values produced are identical to the old `mi xeq 0/$imp: ...` fills; mi's existing `mi update`
-// call (after the pBCR merge) refreshes system vars, exactly as in the original.
-
-// _cf: temporal LOCF within ID_BS for one variable, across m=0..M. Caller must have sorted so that
-//      rows are in the desired order within ID_BS. Optional extra `if` condition (e.g. Duration!=.).
-//      Third arg "nomaster" skips the m=0 (master) fill: for a REGISTERED IMPUTED variable, filling
-//      the master at imputed rows makes mi update treat them as observed and reset the imputations to
-//      the single master value (the BCR collapse). Imputed vars must keep a missing master at imputed
-//      rows, so pass "nomaster" for them; leave it off for observed/derived vars (the covariates).
+// Helpers: carry values across a patient's rows by operating directly on the wide per-imputation
+// columns (`_m_var') plus the master (`var'), sorting once instead of looping `mi xeq 0/$imp'.
+//
+// _cf           temporal LOCF within ID_BS, across m=0..M. Caller sorts first. Optional extra `if'.
+//               Third arg "nomaster" skips the m=0 fill: for a REGISTERED IMPUTED variable, filling
+//               the master at imputed rows makes `mi update' treat them as observed and collapse the
+//               imputations to that one value. Pass it for imputed vars, omit for derived ones.
+// _bcast_idbs   _cf forward then backward - one value broadcast to all of a patient's rows.
 cap program drop _cf
 program define _cf
 	args v extra nomaster
@@ -223,14 +165,9 @@ program define impute_bcr_txr
 
 		
 
-		// Generate BCR_L1..L9 (BCR at each line's start) and copy FORWARD only (LOCF), not a full
-		// broadcast. These are used in risk_equations.do only at Event0 >= the line's own start, and
-		// the simulation does not consume them (analyses/default/prep/test_cohort.do resets BCR_L* to
-		// missing; the synthetic population never carries them). So filling rows *before* the line -
-		// the backward pass - is wasted. This drops one sort + 9 fill-passes vs _bcast_idbs. It leaves
-		// pre-line BCR_L* cells missing in the saved data, which nothing reads (fits/sims unaffected),
-		// so a raw diff will differ there. pBCR below still reads BCR_L{line-1} at Event0 60-90, which
-		// is at/after that line, so forward-fill covers it.
+		// BCR_L1..L9: BCR at each line's start, copied FORWARD only. risk_equations.do reads them
+		// only at Event0 >= that line and the simulation does not consume them, so the backward pass
+		// is wasted. Leaves pre-line cells missing, which nothing reads.
 		forvalues l = 1/9 {
 			qui mi passive: gen BCR_L`l' = BCR if Event0 == `l'0
 		}
@@ -242,13 +179,8 @@ program define impute_bcr_txr
 			label values BCR_L`l' BCR_label
 		}
 
-		// Previous BCR (pBCR). Only genuinely needed for the pooled L6+ BCR regressions
-		// (risk_equations.do, Event0 60/70/80/90), where at each row the previous line's response is
-		// exactly the already-broadcast BCR_L{line-1}: L6<-BCR_L5, L7<-BCR_L6, L8<-BCR_L7, L9<-BCR_L8.
-		// This replaces the old preserve + SSC mmerge + mi update + 2*(M+1) bysort machinery (the
-		// main post-BCR bottleneck) with a handful of passive derivations off variables we already
-		// have. The former L2 use (Event0==20) is handled in risk_equations.do with i.BCR_L1 (the L1
-		// response), so pBCR is left missing there. If you need pBCR at other lines later, add a row.
+		// pBCR: previous line's response, needed only for the pooled L6+ BCR regressions, where it
+		// is exactly BCR_L{line-1}. Left missing at L2 - risk_equations.do uses i.BCR_L1 there.
 		qui mi passive: gen pBCR = .
 		qui mi passive: replace pBCR = BCR_L5 if Event0 == 60
 		qui mi passive: replace pBCR = BCR_L6 if Event0 == 70
@@ -262,22 +194,12 @@ end
 cap program drop impute_bcr_sct
 program define impute_bcr_sct
 	args RN1 RN2 RN3 RN4
-		// ASCT imputation. KEPT, but its job is now the CARRYFORWARD below, not BCR_SCT.
-		//
-		// It leaves 548 of 2,135 transplanted patients missing - it runs without error and simply
-		// does not cover them - which is why BCR_SCT is imputed on its own further down rather than
-		// derived from this. But this block still matters: _cf propagates BCR forward from the
-		// Event0 == 100 row, so for a transplanted patient the post-transplant response becomes
-		// BCR_L2 onward at the next line start. That is right - the most recent assessment before L2
-		// IS the post-transplant one - and deleting this would carry the PRE-transplant L1 response
-		// into L2 instead.
-		//
-		// KNOWN REDUNDANCY: two models now impute the same quantity. BCR_SCT inherits this block's
-		// values where it succeeded and imputes the rest with its own ologit, so the 548 come from a
-		// different model than the others. The clean end state is to impute BCR_SCT ONCE, write it
-		// back to BCR at Event0 == 100, and carry forward from there - one model, one value, and no
-		// dependence on the chained block reaching every row. That needs the BCR_L1 generation moved
-		// above this point and belongs on the branch that retires the running BCR variable.
+		// ASCT imputation. Its job is now the CARRYFORWARD below, not BCR_SCT: _cf propagates BCR
+		// forward from the Event0 == 100 row, so a transplanted patient's post-transplant response
+		// becomes BCR_L2 onward. Deleting this would carry the PRE-transplant response into L2.
+		// Known redundancy - two models impute the same quantity, so the 548 patients BCR_SCT
+		// imputes itself come from a different model than the rest. The clean end state (one model,
+		// written back to BCR at Event0 == 100) belongs with retiring the running BCR variable.
 		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc if Event0 == 100, replace rseed(`RN3')
 		if _rc {
 			exit _rc
@@ -292,34 +214,21 @@ program define impute_bcr_sct
 		// Collapse BCR for ASCT - small n
 		qui mi xeq 0/$imp: replace BCR = 4 if (BCR == 5 | BCR == 6) & Event0 == 100
 
-		// Generate BCR_SCT - the post-transplant response, taken from the Event0 == 100 row and
-		// IMPUTED where that row carries no response.
+		// BCR_SCT - post-transplant response, IMPUTED here rather than inherited from BCR.
 		//
-		// WHY IMPUTED HERE RATHER THAN INHERITED FROM BCR. The ASCT block above imputes BCR at
-		// Event0 == 100, but it leaves 548 of 2,135 transplanted patients (25.7%) still missing -
-		// it runs without error and simply does not cover them. Deriving BCR_SCT passively then
-		// propagated that hole to every row of those patients, and the old
-		// "replace BCR_SCT = 0 if BCR_SCT == ." absorbed it into the non-transplant code, so a
-		// quarter of the transplant arm looked like a category. Four equations then built different
-		// workarounds on it. See scratch/maintenance/_notes.md.
+		// The ASCT block above leaves 548 of 2,135 transplanted patients (25.7%) missing - it runs
+		// without error and simply does not reach them. Deriving BCR_SCT passively propagated that
+		// hole, and the old "replace BCR_SCT = 0 if BCR_SCT == ." absorbed it into the no-transplant
+		// code, so a quarter of the transplant arm looked like a category and four equations built
+		// different workarounds on it (scratch/maintenance/_notes.md).
 		//
-		// Imputing BCR_SCT directly sidesteps whatever is stopping the chained block from reaching
-		// those rows, and it can use BCR_L1 - the pre-transplant response, generated above and the
-		// strongest available predictor of the post-transplant one.
+		// Imputed at Event0 == 100 only (one row per patient, then broadcast - imputing the long
+		// form would give one patient different responses on different rows), using BCR_L1, which is
+		// why this must follow the BCR_L1 generation above. The zero-fill runs LAST and only for
+		// SCT == 0: BCR_SCT == 0 must mean "no transplant" and nothing else.
 		//
-		// ORDER MATTERS, three ways:
-		//   - it must run AFTER BCR_L1 exists and is forward-filled (just above), since that is a
-		//     predictor
-		//   - it imputes at Event0 == 100 ONLY, one row per transplanted patient, and broadcasts
-		//     afterwards. Imputing the long form directly would give one patient different
-		//     responses on different rows
-		//   - the zero-fill comes LAST and only for SCT == 0. BCR_SCT == 0 must mean "no transplant"
-		//     and nothing else; mi_diagnostics.do now checks that invariant directly
-		//
-		// ASSUMPTION, stated rather than buried: this treats a missing post-transplant assessment as
-		// MAR. If it is informative - patients who died or progressed before assessment - imputing
-		// from assessed patients biases toward better responses. Worth revisiting if the transplant
-		// arm's survival drifts optimistic.
+		// Assumes a missing assessment is MAR. If it is informative (died or progressed before
+		// assessment) this biases toward better responses.
 		qui mi passive: gen BCR_SCT = BCR if Event0 == 100
 		mi unregister BCR_SCT
 		mi register imputed BCR_SCT
@@ -382,81 +291,30 @@ if "$boot" == "0" {
 	cap mkdir "~/temp"
 	cd "~/temp"
 
-	// Draw random numbers. RN4 seeds the BCR_SCT ologit; it was missing entirely, so that
-	// imputation ran with an empty rseed() and was not reproducible.
+	// Open MRDR Long Data
+	use "${data_path}/MRDR Long.dta"
+	cap drop CM_LVR CM_PNR CM_MLG   // unused comorbidities; dropped before mi set
+	gen ID_BS = ID
+
+	// OOS: restrict to the requested fold (train/test) before imputing
+	if "$sample" != "" {
+		merge m:1 ID using "${data_path}/oos/oos_split.dta", keep(match) keepusing(fold) nogen
+		keep if fold == "$sample"
+		drop fold
+	}
+
+	// Draw random numbers. RN4 seeds the BCR_SCT ologit.
 	local RN1 = 3949
 	local RN2 = 6192
 	local RN3 = 8273
 	local RN4 = 5117
 
-	// Which stage do we start from, and is the request coherent?
-	local first = 0
-	if $diag        local first = 1
-	else if $bcr_txr    local first = 2
-	else if $bcr_asct   local first = 3
-
-	if `first' == 0 {
-		di as error "multiple_imputation: no stage requested - nothing to do."
-		exit 198
-	}
-	if $diag & !$bcr_txr & $bcr_asct {
-		di as error "multiple_imputation: cannot skip bcr_txr between diag and bcr_asct. bcr_asct"
-		di as error "  reads BCR_L1, which bcr_txr produces - the checkpoint's BCR_L1 would be stale"
-		di as error "  against freshly-imputed diagnosis covariates."
-		exit 198
-	}
-
-	local ckpt "${data_path}/${mi_outdir}checkpoints/mi_after"
-
-	// Load: raw data for a fresh run, otherwise the previous stage's checkpoint (already mi set,
-	// so mi_settings must NOT run again).
-	if `first' == 1 {
-		use "${data_path}/MRDR Long.dta"
-		cap drop CM_LVR CM_PNR CM_MLG
-		gen ID_BS = ID
-		if "$sample" != "" {
-			merge m:1 ID using "${data_path}/oos/oos_split.dta", keep(match) keepusing(fold) nogen
-			keep if fold == "$sample"
-			drop fold
-		}
-		mi_settings
-	}
-	else {
-		local from = cond(`first' == 2, "diag", "bcr_txr")
-		capture confirm file "`ckpt'_`from'${mi_outtag}.dta"
-		if _rc {
-			di as error "multiple_imputation: resuming at stage `first' needs the `from' checkpoint,"
-			di as error "  which does not exist: `ckpt'_`from'${mi_outtag}.dta"
-			di as error "  Run that stage first."
-			exit 601
-		}
-		di as txt "Resuming from the `from' checkpoint (stages before it are NOT re-run)."
-		use "`ckpt'_`from'${mi_outtag}.dta", clear
-	}
-
-	// Execute the requested stages. Every program takes all four seeds - each declares
-	// `args RN1 RN2 RN3 RN4' and uses the one it needs, so passing a single argument left the
-	// others EMPTY and the rseed() blank.
-	if $diag {
-		impute_diagnosis `RN1' `RN2' `RN3' `RN4'
-		save "`ckpt'_diag${mi_outtag}.dta", replace
-	}
-	if $bcr_txr {
-		impute_bcr_txr `RN1' `RN2' `RN3' `RN4'
-		save "`ckpt'_bcr_txr${mi_outtag}.dta", replace
-	}
-	if $bcr_asct {
-		impute_bcr_sct `RN1' `RN2' `RN3' `RN4'
-	}
-
-	// Only write the real outputs when the pipeline finished. A partial run stops at its
-	// checkpoint rather than saving a half-imputed file over a good one.
-	if !$bcr_asct {
-		di as txt _n "Partial run: stages complete up to the checkpoint above. MRDR Long MI and"
-		di as txt    "Wide MI were NOT rewritten - re-run with bcr_asct = 1 to finish."
-		cd "`repo'"
-		exit
-	}
+	// Each program declares `args RN1 RN2 RN3 RN4' and uses the one it needs, so ALL FOUR must be
+	// passed - a single argument leaves the others empty and the rseed() blank.
+	mi_settings
+	impute_diagnosis `RN1' `RN2' `RN3' `RN4'
+	impute_bcr_txr   `RN1' `RN2' `RN3' `RN4'
+	impute_bcr_sct   `RN1' `RN2' `RN3' `RN4'
 
 	// Save Long MI
 	save "${data_path}/${mi_outdir}MRDR Long MI${mi_outtag}.dta", replace
