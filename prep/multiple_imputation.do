@@ -250,17 +250,21 @@ program define impute_bcr
 	_cf BCR_L2
 	label values BCR_L2 BCR_label
 	// ---- L3 (Event0 == 30): baseline + previous response (LOCF) ----
-	// Previous response, carried forward (LOCF), COMPLETE. Strict i.BCR_L{l-1} has gaps on this
-	// line's sample - patients who reach line l whose earlier line fell outside the imputation
-	// restriction (CStart == 1 & Duration != .) never had it filled - and mi rejects a predictor
-	// with any missing. Carrying the last assembled response forward fills the gaps (L1 is imputed
-	// first, so there is always a fallback). _pr at a line row = the most recent response BEFORE it,
-	// since this line's own response is not assembled yet.
+	// Previous response: carried forward (LOCF), COMPLETE, and COLLAPSED to 3 levels.
+	//   complete  - strict i.BCR_L{l-1} has gaps on this line's sample (patients who reach line l
+	//               whose earlier line fell outside CStart == 1 & Duration != .), and mi rejects a
+	//               predictor with any missing. Carrying the last assembled response forward fills
+	//               them; L1 is imputed first, so there is always a fallback. _pr at a line row is
+	//               the most recent response BEFORE it (this line's own is not assembled yet).
+	//   3 levels  - the full 6-level factor left the per-line ologit with empty response x
+	//               previous-response cells and it failed to converge. Deep (CR/VG) / partial (PR) /
+	//               poor (MR/SD/PD) keeps the prognostic ordering while filling the cells.
 	cap drop _pr
-	qui mi passive: gen _pr = BCR
+	qui mi passive: gen _pr = 1 if inlist(BCR, 1, 2)
+	qui mi passive: replace _pr = 2 if BCR == 3
+	qui mi passive: replace _pr = 3 if inlist(BCR, 4, 5, 6)
 	sort ID_BS Date0
 	_cf _pr
-	label values _pr BCR_label
 	qui gen iL3 = BCR if Event0 == 30
 	mi register imputed iL3
 	cap noi mi impute chained (regress) `aux' (ologit, augment) iL3 = `base' i._pr ///
@@ -279,17 +283,21 @@ program define impute_bcr
 	_cf BCR_L3
 	label values BCR_L3 BCR_label
 	// ---- L4 (Event0 == 40): baseline + previous response (LOCF) ----
-	// Previous response, carried forward (LOCF), COMPLETE. Strict i.BCR_L{l-1} has gaps on this
-	// line's sample - patients who reach line l whose earlier line fell outside the imputation
-	// restriction (CStart == 1 & Duration != .) never had it filled - and mi rejects a predictor
-	// with any missing. Carrying the last assembled response forward fills the gaps (L1 is imputed
-	// first, so there is always a fallback). _pr at a line row = the most recent response BEFORE it,
-	// since this line's own response is not assembled yet.
+	// Previous response: carried forward (LOCF), COMPLETE, and COLLAPSED to 3 levels.
+	//   complete  - strict i.BCR_L{l-1} has gaps on this line's sample (patients who reach line l
+	//               whose earlier line fell outside CStart == 1 & Duration != .), and mi rejects a
+	//               predictor with any missing. Carrying the last assembled response forward fills
+	//               them; L1 is imputed first, so there is always a fallback. _pr at a line row is
+	//               the most recent response BEFORE it (this line's own is not assembled yet).
+	//   3 levels  - the full 6-level factor left the per-line ologit with empty response x
+	//               previous-response cells and it failed to converge. Deep (CR/VG) / partial (PR) /
+	//               poor (MR/SD/PD) keeps the prognostic ordering while filling the cells.
 	cap drop _pr
-	qui mi passive: gen _pr = BCR
+	qui mi passive: gen _pr = 1 if inlist(BCR, 1, 2)
+	qui mi passive: replace _pr = 2 if BCR == 3
+	qui mi passive: replace _pr = 3 if inlist(BCR, 4, 5, 6)
 	sort ID_BS Date0
 	_cf _pr
-	label values _pr BCR_label
 	qui gen iL4 = BCR if Event0 == 40
 	mi register imputed iL4
 	cap noi mi impute chained (regress) `aux' (ologit, augment) iL4 = `base' i._pr ///
@@ -308,17 +316,21 @@ program define impute_bcr
 	_cf BCR_L4
 	label values BCR_L4 BCR_label
 	// ---- L5 (Event0 == 50): baseline + previous response (LOCF) ----
-	// Previous response, carried forward (LOCF), COMPLETE. Strict i.BCR_L{l-1} has gaps on this
-	// line's sample - patients who reach line l whose earlier line fell outside the imputation
-	// restriction (CStart == 1 & Duration != .) never had it filled - and mi rejects a predictor
-	// with any missing. Carrying the last assembled response forward fills the gaps (L1 is imputed
-	// first, so there is always a fallback). _pr at a line row = the most recent response BEFORE it,
-	// since this line's own response is not assembled yet.
+	// Previous response: carried forward (LOCF), COMPLETE, and COLLAPSED to 3 levels.
+	//   complete  - strict i.BCR_L{l-1} has gaps on this line's sample (patients who reach line l
+	//               whose earlier line fell outside CStart == 1 & Duration != .), and mi rejects a
+	//               predictor with any missing. Carrying the last assembled response forward fills
+	//               them; L1 is imputed first, so there is always a fallback. _pr at a line row is
+	//               the most recent response BEFORE it (this line's own is not assembled yet).
+	//   3 levels  - the full 6-level factor left the per-line ologit with empty response x
+	//               previous-response cells and it failed to converge. Deep (CR/VG) / partial (PR) /
+	//               poor (MR/SD/PD) keeps the prognostic ordering while filling the cells.
 	cap drop _pr
-	qui mi passive: gen _pr = BCR
+	qui mi passive: gen _pr = 1 if inlist(BCR, 1, 2)
+	qui mi passive: replace _pr = 2 if BCR == 3
+	qui mi passive: replace _pr = 3 if inlist(BCR, 4, 5, 6)
 	sort ID_BS Date0
 	_cf _pr
-	label values _pr BCR_label
 	qui gen iL5 = BCR if Event0 == 50
 	mi register imputed iL5
 	cap noi mi impute chained (regress) `aux' (ologit, augment) iL5 = `base' i._pr ///
@@ -337,17 +349,21 @@ program define impute_bcr
 	_cf BCR_L5
 	label values BCR_L5 BCR_label
 	// ---- L6-L9 POOLED (Event0 60-90): baseline + previous response (LOCF) ----
-	// Previous response, carried forward (LOCF), COMPLETE. Strict i.BCR_L{l-1} has gaps on this
-	// line's sample - patients who reach line l whose earlier line fell outside the imputation
-	// restriction (CStart == 1 & Duration != .) never had it filled - and mi rejects a predictor
-	// with any missing. Carrying the last assembled response forward fills the gaps (L1 is imputed
-	// first, so there is always a fallback). _pr at a line row = the most recent response BEFORE it,
-	// since this line's own response is not assembled yet.
+	// Previous response: carried forward (LOCF), COMPLETE, and COLLAPSED to 3 levels.
+	//   complete  - strict i.BCR_L{l-1} has gaps on this line's sample (patients who reach line l
+	//               whose earlier line fell outside CStart == 1 & Duration != .), and mi rejects a
+	//               predictor with any missing. Carrying the last assembled response forward fills
+	//               them; L1 is imputed first, so there is always a fallback. _pr at a line row is
+	//               the most recent response BEFORE it (this line's own is not assembled yet).
+	//   3 levels  - the full 6-level factor left the per-line ologit with empty response x
+	//               previous-response cells and it failed to converge. Deep (CR/VG) / partial (PR) /
+	//               poor (MR/SD/PD) keeps the prognostic ordering while filling the cells.
 	cap drop _pr
-	qui mi passive: gen _pr = BCR
+	qui mi passive: gen _pr = 1 if inlist(BCR, 1, 2)
+	qui mi passive: replace _pr = 2 if BCR == 3
+	qui mi passive: replace _pr = 3 if inlist(BCR, 4, 5, 6)
 	sort ID_BS Date0
 	_cf _pr
-	label values _pr BCR_label
 	qui gen iL69 = BCR if inlist(Event0, 60, 70, 80, 90)
 	mi register imputed iL69
 	cap noi mi impute chained (regress) `aux' (ologit, augment) iL69 = `base' i._pr ///
