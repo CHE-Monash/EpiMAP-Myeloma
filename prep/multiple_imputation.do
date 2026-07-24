@@ -29,17 +29,11 @@ local Data "$data_cut"
 
 **********
 // Settings
-/*
-global imp 2
-global boot 0
-*/
-
 global imp `1'
 global boot `2'
 global min_bs `3'
 global max_bs `4'
 global sample `5'   // "" = full cohort (main model); "train"/"test" = OOS fold (analyses/default/)
-
 
 * OOS routing: when $sample is set, restrict to that fold (split crosswalk written by
 * analyses/default/prep/split.do) and write outputs under ${data_path}/oos/. Empty = main model.
@@ -114,9 +108,9 @@ end
 // Impute diagnosis
 cap program drop impute_diagnosis
 program define impute_diagnosis
-	args RN1 RN2 RN3 RN4
+	args RN_diag
 
-	cap noi mi impute chained (regress) Albumin AlkalinePhosphatase BMPlasmaCells LactateDehydrogenase SerumB2Microglobulin SerumCalcium SerumCreatinine eGFR EQ5D_Diagnosis LTHaemoglobinGL WhiteCellCount NeutrophillCount PlateletCount CRABScore Para Lambda Kappa FLC (logit, augment) Male CM_CRD CM_PLM CM_DBT FISHRisk ExtraMedullaryD LyticLesion (ologit, augment) ECOGcc = Age if Event0 == 3, add($imp) rseed(`RN1')
+	cap noi mi impute chained (regress) Albumin AlkalinePhosphatase BMPlasmaCells LactateDehydrogenase SerumB2Microglobulin SerumCalcium SerumCreatinine eGFR EQ5D_Diagnosis LTHaemoglobinGL WhiteCellCount NeutrophillCount PlateletCount CRABScore Para Lambda Kappa FLC (logit, augment) Male CM_CRD CM_PLM CM_DBT FISHRisk ExtraMedullaryD LyticLesion (ologit, augment) ECOGcc = Age if Event0 == 3, add($imp) rseed(`RN_diag')
 	if _rc {
 		exit _rc
 	}
@@ -155,10 +149,10 @@ end
 // Impute BCR TXR
 cap program drop impute_bcr_txr
 program define impute_bcr_txr
-	args RN1 RN2 RN3 RN4
+	args RN_txr
 
 	// TXR imputation
-		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc i.CLine if CStart == 1 & Duration != ., replace rseed(`RN2')
+		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc i.CLine if CStart == 1 & Duration != ., replace rseed(`RN_txr')
 		if _rc {
 			exit _rc
 		}
@@ -193,14 +187,14 @@ end
 // Impute BCR SCT
 cap program drop impute_bcr_sct
 program define impute_bcr_sct
-	args RN1 RN2 RN3 RN4
+	args RN_asct RN_sct
 		// ASCT imputation. Its job is now the CARRYFORWARD below, not BCR_SCT: _cf propagates BCR
 		// forward from the Event0 == 100 row, so a transplanted patient's post-transplant response
 		// becomes BCR_L2 onward. Deleting this would carry the PRE-transplant response into L2.
 		// Known redundancy - two models impute the same quantity, so the 548 patients BCR_SCT
 		// imputes itself come from a different model than the rest. The clean end state (one model,
 		// written back to BCR at Event0 == 100) belongs with retiring the running BCR variable.
-		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc if Event0 == 100, replace rseed(`RN3')
+		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc if Event0 == 100, replace rseed(`RN_asct')
 		if _rc {
 			exit _rc
 		}
@@ -233,7 +227,7 @@ program define impute_bcr_sct
 		mi unregister BCR_SCT
 		mi register imputed BCR_SCT
 		cap noi mi impute ologit BCR_SCT = Age i.ECOGcc i.RISS i.BCR_L1 if Event0 == 100, ///
-			replace augment rseed(`RN4')
+			replace augment rseed(`RN_sct')
 		if _rc {
 			di as error "  BCR_SCT imputation failed (rc = " _rc "). BCR_SCT will be missing for"
 			di as error "  transplanted patients with no recorded response - the SCT == 1 equations"
@@ -303,18 +297,17 @@ if "$boot" == "0" {
 		drop fold
 	}
 
-	// Draw random numbers. RN4 seeds the BCR_SCT ologit.
-	local RN1 = 3949
-	local RN2 = 6192
-	local RN3 = 8273
-	local RN4 = 5117
+	// Seeds. Each program takes only the ones it uses, so a miscount is a syntax error rather than
+	// a silently empty rseed().
+	local RN_diag = 3949
+	local RN_txr  = 6192
+	local RN_asct = 8273
+	local RN_sct  = 5117
 
-	// Each program declares `args RN1 RN2 RN3 RN4' and uses the one it needs, so ALL FOUR must be
-	// passed - a single argument leaves the others empty and the rseed() blank.
 	mi_settings
-	impute_diagnosis `RN1' `RN2' `RN3' `RN4'
-	impute_bcr_txr   `RN1' `RN2' `RN3' `RN4'
-	impute_bcr_sct   `RN1' `RN2' `RN3' `RN4'
+	impute_diagnosis `RN_diag'
+	impute_bcr_txr   `RN_txr'
+	impute_bcr_sct   `RN_asct' `RN_sct'
 
 	// Save Long MI
 	save "${data_path}/${mi_outdir}MRDR Long MI${mi_outtag}.dta", replace
@@ -381,10 +374,10 @@ else if "$boot" == "1" {
 		cd "${data_path}/temp/job_`b'"
 
 		// Base random numbers
-		local RN1 = 7394
-		local RN2 = 1392
-		local RN3 = 4771
-		local RN4 = 8856
+		local RN_diag = 7394
+		local RN_txr  = 1392
+		local RN_asct = 4771
+		local RN_sct  = 8856
 
 		// Retry settings
 		local maxtries = 50
@@ -402,10 +395,10 @@ else if "$boot" == "1" {
 
 			// Attempt-specific, deterministic seeds
 			local RS  = 5839 * `b' + 100003 * `try'
-			local a1  = `RN1' + 911 * `try'
-			local a2  = `RN2' + 911 * `try'
-			local a3  = `RN3' + 911 * `try'
-			local a4  = `RN4' + 911 * `try'
+			local a_diag = `RN_diag' + 911 * `try'
+			local a_txr  = `RN_txr'  + 911 * `try'
+			local a_asct = `RN_asct' + 911 * `try'
+			local a_sct  = `RN_sct'  + 911 * `try'
 
 			// Resample with this attempt's seed
 			set seed `RS'
@@ -418,9 +411,9 @@ else if "$boot" == "1" {
 			// checkpointing a resampled dataset would be meaningless.
 			capture noisily {
 				mi_settings
-				impute_diagnosis `a1' `a2' `a3' `a4'
-				impute_bcr_txr   `a1' `a2' `a3' `a4'
-				impute_bcr_sct   `a1' `a2' `a3' `a4'
+				impute_diagnosis `a_diag'
+				impute_bcr_txr   `a_txr'
+				impute_bcr_sct   `a_asct' `a_sct'
 			}
 
 			if _rc == 0 {
