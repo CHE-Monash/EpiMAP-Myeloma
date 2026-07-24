@@ -151,39 +151,41 @@ cap program drop impute_bcr
 program define impute_bcr
 	args RN_l1 RN_sct RN_l2 RN_l3 RN_l4 RN_l5 RN_l6
 
-	// PER-LINE response imputation. Each line conditions on the previous line's response, so the
-	// imputation model mirrors the risk-equation model at that line - the congeniality principle:
-	// impute under a model at least as rich as the one you analyse with. The pooled model this
+	// PER-LINE response imputation, each line conditioning on the previous line's response so the
+	// imputation mirrors the risk-equation model at that line (congeniality). The pooled model this
 	// replaced (BCR = ... i.CLine, no previous response) attenuated the L1->L2 association by a
 	// third to a half (scratch/bcr_congeniality.log).
 	//
-	// L1-L5 SEPARATE, L6-L9 POOLED. Cells support a per-line model through L5; L6+ are too thin and
-	// fold-dependent to split, so they pool on the L5 response. BCR_SCT is INTERLEAVED after L1,
-	// because the L2 model conditions on it (risk_equations.do Event0 == 20).
+	// THE OUTCOME IS A DEDICATED PER-LINE VARIABLE (iL{l}), NOT the shared BCR. Imputing BCR while
+	// conditioning on i.BCR_L{prev} - a passive function of BCR - puts BCR on both sides of its own
+	// equation, and mi refuses it ("missing imputed values produced", r(498)). Imputing iL{l}
+	// instead, then writing it back into BCR, breaks the self-reference - the same pattern the
+	// BCR_SCT block already uses.
 	//
-	// Mechanics per line: impute BCR on that line's rows only, then build the PASSIVE, carried-
-	// forward BCR_L{l} the next line conditions on - the same passive-predictor pattern the pooled
-	// model already used, just split by line. Splitting the impute by `if Event0 == l0' relies on
-	// mi impute leaving other lines' imputations untouched; the completeness check at the end fires
-	// if any line-start BCR is left missing.
-	//
-	// Baseline is Age i.ECOGcc i.RISS, matching the pooled model this replaces (Male/Age2/TXR that
-	// the risk equations also use were already absent there - a separate, pre-existing gap).
+	// L1-L5 SEPARATE (cells support it), L6-L9 POOLED on the L5 response (later cells too thin and
+	// fold-dependent to split). BCR_SCT is INTERLEAVED after L1, because L2 conditions on it.
 	local aux "dPara dLambda dKappa dFLC"
 	local base "Age i.ECOGcc i.RISS"
 
 	// ---- L1 (Event0 == 10): baseline ----
-	cap noi mi impute chained (regress) `aux' (ologit, augment) BCR = `base' ///
+	qui gen iL1 = BCR if Event0 == 10
+	mi register imputed iL1
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL1 = `base' ///
 		if Event0 == 10 & CStart == 1 & Duration != ., replace rseed(`RN_l1')
 	if _rc {
 		exit _rc
 	}
+	qui mi xeq 0/$imp: replace BCR = iL1 if Event0 == 10 & !mi(iL1)
+	cap mi unregister iL1
+	forvalues m = 1/$imp {
+		cap drop _`m'_iL1
+	}
+	cap drop iL1
 	qui mi passive: gen BCR_L1 = BCR if Event0 == 10
 	sort ID_BS Date0
 	_cf BCR_L1
 	label values BCR_L1 BCR_label
-
-	// ---- BCR_SCT (Event0 == 100): baseline + BCR_L1. Interleaved here so L2 can condition on it. ----
+	// ---- BCR_SCT (Event0 == 100): baseline + BCR_L1. Interleaved so L2 can condition on it. ----
 	qui mi passive: gen BCR_SCT = BCR if Event0 == 100
 	mi unregister BCR_SCT
 	mi register imputed BCR_SCT
@@ -229,63 +231,92 @@ program define impute_bcr
 	if `_nbad' == 0 & `_nmiss' == 0 {
 		di as txt "  BCR_SCT: complete in m = 1 for all transplanted records; 0 means no transplant only."
 	}
-
 	// ---- L2 (Event0 == 20): baseline + BCR_L1 + BCR_SCT ----
-	cap noi mi impute chained (regress) `aux' (ologit, augment) BCR = `base' i.BCR_L1 i.BCR_SCT ///
+	qui gen iL2 = BCR if Event0 == 20
+	mi register imputed iL2
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL2 = `base' i.BCR_L1 i.BCR_SCT ///
 		if Event0 == 20 & CStart == 1 & Duration != ., replace rseed(`RN_l2')
 	if _rc {
 		exit _rc
 	}
+	qui mi xeq 0/$imp: replace BCR = iL2 if Event0 == 20 & !mi(iL2)
+	cap mi unregister iL2
+	forvalues m = 1/$imp {
+		cap drop _`m'_iL2
+	}
+	cap drop iL2
 	qui mi passive: gen BCR_L2 = BCR if Event0 == 20
 	sort ID_BS Date0
 	_cf BCR_L2
 	label values BCR_L2 BCR_label
-
 	// ---- L3 (Event0 == 30): baseline + BCR_L2 ----
-	cap noi mi impute chained (regress) `aux' (ologit, augment) BCR = `base' i.BCR_L2 ///
+	qui gen iL3 = BCR if Event0 == 30
+	mi register imputed iL3
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL3 = `base' i.BCR_L2 ///
 		if Event0 == 30 & CStart == 1 & Duration != ., replace rseed(`RN_l3')
 	if _rc {
 		exit _rc
 	}
+	qui mi xeq 0/$imp: replace BCR = iL3 if Event0 == 30 & !mi(iL3)
+	cap mi unregister iL3
+	forvalues m = 1/$imp {
+		cap drop _`m'_iL3
+	}
+	cap drop iL3
 	qui mi passive: gen BCR_L3 = BCR if Event0 == 30
 	sort ID_BS Date0
 	_cf BCR_L3
 	label values BCR_L3 BCR_label
-
 	// ---- L4 (Event0 == 40): baseline + BCR_L3 ----
-	cap noi mi impute chained (regress) `aux' (ologit, augment) BCR = `base' i.BCR_L3 ///
+	qui gen iL4 = BCR if Event0 == 40
+	mi register imputed iL4
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL4 = `base' i.BCR_L3 ///
 		if Event0 == 40 & CStart == 1 & Duration != ., replace rseed(`RN_l4')
 	if _rc {
 		exit _rc
 	}
+	qui mi xeq 0/$imp: replace BCR = iL4 if Event0 == 40 & !mi(iL4)
+	cap mi unregister iL4
+	forvalues m = 1/$imp {
+		cap drop _`m'_iL4
+	}
+	cap drop iL4
 	qui mi passive: gen BCR_L4 = BCR if Event0 == 40
 	sort ID_BS Date0
 	_cf BCR_L4
 	label values BCR_L4 BCR_label
-
 	// ---- L5 (Event0 == 50): baseline + BCR_L4 ----
-	cap noi mi impute chained (regress) `aux' (ologit, augment) BCR = `base' i.BCR_L4 ///
+	qui gen iL5 = BCR if Event0 == 50
+	mi register imputed iL5
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL5 = `base' i.BCR_L4 ///
 		if Event0 == 50 & CStart == 1 & Duration != ., replace rseed(`RN_l5')
 	if _rc {
 		exit _rc
 	}
+	qui mi xeq 0/$imp: replace BCR = iL5 if Event0 == 50 & !mi(iL5)
+	cap mi unregister iL5
+	forvalues m = 1/$imp {
+		cap drop _`m'_iL5
+	}
+	cap drop iL5
 	qui mi passive: gen BCR_L5 = BCR if Event0 == 50
 	sort ID_BS Date0
 	_cf BCR_L5
 	label values BCR_L5 BCR_label
-
-	// ---- L6-L9 POOLED (Event0 60-90): baseline + the L5 response ----
-	// Pooled because later-line cells are too thin to split. Conditioned on BCR_L5 - the most
-	// recent separately-imputed response, complete for anyone at L6+ (they all reached L5). This is
-	// exactly the previous response for L6 and a near-previous proxy for L7-L9, which pooling cannot
-	// give strictly. Still far richer than the no-previous-response pooled model it replaces.
-	cap noi mi impute chained (regress) `aux' (ologit, augment) BCR = `base' i.BCR_L5 ///
+	// ---- L6-L9 POOLED (Event0 60-90): baseline + BCR_L5 ----
+	qui gen iL69 = BCR if inlist(Event0, 60, 70, 80, 90)
+	mi register imputed iL69
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL69 = `base' i.BCR_L5 ///
 		if inlist(Event0, 60, 70, 80, 90) & CStart == 1 & Duration != ., replace rseed(`RN_l6')
 	if _rc {
 		exit _rc
 	}
-
-	// BCR_L6..L9: passive, carried forward, as for L1-L5.
+	qui mi xeq 0/$imp: replace BCR = iL69 if inlist(Event0, 60, 70, 80, 90) & !mi(iL69)
+	cap mi unregister iL69
+	forvalues m = 1/$imp {
+		cap drop _`m'_iL69
+	}
+	cap drop iL69
 	forvalues l = 6/9 {
 		qui mi passive: gen BCR_L`l' = BCR if Event0 == `l'0
 	}
@@ -296,8 +327,7 @@ program define impute_bcr
 	}
 
 	// pBCR for the risk equations' pooled L6+ regressions: the IMPUTED previous response
-	// (BCR_L{line-1}), replacing the OBSERVED pBCR that data_extraction.do built as an imputation
-	// predictor. See the pBCR note in data_extraction.do.
+	// (BCR_L{line-1}), replacing the OBSERVED pBCR that data_extraction.do builds as a predictor.
 	cap drop pBCR
 	qui mi passive: gen pBCR = .
 	qui mi passive: replace pBCR = BCR_L5 if Event0 == 60
@@ -306,13 +336,11 @@ program define impute_bcr
 	qui mi passive: replace pBCR = BCR_L8 if Event0 == 90
 	label values pBCR BCR_label
 
-	// Completeness check: the per-subset impute must leave no line-start response missing. If this
-	// fires, mi impute's `if' is not isolating lines the way the split assumes - investigate before
-	// trusting the output.
+	// Completeness: every line-start response must be imputed. Fires if a per-line impute missed a line.
 	mi xeq 1: qui count if inlist(Event0, 10, 20, 30, 40, 50, 60, 70, 80, 90) & mi(BCR) & CStart == 1 & Duration != .
 	if r(N) > 0 {
-		di as error "  impute_bcr: " r(N) " line-start responses still missing in m = 1 - the per-line"
-		di as error "  split did not cover every line. Do NOT trust this imputation."
+		di as error "  impute_bcr: " r(N) " line-start responses still missing in m = 1 - a per-line"
+		di as error "  impute did not cover its line. Do NOT trust this imputation."
 	}
 	else {
 		di as txt "  impute_bcr: all line-start responses imputed (per-line L1-L5, pooled L6+)."
