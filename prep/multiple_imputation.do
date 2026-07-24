@@ -185,88 +185,67 @@ cap program drop impute_bcr_sct
 program define impute_bcr_sct
 	args RN_sct
 
-		// BCR_SCT - post-transplant response. ONE imputation, on BCR_SCT itself.
-		//
-		// A chained model used to impute BCR at Event0 == 100 with BCR_SCT derived from it, but it
-		// left 548 of 2,135 transplanted patients (25.7%) missing without erroring, and the old
-		// "replace BCR_SCT = 0 if BCR_SCT == ." absorbed the hole into the no-transplant code - so a
-		// quarter of the transplant arm looked like a category, and four equations built different
-		// workarounds on it (scratch/maintenance/_notes.md).
-		//
-		// Imputed at Event0 == 100 only - one row per patient, then broadcast; imputing the long
-		// form would give one patient different responses on different rows. Uses BCR_L1, which is
-		// why this must run after impute_bcr_txr.
-		//
-		// Assumes a missing assessment is MAR. If it is informative (died or progressed before
-		// assessment) this biases toward better responses.
-		qui mi passive: gen BCR_SCT = BCR if Event0 == 100
-		mi unregister BCR_SCT
-		mi register imputed BCR_SCT
+	// BCR_SCT - post-transplant response, imputed on itself rather than derived from an imputed
+	// BCR. The chained BCR model it replaced left 548 of 2,135 transplanted patients (25.7%)
+	// missing without erroring, and the old zero-fill absorbed the hole into the no-transplant
+	// code, so a quarter of the transplant arm looked like a category (scratch/maintenance/_notes.md).
+	//
+	// Imputed at Event0 == 100 only - one row per patient, then broadcast. Uses BCR_L1, so it must
+	// run after impute_bcr_txr. Assumes a missing assessment is MAR; if it is informative (died or
+	// progressed before assessment) this biases toward better responses.
+	qui mi passive: gen BCR_SCT = BCR if Event0 == 100
+	mi unregister BCR_SCT
+	mi register imputed BCR_SCT
 
-		// Collapse BEFORE imputing, so imputed values can only be levels the engine can draw
-		// (sim_bcr_asct.do categoryValues = 1,2,3,4). Small n at 5/6.
-		qui mi xeq 0/$imp: replace BCR_SCT = 4 if inlist(BCR_SCT, 5, 6) & Event0 == 100
+	// Collapse BEFORE imputing, so imputed values can only be levels the engine draws
+	// (sim_bcr_asct.do categoryValues = 1,2,3,4).
+	qui mi xeq 0/$imp: replace BCR_SCT = 4 if inlist(BCR_SCT, 5, 6) & Event0 == 100
 
-		// CHAINED, with the paraprotein deltas. They have no downstream consumer - they are
-		// unregistered and dropped from the keep list below - and exist purely to inform the
-		// response imputation, which is what they are clinically: the change in paraprotein and
-		// light chains IS what determines best response. Chained also means their own missingness
-		// does not listwise-delete rows from the BCR_SCT equation, and it keeps them imputed at
-		// Event0 == 100 as the model this replaced did.
-		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR_SCT ///
-			= Age i.ECOGcc i.RISS i.BCR_L1 if Event0 == 100, replace rseed(`RN_sct')
-		if _rc {
-			di as error "  BCR_SCT imputation failed (rc = " _rc "): transplanted patients with no"
-			di as error "  recorded response will drop from the SCT == 1 equations."
-		}
+	// Chained on the paraprotein deltas: they have no downstream consumer and exist purely to
+	// inform this imputation - the change in paraprotein and light chains is what determines
+	// response. Chained also keeps their missingness from listwise-deleting BCR_SCT rows.
+	cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR_SCT ///
+		= Age i.ECOGcc i.RISS i.BCR_L1 if Event0 == 100, replace rseed(`RN_sct')
+	if _rc {
+		di as error "  BCR_SCT imputation failed (rc = " _rc "): transplanted patients with no"
+		di as error "  recorded response will drop from the SCT == 1 equations."
+	}
 
-		// Write back to BCR, then carry forward, so rows after the transplant see the POST-transplant
-		// response rather than the pre-transplant one. At m = 0 BCR_SCT keeps its gaps and BCR is
-		// already equal where it does not, so the master is untouched; nomaster on _cf for the same
-		// reason - filling an imputed variable's master makes mi update treat it as observed.
-		qui mi xeq 0/$imp: replace BCR = BCR_SCT if Event0 == 100 & !mi(BCR_SCT)
-		sort ID_BS Date0
-		_cf BCR "Duration != ." nomaster
+	// Write back to BCR before carrying forward, so later rows see the POST-transplant response.
+	// m = 0 is untouched: BCR_SCT keeps its gaps there and equals BCR elsewhere. nomaster for the
+	// usual reason - filling an imputed variable's master makes mi update treat it as observed.
+	qui mi xeq 0/$imp: replace BCR = BCR_SCT if Event0 == 100 & !mi(BCR_SCT)
+	sort ID_BS Date0
+	_cf BCR "Duration != ." nomaster
 
-		_bcast_idbs BCR_SCT
-		qui mi xeq 0/$imp: replace BCR_SCT = 0 if BCR_SCT == . & SCT == 0
-		qui mi xeq 0/$imp: label values BCR_SCT BCR_label
+	_bcast_idbs BCR_SCT
+	qui mi xeq 0/$imp: replace BCR_SCT = 0 if BCR_SCT == . & SCT == 0
+	qui mi xeq 0/$imp: label values BCR_SCT BCR_label
 
-		// The invariant: BCR_SCT == 0 must count SCT == 0 patients EXACTLY. Anything else means the
-		// zero-fill has caught missing data again, which is the fault this whole block exists to fix.
-		//
-		// CHECK INSIDE AN IMPUTATION, not the master. BCR_SCT is now a REGISTERED IMPUTED variable,
-		// so m = 0 correctly keeps the original gaps and only m = 1..M are complete - that is how mi
-		// works, not a fault. An earlier version of this check read the master and reported all 4,330
-		// records as "still missing after imputation" when the imputation had in fact filled every
-		// one of the 548 patients. `mi xeq 1:' is style-agnostic (wide or flong) where reading
-		// _mi_m or _1_BCR_SCT directly is not.
-		mi xeq 1: qui count if SCT == 1 & BCR_SCT == 0
-		local _nbad = r(N)
-		mi xeq 1: qui count if SCT == 1 & mi(BCR_SCT)
-		local _nmiss = r(N)
-		if `_nbad' > 0 {
-			di as error "  BCR_SCT: " `_nbad' " TRANSPLANTED records still coded 0 - the invariant is broken."
-		}
-		if `_nmiss' > 0 {
-			di as error "  BCR_SCT: " `_nmiss' " transplanted records still missing IN m = 1 after" ///
-				" imputation - the model did not cover them; they will drop from the SCT == 1 equations."
-		}
-		if `_nbad' == 0 & `_nmiss' == 0 {
-			di as txt "  BCR_SCT: complete in m = 1 for all transplanted records; 0 means no transplant only."
-			di as txt "           (m = 0 retains the original gaps, as an imputed variable should.)"
-		}
+	// Invariant: BCR_SCT == 0 must count SCT == 0 patients exactly, or the zero-fill has caught
+	// missing data again. Checked in m = 1 - the master legitimately keeps its gaps.
+	mi xeq 1: qui count if SCT == 1 & BCR_SCT == 0
+	local _nbad = r(N)
+	mi xeq 1: qui count if SCT == 1 & mi(BCR_SCT)
+	local _nmiss = r(N)
+	if `_nbad' > 0 {
+		di as error "  BCR_SCT: " `_nbad' " TRANSPLANTED records coded 0 - invariant broken."
+	}
+	if `_nmiss' > 0 {
+		di as error "  BCR_SCT: " `_nmiss' " transplanted records still missing in m = 1 - the model" ///
+			" did not cover them; they will drop from the SCT == 1 equations."
+	}
+	if `_nbad' == 0 & `_nmiss' == 0 {
+		di as txt "  BCR_SCT: complete in m = 1 for all transplanted records; 0 means no transplant only."
+	}
 end
 
-// Finalise. Was left at top level by the split into separate programs, where it would have run at
-// file-read time with no data loaded - and the bootstrap branch never reached it at all, so that
-// output would have kept every auxiliary variable.
+
 cap program drop finalise_mi
 program define finalise_mi
 
 	// AFTER every direct-column write. _cf and _bcast_idbs bypass mi to write the `_m_var' columns,
-	// so _mi_miss is stale until this runs; and BEFORE the unregister, which needs a consistent mi
-	// object. This is the one mi update in the file, in the same position the original had it.
+	// so _mi_miss is stale until this runs; and BEFORE the unregister, which needs a consistent mi object.
 	mi update
 
 	// Unregister, keep, sort & order
