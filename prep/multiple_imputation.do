@@ -187,52 +187,45 @@ end
 // Impute BCR SCT
 cap program drop impute_bcr_sct
 program define impute_bcr_sct
-	args RN_asct RN_sct
-		// ASCT imputation. Its job is now the CARRYFORWARD below, not BCR_SCT: _cf propagates BCR
-		// forward from the Event0 == 100 row, so a transplanted patient's post-transplant response
-		// becomes BCR_L2 onward. Deleting this would carry the PRE-transplant response into L2.
-		// Known redundancy - two models impute the same quantity, so the 548 patients BCR_SCT
-		// imputes itself come from a different model than the rest. The clean end state (one model,
-		// written back to BCR at Event0 == 100) belongs with retiring the running BCR variable.
-		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc if Event0 == 100, replace rseed(`RN_asct')
-		if _rc {
-			exit _rc
-		}
+	args RN_sct
 
-		// Carryforward (temporal LOCF; sort once, direct-column fills). BCR is a registered IMPUTED
-		// variable, so carry only the imputation columns (nomaster) -- filling the master would make the
-		// mi update below collapse the imputations to a single value.
-		sort ID_BS Date0
-		_cf BCR "Duration != ." nomaster
-
-		// Collapse BCR for ASCT - small n
-		qui mi xeq 0/$imp: replace BCR = 4 if (BCR == 5 | BCR == 6) & Event0 == 100
-
-		// BCR_SCT - post-transplant response, IMPUTED here rather than inherited from BCR.
+		// BCR_SCT - post-transplant response. ONE imputation, on BCR_SCT itself.
 		//
-		// The ASCT block above leaves 548 of 2,135 transplanted patients (25.7%) missing - it runs
-		// without error and simply does not reach them. Deriving BCR_SCT passively propagated that
-		// hole, and the old "replace BCR_SCT = 0 if BCR_SCT == ." absorbed it into the no-transplant
-		// code, so a quarter of the transplant arm looked like a category and four equations built
-		// different workarounds on it (scratch/maintenance/_notes.md).
+		// A chained model used to impute BCR at Event0 == 100 with BCR_SCT derived from it, but it
+		// left 548 of 2,135 transplanted patients (25.7%) missing without erroring, and the old
+		// "replace BCR_SCT = 0 if BCR_SCT == ." absorbed the hole into the no-transplant code - so a
+		// quarter of the transplant arm looked like a category, and four equations built different
+		// workarounds on it (scratch/maintenance/_notes.md).
 		//
-		// Imputed at Event0 == 100 only (one row per patient, then broadcast - imputing the long
-		// form would give one patient different responses on different rows), using BCR_L1, which is
-		// why this must follow the BCR_L1 generation above. The zero-fill runs LAST and only for
-		// SCT == 0: BCR_SCT == 0 must mean "no transplant" and nothing else.
+		// Imputed at Event0 == 100 only - one row per patient, then broadcast; imputing the long
+		// form would give one patient different responses on different rows. Uses BCR_L1, which is
+		// why this must run after impute_bcr_txr.
 		//
 		// Assumes a missing assessment is MAR. If it is informative (died or progressed before
 		// assessment) this biases toward better responses.
 		qui mi passive: gen BCR_SCT = BCR if Event0 == 100
 		mi unregister BCR_SCT
 		mi register imputed BCR_SCT
+
+		// Collapse BEFORE imputing, so imputed values can only be levels the engine can draw
+		// (sim_bcr_asct.do categoryValues = 1,2,3,4). Small n at 5/6.
+		qui mi xeq 0/$imp: replace BCR_SCT = 4 if inlist(BCR_SCT, 5, 6) & Event0 == 100
+
 		cap noi mi impute ologit BCR_SCT = Age i.ECOGcc i.RISS i.BCR_L1 if Event0 == 100, ///
 			replace augment rseed(`RN_sct')
 		if _rc {
-			di as error "  BCR_SCT imputation failed (rc = " _rc "). BCR_SCT will be missing for"
-			di as error "  transplanted patients with no recorded response - the SCT == 1 equations"
-			di as error "  will drop them, which is safe but loses ~a quarter of that arm."
+			di as error "  BCR_SCT imputation failed (rc = " _rc "): transplanted patients with no"
+			di as error "  recorded response will drop from the SCT == 1 equations."
 		}
+
+		// Write back to BCR, then carry forward, so rows after the transplant see the POST-transplant
+		// response rather than the pre-transplant one. At m = 0 BCR_SCT keeps its gaps and BCR is
+		// already equal where it does not, so the master is untouched; nomaster on _cf for the same
+		// reason - filling an imputed variable's master makes mi update treat it as observed.
+		qui mi xeq 0/$imp: replace BCR = BCR_SCT if Event0 == 100 & !mi(BCR_SCT)
+		sort ID_BS Date0
+		_cf BCR "Duration != ." nomaster
+
 		_bcast_idbs BCR_SCT
 		qui mi xeq 0/$imp: replace BCR_SCT = 0 if BCR_SCT == . & SCT == 0
 		qui mi xeq 0/$imp: label values BCR_SCT BCR_label
@@ -301,13 +294,12 @@ if "$boot" == "0" {
 	// a silently empty rseed().
 	local RN_diag = 3949
 	local RN_txr  = 6192
-	local RN_asct = 8273
 	local RN_sct  = 5117
 
 	mi_settings
 	impute_diagnosis `RN_diag'
 	impute_bcr_txr   `RN_txr'
-	impute_bcr_sct   `RN_asct' `RN_sct'
+	impute_bcr_sct   `RN_sct'
 
 	// Save Long MI
 	save "${data_path}/${mi_outdir}MRDR Long MI${mi_outtag}.dta", replace
@@ -376,7 +368,6 @@ else if "$boot" == "1" {
 		// Base random numbers
 		local RN_diag = 7394
 		local RN_txr  = 1392
-		local RN_asct = 4771
 		local RN_sct  = 8856
 
 		// Retry settings
@@ -397,7 +388,6 @@ else if "$boot" == "1" {
 			local RS  = 5839 * `b' + 100003 * `try'
 			local a_diag = `RN_diag' + 911 * `try'
 			local a_txr  = `RN_txr'  + 911 * `try'
-			local a_asct = `RN_asct' + 911 * `try'
 			local a_sct  = `RN_sct'  + 911 * `try'
 
 			// Resample with this attempt's seed
@@ -413,7 +403,7 @@ else if "$boot" == "1" {
 				mi_settings
 				impute_diagnosis `a_diag'
 				impute_bcr_txr   `a_txr'
-				impute_bcr_sct   `a_asct' `a_sct'
+				impute_bcr_sct   `a_sct'
 			}
 
 			if _rc == 0 {
