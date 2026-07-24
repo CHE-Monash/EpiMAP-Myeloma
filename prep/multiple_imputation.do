@@ -169,8 +169,15 @@ program define impute_bcr_txr
 			label values BCR_L`l' BCR_label
 		}
 
-		// pBCR: previous line's response, needed only for the pooled L6+ BCR regressions, where it
-		// is exactly BCR_L{line-1}. Left missing at L2 - risk_equations.do uses i.BCR_L1 there.
+		// pBCR: previous line's response, for the pooled L6+ BCR regressions (risk_equations.do
+		// Event0 60-90), where it is exactly BCR_L{line-1}. Left missing at L2 - i.BCR_L1 is used there.
+		//
+		// TWO pBCRs, deliberately. data_extraction.do builds an OBSERVED pBCR (last recorded prior
+		// response) that serves as a predictor when BCR is imputed above. The version risk_equations
+		// consumes should instead be the IMPUTED previous response, consistent with BCR_L*, so drop
+		// the observed one here and rebuild it from the imputed BCR_L*. The observed pBCR has already
+		// done its job by this point.
+		cap drop pBCR
 		qui mi passive: gen pBCR = .
 		qui mi passive: replace pBCR = BCR_L5 if Event0 == 60
 		qui mi passive: replace pBCR = BCR_L6 if Event0 == 70
@@ -329,7 +336,6 @@ if "$boot" == "0" {
 		save "${data_path}/${mi_outdir}MRDR Wide MI${mi_outtag}.dta", replace
 
 	// Return to the repo root, then delete temp folder
-	// (must cd out first, or Stata is left sitting in the just-removed directory)
 	cd "`repo'"
 	cap rmdir "~/temp"
 }
@@ -338,7 +344,7 @@ else if "$boot" == "1" {
 
 		// Open MRDR Long Data
 		use "${data_path}/MRDR Long.dta"
-		cap drop CM_LVR CM_PNR CM_MLG   // unused comorbidities (engine uses only CM_CKD/CRD/PLM/DBT)
+		cap drop CM_LVR CM_PNR CM_MLG   // unused comorbidities
 
 		// OOS: restrict to the requested fold before resampling/imputing
 		if "$sample" != "" {
