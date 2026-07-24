@@ -249,27 +249,19 @@ program define impute_bcr
 	sort ID_BS Date0
 	_cf BCR_L2
 	label values BCR_L2 BCR_label
-	// ---- L3-L9 POOLED (Event0 30-90): baseline + previous response (LOCF) ----
-	// L1 and L2 are imputed separately - that is where the measured L1->L2 attenuation lives and
-	// the cells support it. L3+ are POOLED into one model: separately, each line's ~1000-or-fewer
-	// observed responses let the paraprotein deltas (which nearly determine response) quasi-separate
-	// the ologit and it fails to converge. Pooling gives the deltas the sample they need. Response
-	// still conditions on the previous response via i._pr, so congeniality is retained; what is lost
-	// is a line-specific previous-response coefficient across L3-L9, which the deltas dominate anyway.
+	// ---- L3-L9 POOLED (Event0 30-90): deltas + i.CLine, the ORIGINAL converging model ----
+	// No previous-response term here. The deltas and a response-history term (i._pr) BOTH strongly
+	// predict response, and together they quasi-separate the ologit - it failed to converge at L3+
+	// however the lines were split or pooled. The original shipped model (deltas + baseline +
+	// i.CLine) converged across all lines, so L3-L9 use that. Congeniality is retained where it was
+	// MEASURED - the L1->L2 attenuation - because L1 and L2 keep the previous-response term above.
+	// L3+ was never shown to be attenuated, and the deltas are the dominant predictor there anyway.
 	//
-	// Previous response, carried forward (LOCF), COMPLETE, and COLLAPSED to 3 levels (deep CR/VG /
-	// partial PR / poor MR/SD/PD). Complete because L1 is imputed first, so there is always a
-	// fallback; 3 levels because the full factor left empty response x previous-response cells.
-	cap drop _pr
-	qui mi passive: gen _pr = 1 if inlist(BCR, 1, 2)
-	qui mi passive: replace _pr = 2 if BCR == 3
-	qui mi passive: replace _pr = 3 if inlist(BCR, 4, 5, 6)
-	sort ID_BS Date0
-	_cf _pr
-
+	// No BCR-derived predictor now, so there is no self-reference, but the dedicated-iL / write-back
+	// pattern is kept so this line's impute cannot disturb the L1/L2 imputations.
 	qui gen iL39 = BCR if inlist(Event0, 30, 40, 50, 60, 70, 80, 90)
 	mi register imputed iL39
-	cap noi mi impute chained (regress) `aux' (ologit, augment) iL39 = `base' i._pr ///
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL39 = `base' i.CLine ///
 		if inlist(Event0, 30, 40, 50, 60, 70, 80, 90) & CStart == 1 & Duration != ., replace rseed(`RN_l39')
 	if _rc {
 		exit _rc
@@ -300,8 +292,6 @@ program define impute_bcr
 	qui mi passive: replace pBCR = BCR_L7 if Event0 == 80
 	qui mi passive: replace pBCR = BCR_L8 if Event0 == 90
 	label values pBCR BCR_label
-
-	cap drop _pr
 
 	// Completeness: every line-start response must be imputed. Fires if a per-line impute missed a line.
 	mi xeq 1: qui count if inlist(Event0, 10, 20, 30, 40, 50, 60, 70, 80, 90) & mi(BCR) & CStart == 1 & Duration != .
