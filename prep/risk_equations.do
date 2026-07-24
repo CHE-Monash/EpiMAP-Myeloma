@@ -76,9 +76,9 @@ end
 cap program drop save_max
 program define save_max
 	// Ceiling over ALL records, censored included. Correct for a MAXIMUM: a patient censored while
-	// still on treatment proves durations at least that long occur, which is what a curtailment
-	// ceiling needs to know. Used by the L1_MND arms, which are ~47.5% censored - see the comment
-	// at those calls. Everything else uses save_max_obs.
+	// still on treatment proves durations of at least that length occur, which is exactly what a
+	// curtailment ceiling needs. Taking the max over observed ends only (the retired save_max_obs)
+	// understated it - most for the heavily-censored quantities - and truncated the simulated tail.
 	args mat
 
 	qui summarize _t if _st == 1, meanonly
@@ -87,57 +87,6 @@ program define save_max
 	global Coeffs $Coeffs max`mat'
 end
 
-cap program drop save_max_obs
-program define save_max_obs
-	// As save_max, but the ceiling is the longest duration observed to actually END. This is the
-	// ONLY way a duration ceiling is computed (TXD, TFI, MND). The old save_max, which took
-	// r(max) as stset left it, is retired - it has no callers and keeping a dead alternative
-	// invites the next equation to pick the wrong one.
-	//
-	// save_max takes r(max) as stset leaves it, which is the maximum analysis time over ALL
-	// records - so a patient still under follow-up sets the ceiling without ever being observed
-	// to finish. For a heavily censored quantity that is not an observed duration at all.
-	//
-	// The engine applies these as a hard rowmin() curtailment (core/outcomes/sim_txd.do,
-	// sim_tfi.do, sim_txd_l1.do, sim_tfi_l1.do), so the ceiling is a claim about the longest
-	// duration the data supports. A censored record supports "at least this long", not "this
-	// long", and the two differ most exactly where curtailment bites - the late lines, where
-	// follow-up runs out before treatment does.
-	//
-	// The _st == 1 filter matters: records excluded by stset's `if' keep stale _t values.
-	args mat
-
-	// Report both, with the counts behind them, so the refit log carries the size of the
-	// correction per equation. The counts also expose the one soft spot in reading _st/_d/_t
-	// directly: under "mi set wide" those are the m = 0 copy, so an equation whose stset condition
-	// uses an IMPUTED variable could in principle be summarised over a different set of rows from
-	// the one the fit uses. Only L1_TFI_ASCT does (BCR_SCT), and a missing BCR_SCT still satisfies
-	// "!= 0", so no rows are lost - but an N that collapses here is the symptom to look for if a
-	// future equation gains such a condition. An N of 0 would leave the ceiling missing, which
-	// Mata's rowmin() treats as no curtailment rather than as an error - guarded below.
-	qui summarize _t if _st == 1, meanonly
-	local all = r(max)
-	local n_all = r(N)
-	qui summarize _t if _st == 1 & _d == 1, meanonly
-	di as txt "  ceiling `mat': " %7.1f r(max) " months over " %6.0f r(N) " observed ends" ///
-		"  (all " %6.0f `n_all' " records incl. censored: " %7.1f `all' ")"
-
-	// GUARD for the N = 0 case named above. Leaving the ceiling missing fails SILENTLY and in the
-	// PERMISSIVE direction - no curtailment at all - which is the worst of the three outcomes.
-	// Fall back to the all-records maximum and say so: wrong but bounded beats absent. Late lines
-	// are where this could bite, since follow-up runs out before treatment does.
-	if r(N) == 0 {
-		di as error "  save_max_obs `mat': NO observed ends. Ceiling fell back to the all-records"
-		di as error "                     maximum of " %8.1f `all' " months - PROVISIONAL, it"
-		di as error "                     includes censored follow-up."
-		mata: max`mat' = `all'
-		global Coeffs $Coeffs max`mat'
-		exit
-	}
-
-	mata: max`mat' = st_numscalar("r(max)")
-	global Coeffs $Coeffs max`mat'
-end
 
 cap program drop gen_mnr
 program define gen_mnr
@@ -529,7 +478,7 @@ program define risk_equations
 	count if(TXR_L1 == 7)
 	if r(N) > 0 { // If Rd is included
 		mi stset Date1 if(TXR_L1 == 7), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) scale(30.4375)
-		save_max_obs L1_TXD_Cont
+		save_max L1_TXD_Cont
 		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
 		save_coefs L1_TXD_Cont
 	}
@@ -545,28 +494,28 @@ program define risk_equations
 
 	// L2
 	mi stset Date1, id(ID_BS) failure(Event1 == 21) origin(Event1 == 20) scale(30.4375)
-	save_max_obs L2_TXD
+	save_max L2_TXD
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L2 i.TXR_L2, d($dTXD)
 	save_coefs L2_TXD
 	mata: _matrix_list(bL2_TXD, rbL2_TXD, cbL2_TXD)
 
 	// L3
 	mi stset Date1, id(ID_BS) failure(Event1 == 31) origin(Event1 == 30) scale(30.4375)
-	save_max_obs L3_TXD
+	save_max L3_TXD
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L3 i.TXR_L3, d($dTXD)
 	save_coefs L3_TXD
 	mata: _matrix_list(bL3_TXD, rbL3_TXD, cbL3_TXD)
 
 	// L4
 	mi stset Date1, id(ID_BS) failure(Event1 == 41) origin(Event1 == 40) scale(30.4375)
-	save_max_obs L4_TXD
+	save_max L4_TXD
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L4 i.TXR_L4, d($dTXD)
 	save_coefs L4_TXD
 	mata: _matrix_list(bL4_TXD, rbL4_TXD, cbL4_TXD)
 
 	// L5
 	mi stset Date1, id(ID_BS) failure(Event1 == 51) origin(Event1 == 50) scale(30.4375)
-	save_max_obs L5_TXD
+	save_max L5_TXD
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L5, d($dTXD)
 	save_coefs L5_TXD
 	mata: _matrix_list(bL5_TXD, rbL5_TXD, cbL5_TXD)
@@ -577,7 +526,7 @@ program define risk_equations
 	qui replace fail = 0 if(Event1 == 60 | Event1 == 70 | Event1 == 80 | Event1 == 90)
 	qui bysort ID_BS (Date0): replace fail = fail[_n-1] if(fail == .)
 	mi stset Date1, id(ID_BS) failure(fail) origin(Event1 == 60) exit(time .) scale(30.4375)
-	save_max_obs LX_TXD
+	save_max LX_TXD
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
 	save_coefs LX_TXD
 	mata: _matrix_list(bLX_TXD, rbLX_TXD, cbLX_TXD)
@@ -585,7 +534,7 @@ program define risk_equations
 	// L6 (superseded by LX; kept for reference)
 /*
 	mi stset Date1, id(ID_BS) failure(Event1 == 61) origin(Event1 == 60) scale(30.4375)
-	save_max_obs L6_TXD
+	save_max L6_TXD
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
 	save_coefs L6_TXD
 	mata: _matrix_list(bL6_TXD, rbL6_TXD, cbL6_TXD)
@@ -661,123 +610,37 @@ program define risk_equations
 	qui egen double MND_origin = min(_mxMNDo), by(ID_BS)
 	qui drop _mxMNDo
 
-	// Lenalidomide, SPLIT BY TRANSPLANT so each arm can carry the response that exists for it.
+	// Lenalidomide, POOLED across transplant, baseline covariates only.
 	//
-	// This reverts the mid-session pooling (one equation with an SCT covariate). That pooling was
-	// justified on the KM curves being similar, which is a claim about the BASELINE HAZARD. The
-	// reason to split is different and stronger: the covariate that actually carries signal only
-	// exists in one arm.
-	//     ASCT arm    i.BCR_SCT   LR chi2(4) = 16.86, p = 0.0021, AIC -8.9 vs baseline
-	//     NoASCT arm  i.BCR_L1
-	// BCR_L1 carried nothing in the pooled fit (p = 0.50, AIC worse than baseline) and produced
-	// unstable predictions - a sparse level drove the mean predicted median to 361 months. It is
-	// kept here because in the NoASCT arm it is the ONLY response available, but watch that
-	// diagnostic: if the arm's predicted median blows up, a level needs collapsing.
-	// Evidence: scratch/mnd_bcr.log. This also makes MND structurally match L1_TFI, which has been
-	// split this way all along and reads BCR_SCT / BCR_L1 in the same two arms.
+	// NO response term and NO transplant split. Response depth was tested exhaustively once BCR_SCT
+	// was correctly imputed (it had been mis-coded, which is what created an apparent signal): the
+	// post-transplant response BCR_SCT, the L1 response BCR_L1 collapsed AND full 6-level, the two
+	// combined, and a transplant interaction - none predicts maintenance duration (all LR p > 0.4,
+	// every AIC worse than baseline). Comorbidities likewise (p = 0.23). The p = 0.0021 that once
+	// justified splitting the arm to carry BCR_SCT was purely the coding artefact.
+	// Evidence: scratch/mnd_bcr_pooled.log. Response still drives TFI and OS at full 6 levels; it
+	// simply does not add to the maintenance-DURATION draw within the selected maintenance cohort.
 	//
-	// BCR_SCT == 0 IS EXCLUDED, matching L1_TFI_ASCT. The registry codes 0 as "transplanted,
-	// response not recorded" and it is common - 22.7% of transplanted maintenance records - but
-	// THE ENGINE CANNOT PRODUCE IT: sim_bcr_asct.do draws from categoryValues = (1,2,3,4). Fitting
-	// a level the engine never assigns would make it the base category, so every simulated patient
-	// would be measured against a group that does not exist in the simulation. This is the
-	// "test with what the engine will have" rule, and it is why L1_TFI_ASCT carries the same
-	// exclusion - that is deliberate, not the oversight an earlier draft of this comment called it.
-	//
-	// ON THE CEILING AND THE FAMILY, both settled and neither is the lever they looked like:
-	// $dTFI is lognormal and returns sigma = 1.81, so the fitted mean is 5.2x the fitted median.
-	// That LOOKS like an invented tail and is not - censoring-aware, the KM puts p75 at 74.7
-	// months, so ~30% are still on maintenance at 60 months. The drawn duration reproduces the
-	// registry restricted mean at every horizon (35.6 / 42.7 / 48.5 against 35.23 / 42.91 / 51.01
-	// at 84 / 120 / 158). The 157.96-month ceiling is a genuine recorded cessation and RMST(158) is
-	// the only unflagged KM estimate, so the curve reaches zero there. Do not lower it: an
-	// 84-month ceiling gives a mean of 30.5 against a registry 35.23.
+	// CEILING and FAMILY, both settled: $dTFI is lognormal, the 157.96-month ceiling is a genuine
+	// recorded cessation (RMST(158) is the only unflagged KM estimate), and the drawn duration
+	// reproduces the registry restricted mean at every horizon. Do not lower the ceiling.
 	// Evidence: scratch/mnd_dist.log, scratch/mnd_failtype.log, ../scratch/maintenance/_notes.md.
-
-	// ---- Lenalidomide, ASCT ----
-	di as txt "  L1_MND_LEN_ASCT - response distribution (0 excluded, see above):"
-	tab BCR_SCT if MNT == 1 & MNR_L1 == 1 & SCT == 1, missing
-
-	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 1 & inrange(BCR_SCT, 1, 4)), ///
+	mi stset Date1 if(MNT == 1 & MNR_L1 == 1), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
-	// CEILING FROM ALL RECORDS, censored included - deliberately NOT save_max_obs.
-	//
-	// A curtailment ceiling asks "what is the longest duration the data supports". A patient
-	// censored at 108.5 months WHILE STILL ON MAINTENANCE is direct evidence that durations that
-	// long occur; an observed end at 59.8 is evidence that 59.8 occurs. For a MAXIMUM, the censored
-	// record is the stronger evidence, not the weaker one - which is the opposite of the argument
-	// save_max_obs was built on, and the understatement scales with censoring. This arm is 47.5%
-	// censored: observed ends top out at 59.8 while follow-up runs to 108.5.
-	//
-	// Using 59.8 truncated the whole distribution: E[min(MND_raw,c)] collapsed to a flat 29.7
-	// against registry RMST of 35.23 / 42.91 / 51.01 at 84 / 120 / 158, and out-of-sample went
-	// 151 -> 150. At 60 months the simulation matched exactly (29.7 vs 29.48) - the gap only opened
-	// past the ceiling, which is the signature of curtailment rather than misfit.
-	//
-	// TXD and TFI keep save_max_obs: they are far less censored and the swap measured better there.
-	// Whether the same objection applies to them is open, and belongs on its own branch.
-	save_max L1_MND_LEN_ASCT
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_SCT, d($dTFI)
-	save_coefs L1_MND_LEN_ASCT
-	mata: _matrix_list(bL1_MND_LEN_ASCT, rbL1_MND_LEN_ASCT, cbL1_MND_LEN_ASCT)
+	save_max L1_MND_LEN
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS SCT, d($dTFI)
+	save_coefs L1_MND_LEN
+	mata: _matrix_list(bL1_MND_LEN, rbL1_MND_LEN, cbL1_MND_LEN)
 
-	// ---- Lenalidomide, no ASCT ----
-	//
-	// EVERYTHING BELOW PR IS COLLAPSED, and the data forces it twice over.
-	//
-	// (1) PD is empty here. Nobody starts lenalidomide maintenance after progressive disease at L1,
-	//     the same fact behind "& BCR_L1 != 6" in the post-transplant response fit. But sim_bcr.do
-	//     CAN draw BCR_L1 == 6, so a simulated PD patient reaching maintenance would have no
-	//     coefficient - and would fall through every dummy to the BASE level, CR, the best response.
-	// (2) MR IS FOLD-DEPENDENT, which is the trap. It has SEVEN rows in the full sample and ZERO in
-	//     the 70% training fold, so the full fit returns five levels and the train fit four. A
-	//     design hard-coded to either is wrong for the other, and the OOS validation runs both.
-	//
-	// So the levels are CR / VG / PR / everything worse. Cell counts full 275 / 394 / 254 / 62 and
-	// train 174 / 280 / 192 / 46 - all populated in both folds, which is the property that matters.
-	// This also removes the sparse cell behind the pooled fit's 361-month predicted median
-	// (scratch/mnd_bcr.log). sim_mnd.do's NoASCT arm mirrors it: vC4 is BCR_L1 >= 4.
-	//
-	// GENERAL LESSON: any factor level with a handful of rows is a fold-dependent landmine, because
-	// e(b) gains or loses a column between the full and train fits while the engine design is fixed.
-	// The ASCT arm is safe here only because its MR cell holds 190 rows full / 136 train.
-	capture drop MND_BCR_L1
-	qui gen byte MND_BCR_L1 = min(BCR_L1, 4) if !mi(BCR_L1)
-	qui label variable MND_BCR_L1 "BCR_L1, MR/SD/PD collapsed (for L1_MND_LEN_NoASCT)"
-	di as txt "  L1_MND_LEN_NoASCT - collapsed response distribution:"
-	tab MND_BCR_L1 if MNT == 1 & MNR_L1 == 1 & SCT == 0, missing
-
-	// WHY MNT IS NOT RESTRICTED TO NON-PD PATIENTS, which looks like the tidier fix.
-	// PD-then-maintenance is REAL: among no-transplant maintenance patients the registry has 82
-	// rows at BCR_L1 == 6. What is empty is specifically LENALIDOMIDE maintenance after PD, which
-	// is why this arm returns five levels. Excluding PD from MNT outright would delete genuine
-	// patients, lower the overall maintenance rate, and damage the thalidomide arm to fix a
-	// lenalidomide problem. The MNT logit already handles it correctly by conditioning on
-	// i.BCR_L1 - PD gets a low probability, not a zero one.
-	// This cross-tab is the evidence for that claim; if the PD row turns out to be empty across
-	// ALL regimens on a future cut, the restriction becomes worth revisiting.
-	di as txt "  PD-then-maintenance by regimen - the reason MNT is not restricted:"
-	tab BCR_L1 MNR_L1 if MNT == 1 & SCT == 0, missing
-
-	mi stset Date1 if(MNT == 1 & MNR_L1 == 1 & SCT == 0), ///
-		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
-	save_max L1_MND_LEN_NoASCT
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.MND_BCR_L1, d($dTFI)
-	save_coefs L1_MND_LEN_NoASCT
-	mata: _matrix_list(bL1_MND_LEN_NoASCT, rbL1_MND_LEN_NoASCT, cbL1_MND_LEN_NoASCT)
-
-	// Thalidomide, censored at 18 months. POOLED across transplant with an SCT covariate and no
-	// BCR: n is roughly 311 patients against lenalidomide's 1,020, so splitting it three ways would
-	// leave cells that cannot support a factor. Thalidomide maintenance also ended with the 2020
-	// PBS listing, so it matters to historical validation rather than to any current analysis.
+	// Thalidomide, censored at 18 months. Pooled across transplant, no BCR: n is roughly 311 against
+	// lenalidomide's 1,020, too small to add a factor. Thalidomide maintenance also ended with the
+	// 2020 PBS listing, so it matters to historical validation rather than any current analysis.
 	mi stset Date1 if(MNT == 1 & MNR_L1 == 5), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375) ///
 		exit(time MND_origin + `=18 * 30.4375')
-	// The engine caps the thalidomide draw at the same 18 months, so overwrite the observed maximum
-	// rather than letting the observed maximum pick up a record the fit has just declared
-	// untrustworthy. The call is kept so every ceiling is computed the same way and the refit log
-	// reports this one too; the next line is what actually binds.
-	save_max_obs L1_MND_THAL
+	// The engine caps the thalidomide draw at 18 months, so the next line overwrites whatever the
+	// ceiling computes; the save_max call is kept only so the refit log reports it like the others.
+	save_max L1_MND_THAL
 	mata: maxL1_MND_THAL = 18
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS SCT, d($dTFI)
 	save_coefs L1_MND_THAL
@@ -800,42 +663,42 @@ program define risk_equations
 	// so the old condition would have quietly let them into the risk set. They would still drop out
 	// of the estimation listwise, but not before affecting _st == 1, and therefore the ceiling.
 	mi stset Date1 if(SCT == 1 & inrange(BCR_SCT, 1, 4)), id(ID_BS) failure(Event1 == 20) origin(Event1 == 11) scale(30.4375)
-	save_max_obs L1_TFI_ASCT
+	save_max L1_TFI_ASCT
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT i.BCR_SCT, d($dTFI)
 	save_coefs L1_TFI_ASCT
 	mata: _matrix_list(bL1_TFI_ASCT, rbL1_TFI_ASCT, cbL1_TFI_ASCT)
 
 	// L1 - No ASCT
 	mi stset Date1 if(SCT == 0), id(ID_BS) failure(Event1 == 20) origin(Event1 == 11) scale(30.4375)
-	save_max_obs L1_TFI_NoASCT
+	save_max L1_TFI_NoASCT
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT i.BCR_L1, d($dTFI)
 	save_coefs L1_TFI_NoASCT
 	mata: _matrix_list(bL1_TFI_NoASCT, rbL1_TFI_NoASCT, cbL1_TFI_NoASCT)
 
 	// L2
 	mi stset Date1, id(ID_BS) failure(Event1 == 30) origin(Event1 == 21) scale(30.4375)
-	save_max_obs L2_TFI
+	save_max L2_TFI
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L2, d($dTFI)
 	save_coefs L2_TFI
 	mata: _matrix_list(bL2_TFI, rbL2_TFI, cbL2_TFI)
 
 	// L3
 	mi stset Date1, id(ID_BS) failure(Event1 == 40) origin(Event1 == 31) scale(30.4375)
-	save_max_obs L3_TFI
+	save_max L3_TFI
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L3, d($dTFI)
 	save_coefs L3_TFI
 	mata: _matrix_list(bL3_TFI, rbL3_TFI, cbL3_TFI)
 
 	// L4
 	mi stset Date1, id(ID_BS) failure(Event1 == 50) origin(Event1 == 41) scale(30.4375)
-	save_max_obs L4_TFI
+	save_max L4_TFI
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L4, d($dTFI)
 	save_coefs L4_TFI
 	mata: _matrix_list(bL4_TFI, rbL4_TFI, cbL4_TFI)
 
 	// L5
 	mi stset Date1, id(ID_BS) failure(Event1 == 60) origin(Event1 == 51) scale(30.4375)
-	save_max_obs L5_TFI
+	save_max L5_TFI
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L5, d($dTFI)
 	save_coefs L5_TFI
 	mata: _matrix_list(bL5_TFI, rbL5_TFI, cbL5_TFI)
@@ -846,7 +709,7 @@ program define risk_equations
 	qui replace fail = 0 if(Event1 == 61 | Event1 == 71 | Event1 == 81)
 	qui bysort ID_BS (Date0): replace fail = fail[_n-1] if(fail == .)
 	mi stset Date1, id(ID_BS) failure(fail) origin(Event1 == 61) exit(time .) scale(30.4375)
-	save_max_obs LX_TFI
+	save_max LX_TFI
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTFI)
 	save_coefs LX_TFI
 	mata: _matrix_list(bLX_TFI, rbLX_TFI, cbLX_TFI)
@@ -854,7 +717,7 @@ program define risk_equations
 	// L6 (superseded by LX; kept for reference)
 /*
 	mi stset Date1, id(ID_BS) failure(Event1 == 70) origin(Event1 == 61) scale(30.4375)
-	save_max_obs L6_TFI
+	save_max L6_TFI
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTFI)
 	save_coefs L6_TFI
 	mata: _matrix_list(bL6_TFI, rbL6_TFI, cbL6_TFI)
