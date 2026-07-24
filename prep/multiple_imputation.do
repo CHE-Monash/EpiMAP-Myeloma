@@ -451,10 +451,6 @@ else if "$boot" == "1" {
 			bsample, cluster(ID) idcluster(ID_BS)
 
 			// Try imputation; trap perfect-predictor / convergence failures.
-			// The `multiple_imputation' wrapper was removed when the stages were split into
-			// separate programs, so this called a program that does not exist. Bootstrap always
-			// runs all three stages - the stage flags are a development convenience and
-			// checkpointing a resampled dataset would be meaningless.
 			capture noisily {
 				mi_settings
 				impute_diagnosis `a_diag'
