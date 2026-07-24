@@ -50,11 +50,46 @@ global imp 2
 global boot 0
 */
 
+* Usage:
+*   do prep/multiple_imputation.do <imps> <diag> <bcr_txr> <bcr_asct> <boot> <min_bs> <max_bs> [sample]
+*
+*   imps      number of imputations
+*   diag      1/0  run the diagnosis-covariate imputation
+*   bcr_txr   1/0  run the treatment-start BCR imputation (and BCR_L1..L9, pBCR)
+*   bcr_asct  1/0  run the post-transplant BCR / BCR_SCT imputation
+*   boot      1/0  bootstrap mode (always runs all three; stage flags are ignored)
+*
+*   e.g.  do prep/multiple_imputation.do 2 1 1 1 0 0 0        full run
+*         do prep/multiple_imputation.do 2 0 0 1 0 0 0        re-run only the ASCT stage
+*
+* THE STAGES ARE SEQUENTIAL AND DEPENDENT, so "skip" cannot mean "run on raw data":
+*   diag      mi set + mi register, then imputes ECOGcc / RISS / comorbidities
+*   bcr_txr   needs ECOGcc from diag; produces BCR_L1..L9
+*   bcr_asct  needs ECOGcc, RISS from diag AND BCR_L1 from bcr_txr
+* So a skipped stage is RESUMED FROM A CHECKPOINT written by the previous stage, not omitted. Each
+* stage saves one on completion. Asking for a later stage without its checkpoint is an error, and so
+* is leaving a GAP (diag + bcr_asct with bcr_txr skipped) - the gap would silently use stale
+* BCR_L1 values from the checkpoint while the diagnosis covariates around them had been redrawn.
+*
+* Final outputs (MRDR Long MI / Wide MI) are written ONLY when the last stage runs. A partial run
+* leaves a checkpoint and says so, rather than saving a half-imputed file over the good one.
+
 global imp `1'
-global boot `2'
-global min_bs `3'
-global max_bs `4'
-global sample `5'   // "" = full cohort (main model); "train"/"test" = OOS fold (analyses/default/)
+global diag `2'
+global bcr_txr `3'
+global bcr_asct `4'
+global boot `5'
+global min_bs `6'
+global max_bs `7'
+global sample `8'   // "" = full cohort (main model); "train"/"test" = OOS fold (analyses/default/)
+
+* Default the stage flags to "run everything" when called with the old 5-argument signature, so an
+* existing runbook line does not silently impute nothing.
+if "$diag" == "" & "$bcr_txr" == "" & "$bcr_asct" == "" {
+	di as error "multiple_imputation: called with the OLD argument order. Expected"
+	di as error "  <imps> <diag> <bcr_txr> <bcr_asct> <boot> <min_bs> <max_bs> [sample]"
+	exit 198
+}
 
 * OOS routing: when $sample is set, restrict to that fold (split crosswalk written by
 * analyses/default/prep/split.do) and write outputs under ${data_path}/oos/. Empty = main model.
@@ -68,6 +103,7 @@ else {
 	capture mkdir "${data_path}/oos"
 	capture mkdir "${data_path}/oos/bootstrap"
 }
+capture mkdir "${data_path}/${mi_outdir}checkpoints"
 
 **********
 // Helpers: carry values across a patient's rows by operating DIRECTLY on the wide per-imputation
@@ -118,24 +154,26 @@ program define _bcast_idbs
 	sort ID_BS Date0
 end
 
-**********
-// Define function
-cap program drop multiple_imputation
-program define multiple_imputation
-	args RN1 RN2 RN3 RN4
 
-	// Drop variables to be derived from imputed
+**********
+// MI Settings
+cap program drop mi_settings
+program define mi_settings
 	qui cap drop ISS
 	qui cap drop RISS
 	qui cap drop CM_CKD   // created in data_extraction from observed eGFR; re-derived below from imputed eGFR
 
-	// MI settings
 	mi set wide
 	mi register imputed Albumin AlkalinePhosphatase BMPlasmaCells LactateDehydrogenase SerumB2Microglobulin SerumCalcium SerumCreatinine eGFR EQ5D_Diagnosis LTHaemoglobinGL WhiteCellCount NeutrophillCount PlateletCount CRABScore CM_CRD CM_PLM CM_DBT Male FISHRisk ExtraMedullaryD LyticLesion ECOGcc Para Lambda Kappa FLC dPara dLambda dKappa dFLC BCR
 	mi register regular Age CLine
 	mi describe
+end
 
-	// Diagnosis imputation
+// Impute diagnosis
+cap program drop impute_diagnosis
+program define impute_diagnosis
+	args RN1 RN2 RN3 RN4
+
 	cap noi mi impute chained (regress) Albumin AlkalinePhosphatase BMPlasmaCells LactateDehydrogenase SerumB2Microglobulin SerumCalcium SerumCreatinine eGFR EQ5D_Diagnosis LTHaemoglobinGL WhiteCellCount NeutrophillCount PlateletCount CRABScore Para Lambda Kappa FLC (logit, augment) Male CM_CRD CM_PLM CM_DBT FISHRisk ExtraMedullaryD LyticLesion (ologit, augment) ECOGcc = Age if Event0 == 3, add($imp) rseed(`RN1')
 	if _rc {
 		exit _rc
@@ -170,44 +208,20 @@ program define multiple_imputation
 		qui mi passive: replace RISS = 2 if RISS == . & Event0 == 3
 		_bcast_idbs RISS
 		label variable RISS "Revised ISS (MI)"
+end
 
-	// BCR imputation
+// Impute BCR TXR
+cap program drop impute_bcr_txr
+program define impute_bcr_txr
+	args RN1 RN2 RN3 RN4
 
-		// TXR imputation
+	// TXR imputation
 		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc i.CLine if CStart == 1 & Duration != ., replace rseed(`RN2')
 		if _rc {
 			exit _rc
 		}
 
-		// ASCT imputation. KEPT, but its job is now the CARRYFORWARD below, not BCR_SCT.
-		//
-		// It leaves 548 of 2,135 transplanted patients missing - it runs without error and simply
-		// does not cover them - which is why BCR_SCT is imputed on its own further down rather than
-		// derived from this. But this block still matters: _cf propagates BCR forward from the
-		// Event0 == 100 row, so for a transplanted patient the post-transplant response becomes
-		// BCR_L2 onward at the next line start. That is right - the most recent assessment before L2
-		// IS the post-transplant one - and deleting this would carry the PRE-transplant L1 response
-		// into L2 instead.
-		//
-		// KNOWN REDUNDANCY: two models now impute the same quantity. BCR_SCT inherits this block's
-		// values where it succeeded and imputes the rest with its own ologit, so the 548 come from a
-		// different model than the others. The clean end state is to impute BCR_SCT ONCE, write it
-		// back to BCR at Event0 == 100, and carry forward from there - one model, one value, and no
-		// dependence on the chained block reaching every row. That needs the BCR_L1 generation moved
-		// above this point and belongs on the branch that retires the running BCR variable.
-		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc if Event0 == 100, replace rseed(`RN3')
-		if _rc {
-			exit _rc
-		}
-
-		// Carryforward (temporal LOCF; sort once, direct-column fills). BCR is a registered IMPUTED
-		// variable, so carry only the imputation columns (nomaster) -- filling the master would make the
-		// mi update below collapse the imputations to a single value.
-		sort ID_BS Date0
-		_cf BCR "Duration != ." nomaster
-
-		// Collapse BCR for ASCT - small n
-		qui mi xeq 0/$imp: replace BCR = 4 if (BCR == 5 | BCR == 6) & Event0 == 100
+		
 
 		// Generate BCR_L1..L9 (BCR at each line's start) and copy FORWARD only (LOCF), not a full
 		// broadcast. These are used in risk_equations.do only at Event0 >= the line's own start, and
@@ -241,6 +255,42 @@ program define multiple_imputation
 		qui mi passive: replace pBCR = BCR_L7 if Event0 == 80
 		qui mi passive: replace pBCR = BCR_L8 if Event0 == 90
 		label values pBCR BCR_label
+		
+end
+
+// Impute BCR SCT
+cap program drop impute_bcr_sct
+program define impute_bcr_sct
+	args RN1 RN2 RN3 RN4
+		// ASCT imputation. KEPT, but its job is now the CARRYFORWARD below, not BCR_SCT.
+		//
+		// It leaves 548 of 2,135 transplanted patients missing - it runs without error and simply
+		// does not cover them - which is why BCR_SCT is imputed on its own further down rather than
+		// derived from this. But this block still matters: _cf propagates BCR forward from the
+		// Event0 == 100 row, so for a transplanted patient the post-transplant response becomes
+		// BCR_L2 onward at the next line start. That is right - the most recent assessment before L2
+		// IS the post-transplant one - and deleting this would carry the PRE-transplant L1 response
+		// into L2 instead.
+		//
+		// KNOWN REDUNDANCY: two models now impute the same quantity. BCR_SCT inherits this block's
+		// values where it succeeded and imputes the rest with its own ologit, so the 548 come from a
+		// different model than the others. The clean end state is to impute BCR_SCT ONCE, write it
+		// back to BCR at Event0 == 100, and carry forward from there - one model, one value, and no
+		// dependence on the chained block reaching every row. That needs the BCR_L1 generation moved
+		// above this point and belongs on the branch that retires the running BCR variable.
+		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc if Event0 == 100, replace rseed(`RN3')
+		if _rc {
+			exit _rc
+		}
+
+		// Carryforward (temporal LOCF; sort once, direct-column fills). BCR is a registered IMPUTED
+		// variable, so carry only the imputation columns (nomaster) -- filling the master would make the
+		// mi update below collapse the imputations to a single value.
+		sort ID_BS Date0
+		_cf BCR "Duration != ." nomaster
+
+		// Collapse BCR for ASCT - small n
+		qui mi xeq 0/$imp: replace BCR = 4 if (BCR == 5 | BCR == 6) & Event0 == 100
 
 		// Generate BCR_SCT - the post-transplant response, taken from the Event0 == 100 row and
 		// IMPUTED where that row carries no response.
@@ -308,7 +358,7 @@ program define multiple_imputation
 			di as txt "  BCR_SCT: complete in m = 1 for all transplanted records; 0 means no transplant only."
 			di as txt "           (m = 0 retains the original gaps, as an imputed variable should.)"
 		}
-
+end
 		// Refresh mi system variables after the direct-column carryforwards/broadcasts (replaces the
 		// mi update that used to live inside the now-removed pBCR merge block).
 		mi update
@@ -332,26 +382,81 @@ if "$boot" == "0" {
 	cap mkdir "~/temp"
 	cd "~/temp"
 
-	// Open MRDR Long Data
-	use "${data_path}/MRDR Long.dta"
-	cap drop CM_LVR CM_PNR CM_MLG   // unused comorbidities (engine uses only CM_CKD/CRD/PLM/DBT); dropped before mi set
-	gen ID_BS = ID
-
-	// OOS: restrict to the requested fold (train/test) before imputing
-	if "$sample" != "" {
-		merge m:1 ID using "${data_path}/oos/oos_split.dta", keep(match) keepusing(fold) nogen
-		keep if fold == "$sample"
-		drop fold
-	}
-
-	// Draw random numbers
+	// Draw random numbers. RN4 seeds the BCR_SCT ologit; it was missing entirely, so that
+	// imputation ran with an empty rseed() and was not reproducible.
 	local RN1 = 3949
 	local RN2 = 6192
 	local RN3 = 8273
 	local RN4 = 5117
 
-	// Execute function
-		multiple_imputation `RN1' `RN2' `RN3' `RN4'
+	// Which stage do we start from, and is the request coherent?
+	local first = 0
+	if $diag        local first = 1
+	else if $bcr_txr    local first = 2
+	else if $bcr_asct   local first = 3
+
+	if `first' == 0 {
+		di as error "multiple_imputation: no stage requested - nothing to do."
+		exit 198
+	}
+	if $diag & !$bcr_txr & $bcr_asct {
+		di as error "multiple_imputation: cannot skip bcr_txr between diag and bcr_asct. bcr_asct"
+		di as error "  reads BCR_L1, which bcr_txr produces - the checkpoint's BCR_L1 would be stale"
+		di as error "  against freshly-imputed diagnosis covariates."
+		exit 198
+	}
+
+	local ckpt "${data_path}/${mi_outdir}checkpoints/mi_after"
+
+	// Load: raw data for a fresh run, otherwise the previous stage's checkpoint (already mi set,
+	// so mi_settings must NOT run again).
+	if `first' == 1 {
+		use "${data_path}/MRDR Long.dta"
+		cap drop CM_LVR CM_PNR CM_MLG
+		gen ID_BS = ID
+		if "$sample" != "" {
+			merge m:1 ID using "${data_path}/oos/oos_split.dta", keep(match) keepusing(fold) nogen
+			keep if fold == "$sample"
+			drop fold
+		}
+		mi_settings
+	}
+	else {
+		local from = cond(`first' == 2, "diag", "bcr_txr")
+		capture confirm file "`ckpt'_`from'${mi_outtag}.dta"
+		if _rc {
+			di as error "multiple_imputation: resuming at stage `first' needs the `from' checkpoint,"
+			di as error "  which does not exist: `ckpt'_`from'${mi_outtag}.dta"
+			di as error "  Run that stage first."
+			exit 601
+		}
+		di as txt "Resuming from the `from' checkpoint (stages before it are NOT re-run)."
+		use "`ckpt'_`from'${mi_outtag}.dta", clear
+	}
+
+	// Execute the requested stages. Every program takes all four seeds - each declares
+	// `args RN1 RN2 RN3 RN4' and uses the one it needs, so passing a single argument left the
+	// others EMPTY and the rseed() blank.
+	if $diag {
+		impute_diagnosis `RN1' `RN2' `RN3' `RN4'
+		save "`ckpt'_diag${mi_outtag}.dta", replace
+	}
+	if $bcr_txr {
+		impute_bcr_txr `RN1' `RN2' `RN3' `RN4'
+		save "`ckpt'_bcr_txr${mi_outtag}.dta", replace
+	}
+	if $bcr_asct {
+		impute_bcr_sct `RN1' `RN2' `RN3' `RN4'
+	}
+
+	// Only write the real outputs when the pipeline finished. A partial run stops at its
+	// checkpoint rather than saving a half-imputed file over a good one.
+	if !$bcr_asct {
+		di as txt _n "Partial run: stages complete up to the checkpoint above. MRDR Long MI and"
+		di as txt    "Wide MI were NOT rewritten - re-run with bcr_asct = 1 to finish."
+		cd "`repo'"
+		exit
+	}
 
 	// Save Long MI
 	save "${data_path}/${mi_outdir}MRDR Long MI${mi_outtag}.dta", replace
@@ -421,6 +526,7 @@ else if "$boot" == "1" {
 		local RN1 = 7394
 		local RN2 = 1392
 		local RN3 = 4771
+		local RN4 = 8856
 
 		// Retry settings
 		local maxtries = 50
@@ -441,13 +547,23 @@ else if "$boot" == "1" {
 			local a1  = `RN1' + 911 * `try'
 			local a2  = `RN2' + 911 * `try'
 			local a3  = `RN3' + 911 * `try'
+			local a4  = `RN4' + 911 * `try'
 
 			// Resample with this attempt's seed
 			set seed `RS'
 			bsample, cluster(ID) idcluster(ID_BS)
 
-			// Try imputation; trap perfect-predictor / convergence failures
-			cap noi multiple_imputation `a1' `a2' `a3'
+			// Try imputation; trap perfect-predictor / convergence failures.
+			// The `multiple_imputation' wrapper was removed when the stages were split into
+			// separate programs, so this called a program that does not exist. Bootstrap always
+			// runs all three stages - the stage flags are a development convenience and
+			// checkpointing a resampled dataset would be meaningless.
+			capture noisily {
+				mi_settings
+				impute_diagnosis `a1' `a2' `a3' `a4'
+				impute_bcr_txr   `a1' `a2' `a3' `a4'
+				impute_bcr_sct   `a1' `a2' `a3' `a4'
+			}
 
 			if _rc == 0 {
 				local success = 1
