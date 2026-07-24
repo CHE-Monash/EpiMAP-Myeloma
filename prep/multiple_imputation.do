@@ -152,16 +152,12 @@ program define impute_bcr_txr
 	args RN_txr
 
 	// TXR imputation
-		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc i.CLine if CStart == 1 & Duration != ., replace rseed(`RN_txr')
+		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc i.RISS i.CLine if CStart == 1 & Duration != ., replace rseed(`RN_txr')
 		if _rc {
 			exit _rc
 		}
-
 		
-
-		// BCR_L1..L9: BCR at each line's start, copied FORWARD only. risk_equations.do reads them
-		// only at Event0 >= that line and the simulation does not consume them, so the backward pass
-		// is wasted. Leaves pre-line cells missing, which nothing reads.
+		// BCR_L1..L9: BCR at each line's start, copied FORWARD only
 		forvalues l = 1/9 {
 			qui mi passive: gen BCR_L`l' = BCR if Event0 == `l'0
 		}
@@ -211,8 +207,14 @@ program define impute_bcr_sct
 		// (sim_bcr_asct.do categoryValues = 1,2,3,4). Small n at 5/6.
 		qui mi xeq 0/$imp: replace BCR_SCT = 4 if inlist(BCR_SCT, 5, 6) & Event0 == 100
 
-		cap noi mi impute ologit BCR_SCT = Age i.ECOGcc i.RISS i.BCR_L1 if Event0 == 100, ///
-			replace augment rseed(`RN_sct')
+		// CHAINED, with the paraprotein deltas. They have no downstream consumer - they are
+		// unregistered and dropped from the keep list below - and exist purely to inform the
+		// response imputation, which is what they are clinically: the change in paraprotein and
+		// light chains IS what determines best response. Chained also means their own missingness
+		// does not listwise-delete rows from the BCR_SCT equation, and it keeps them imputed at
+		// Event0 == 100 as the model this replaced did.
+		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR_SCT ///
+			= Age i.ECOGcc i.RISS i.BCR_L1 if Event0 == 100, replace rseed(`RN_sct')
 		if _rc {
 			di as error "  BCR_SCT imputation failed (rc = " _rc "): transplanted patients with no"
 			di as error "  recorded response will drop from the SCT == 1 equations."
