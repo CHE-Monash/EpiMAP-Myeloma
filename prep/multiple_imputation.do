@@ -249,10 +249,21 @@ program define impute_bcr
 	sort ID_BS Date0
 	_cf BCR_L2
 	label values BCR_L2 BCR_label
-	// ---- L3 (Event0 == 30): baseline + BCR_L2 ----
+	// ---- L3 (Event0 == 30): baseline + previous response (LOCF) ----
+	// Previous response, carried forward (LOCF), COMPLETE. Strict i.BCR_L{l-1} has gaps on this
+	// line's sample - patients who reach line l whose earlier line fell outside the imputation
+	// restriction (CStart == 1 & Duration != .) never had it filled - and mi rejects a predictor
+	// with any missing. Carrying the last assembled response forward fills the gaps (L1 is imputed
+	// first, so there is always a fallback). _pr at a line row = the most recent response BEFORE it,
+	// since this line's own response is not assembled yet.
+	cap drop _pr
+	qui mi passive: gen _pr = BCR
+	sort ID_BS Date0
+	_cf _pr
+	label values _pr BCR_label
 	qui gen iL3 = BCR if Event0 == 30
 	mi register imputed iL3
-	cap noi mi impute chained (regress) `aux' (ologit, augment) iL3 = `base' i.BCR_L2 ///
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL3 = `base' i._pr ///
 		if Event0 == 30 & CStart == 1 & Duration != ., replace rseed(`RN_l3')
 	if _rc {
 		exit _rc
@@ -267,10 +278,21 @@ program define impute_bcr
 	sort ID_BS Date0
 	_cf BCR_L3
 	label values BCR_L3 BCR_label
-	// ---- L4 (Event0 == 40): baseline + BCR_L3 ----
+	// ---- L4 (Event0 == 40): baseline + previous response (LOCF) ----
+	// Previous response, carried forward (LOCF), COMPLETE. Strict i.BCR_L{l-1} has gaps on this
+	// line's sample - patients who reach line l whose earlier line fell outside the imputation
+	// restriction (CStart == 1 & Duration != .) never had it filled - and mi rejects a predictor
+	// with any missing. Carrying the last assembled response forward fills the gaps (L1 is imputed
+	// first, so there is always a fallback). _pr at a line row = the most recent response BEFORE it,
+	// since this line's own response is not assembled yet.
+	cap drop _pr
+	qui mi passive: gen _pr = BCR
+	sort ID_BS Date0
+	_cf _pr
+	label values _pr BCR_label
 	qui gen iL4 = BCR if Event0 == 40
 	mi register imputed iL4
-	cap noi mi impute chained (regress) `aux' (ologit, augment) iL4 = `base' i.BCR_L3 ///
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL4 = `base' i._pr ///
 		if Event0 == 40 & CStart == 1 & Duration != ., replace rseed(`RN_l4')
 	if _rc {
 		exit _rc
@@ -285,10 +307,21 @@ program define impute_bcr
 	sort ID_BS Date0
 	_cf BCR_L4
 	label values BCR_L4 BCR_label
-	// ---- L5 (Event0 == 50): baseline + BCR_L4 ----
+	// ---- L5 (Event0 == 50): baseline + previous response (LOCF) ----
+	// Previous response, carried forward (LOCF), COMPLETE. Strict i.BCR_L{l-1} has gaps on this
+	// line's sample - patients who reach line l whose earlier line fell outside the imputation
+	// restriction (CStart == 1 & Duration != .) never had it filled - and mi rejects a predictor
+	// with any missing. Carrying the last assembled response forward fills the gaps (L1 is imputed
+	// first, so there is always a fallback). _pr at a line row = the most recent response BEFORE it,
+	// since this line's own response is not assembled yet.
+	cap drop _pr
+	qui mi passive: gen _pr = BCR
+	sort ID_BS Date0
+	_cf _pr
+	label values _pr BCR_label
 	qui gen iL5 = BCR if Event0 == 50
 	mi register imputed iL5
-	cap noi mi impute chained (regress) `aux' (ologit, augment) iL5 = `base' i.BCR_L4 ///
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL5 = `base' i._pr ///
 		if Event0 == 50 & CStart == 1 & Duration != ., replace rseed(`RN_l5')
 	if _rc {
 		exit _rc
@@ -303,10 +336,21 @@ program define impute_bcr
 	sort ID_BS Date0
 	_cf BCR_L5
 	label values BCR_L5 BCR_label
-	// ---- L6-L9 POOLED (Event0 60-90): baseline + BCR_L5 ----
+	// ---- L6-L9 POOLED (Event0 60-90): baseline + previous response (LOCF) ----
+	// Previous response, carried forward (LOCF), COMPLETE. Strict i.BCR_L{l-1} has gaps on this
+	// line's sample - patients who reach line l whose earlier line fell outside the imputation
+	// restriction (CStart == 1 & Duration != .) never had it filled - and mi rejects a predictor
+	// with any missing. Carrying the last assembled response forward fills the gaps (L1 is imputed
+	// first, so there is always a fallback). _pr at a line row = the most recent response BEFORE it,
+	// since this line's own response is not assembled yet.
+	cap drop _pr
+	qui mi passive: gen _pr = BCR
+	sort ID_BS Date0
+	_cf _pr
+	label values _pr BCR_label
 	qui gen iL69 = BCR if inlist(Event0, 60, 70, 80, 90)
 	mi register imputed iL69
-	cap noi mi impute chained (regress) `aux' (ologit, augment) iL69 = `base' i.BCR_L5 ///
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL69 = `base' i._pr ///
 		if inlist(Event0, 60, 70, 80, 90) & CStart == 1 & Duration != ., replace rseed(`RN_l6')
 	if _rc {
 		exit _rc
@@ -335,6 +379,8 @@ program define impute_bcr
 	qui mi passive: replace pBCR = BCR_L7 if Event0 == 80
 	qui mi passive: replace pBCR = BCR_L8 if Event0 == 90
 	label values pBCR BCR_label
+
+	cap drop _pr
 
 	// Completeness: every line-start response must be imputed. Fires if a per-line impute missed a line.
 	mi xeq 1: qui count if inlist(Event0, 10, 20, 30, 40, 50, 60, 70, 80, 90) & mi(BCR) & CStart == 1 & Duration != .
