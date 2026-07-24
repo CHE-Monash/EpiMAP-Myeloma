@@ -149,7 +149,7 @@ end
 // Impute BCR TXR
 cap program drop impute_bcr
 program define impute_bcr
-	args RN_l1 RN_sct RN_l2 RN_l3 RN_l4 RN_l5 RN_l6
+	args RN_l1 RN_sct RN_l2 RN_l39
 
 	// PER-LINE response imputation, each line conditioning on the previous line's response so the
 	// imputation mirrors the risk-equation model at that line (congeniality). The pooled model this
@@ -249,139 +249,44 @@ program define impute_bcr
 	sort ID_BS Date0
 	_cf BCR_L2
 	label values BCR_L2 BCR_label
-	// ---- L3 (Event0 == 30): baseline + previous response (LOCF) ----
-	// Previous response: carried forward (LOCF), COMPLETE, and COLLAPSED to 3 levels.
-	//   complete  - strict i.BCR_L{l-1} has gaps on this line's sample (patients who reach line l
-	//               whose earlier line fell outside CStart == 1 & Duration != .), and mi rejects a
-	//               predictor with any missing. Carrying the last assembled response forward fills
-	//               them; L1 is imputed first, so there is always a fallback. _pr at a line row is
-	//               the most recent response BEFORE it (this line's own is not assembled yet).
-	//   3 levels  - the full 6-level factor left the per-line ologit with empty response x
-	//               previous-response cells and it failed to converge. Deep (CR/VG) / partial (PR) /
-	//               poor (MR/SD/PD) keeps the prognostic ordering while filling the cells.
+	// ---- L3-L9 POOLED (Event0 30-90): baseline + previous response (LOCF) ----
+	// L1 and L2 are imputed separately - that is where the measured L1->L2 attenuation lives and
+	// the cells support it. L3+ are POOLED into one model: separately, each line's ~1000-or-fewer
+	// observed responses let the paraprotein deltas (which nearly determine response) quasi-separate
+	// the ologit and it fails to converge. Pooling gives the deltas the sample they need. Response
+	// still conditions on the previous response via i._pr, so congeniality is retained; what is lost
+	// is a line-specific previous-response coefficient across L3-L9, which the deltas dominate anyway.
+	//
+	// Previous response, carried forward (LOCF), COMPLETE, and COLLAPSED to 3 levels (deep CR/VG /
+	// partial PR / poor MR/SD/PD). Complete because L1 is imputed first, so there is always a
+	// fallback; 3 levels because the full factor left empty response x previous-response cells.
 	cap drop _pr
 	qui mi passive: gen _pr = 1 if inlist(BCR, 1, 2)
 	qui mi passive: replace _pr = 2 if BCR == 3
 	qui mi passive: replace _pr = 3 if inlist(BCR, 4, 5, 6)
 	sort ID_BS Date0
 	_cf _pr
-	qui gen iL3 = BCR if Event0 == 30
-	mi register imputed iL3
-	cap noi mi impute chained (regress) `aux' (ologit, augment) iL3 = `base' i._pr ///
-		if Event0 == 30 & CStart == 1 & Duration != ., replace rseed(`RN_l3')
+
+	qui gen iL39 = BCR if inlist(Event0, 30, 40, 50, 60, 70, 80, 90)
+	mi register imputed iL39
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL39 = `base' i._pr ///
+		if inlist(Event0, 30, 40, 50, 60, 70, 80, 90) & CStart == 1 & Duration != ., replace rseed(`RN_l39')
 	if _rc {
 		exit _rc
 	}
-	qui mi xeq 0/$imp: replace BCR = iL3 if Event0 == 30 & !mi(iL3)
-	cap mi unregister iL3
+	qui mi xeq 0/$imp: replace BCR = iL39 if inlist(Event0, 30, 40, 50, 60, 70, 80, 90) & !mi(iL39)
+	cap mi unregister iL39
 	forvalues m = 1/$imp {
-		cap drop _`m'_iL3
+		cap drop _`m'_iL39
 	}
-	cap drop iL3
-	qui mi passive: gen BCR_L3 = BCR if Event0 == 30
-	sort ID_BS Date0
-	_cf BCR_L3
-	label values BCR_L3 BCR_label
-	// ---- L4 (Event0 == 40): baseline + previous response (LOCF) ----
-	// Previous response: carried forward (LOCF), COMPLETE, and COLLAPSED to 3 levels.
-	//   complete  - strict i.BCR_L{l-1} has gaps on this line's sample (patients who reach line l
-	//               whose earlier line fell outside CStart == 1 & Duration != .), and mi rejects a
-	//               predictor with any missing. Carrying the last assembled response forward fills
-	//               them; L1 is imputed first, so there is always a fallback. _pr at a line row is
-	//               the most recent response BEFORE it (this line's own is not assembled yet).
-	//   3 levels  - the full 6-level factor left the per-line ologit with empty response x
-	//               previous-response cells and it failed to converge. Deep (CR/VG) / partial (PR) /
-	//               poor (MR/SD/PD) keeps the prognostic ordering while filling the cells.
-	cap drop _pr
-	qui mi passive: gen _pr = 1 if inlist(BCR, 1, 2)
-	qui mi passive: replace _pr = 2 if BCR == 3
-	qui mi passive: replace _pr = 3 if inlist(BCR, 4, 5, 6)
-	sort ID_BS Date0
-	_cf _pr
-	qui gen iL4 = BCR if Event0 == 40
-	mi register imputed iL4
-	cap noi mi impute chained (regress) `aux' (ologit, augment) iL4 = `base' i._pr ///
-		if Event0 == 40 & CStart == 1 & Duration != ., replace rseed(`RN_l4')
-	if _rc {
-		exit _rc
-	}
-	qui mi xeq 0/$imp: replace BCR = iL4 if Event0 == 40 & !mi(iL4)
-	cap mi unregister iL4
-	forvalues m = 1/$imp {
-		cap drop _`m'_iL4
-	}
-	cap drop iL4
-	qui mi passive: gen BCR_L4 = BCR if Event0 == 40
-	sort ID_BS Date0
-	_cf BCR_L4
-	label values BCR_L4 BCR_label
-	// ---- L5 (Event0 == 50): baseline + previous response (LOCF) ----
-	// Previous response: carried forward (LOCF), COMPLETE, and COLLAPSED to 3 levels.
-	//   complete  - strict i.BCR_L{l-1} has gaps on this line's sample (patients who reach line l
-	//               whose earlier line fell outside CStart == 1 & Duration != .), and mi rejects a
-	//               predictor with any missing. Carrying the last assembled response forward fills
-	//               them; L1 is imputed first, so there is always a fallback. _pr at a line row is
-	//               the most recent response BEFORE it (this line's own is not assembled yet).
-	//   3 levels  - the full 6-level factor left the per-line ologit with empty response x
-	//               previous-response cells and it failed to converge. Deep (CR/VG) / partial (PR) /
-	//               poor (MR/SD/PD) keeps the prognostic ordering while filling the cells.
-	cap drop _pr
-	qui mi passive: gen _pr = 1 if inlist(BCR, 1, 2)
-	qui mi passive: replace _pr = 2 if BCR == 3
-	qui mi passive: replace _pr = 3 if inlist(BCR, 4, 5, 6)
-	sort ID_BS Date0
-	_cf _pr
-	qui gen iL5 = BCR if Event0 == 50
-	mi register imputed iL5
-	cap noi mi impute chained (regress) `aux' (ologit, augment) iL5 = `base' i._pr ///
-		if Event0 == 50 & CStart == 1 & Duration != ., replace rseed(`RN_l5')
-	if _rc {
-		exit _rc
-	}
-	qui mi xeq 0/$imp: replace BCR = iL5 if Event0 == 50 & !mi(iL5)
-	cap mi unregister iL5
-	forvalues m = 1/$imp {
-		cap drop _`m'_iL5
-	}
-	cap drop iL5
-	qui mi passive: gen BCR_L5 = BCR if Event0 == 50
-	sort ID_BS Date0
-	_cf BCR_L5
-	label values BCR_L5 BCR_label
-	// ---- L6-L9 POOLED (Event0 60-90): baseline + previous response (LOCF) ----
-	// Previous response: carried forward (LOCF), COMPLETE, and COLLAPSED to 3 levels.
-	//   complete  - strict i.BCR_L{l-1} has gaps on this line's sample (patients who reach line l
-	//               whose earlier line fell outside CStart == 1 & Duration != .), and mi rejects a
-	//               predictor with any missing. Carrying the last assembled response forward fills
-	//               them; L1 is imputed first, so there is always a fallback. _pr at a line row is
-	//               the most recent response BEFORE it (this line's own is not assembled yet).
-	//   3 levels  - the full 6-level factor left the per-line ologit with empty response x
-	//               previous-response cells and it failed to converge. Deep (CR/VG) / partial (PR) /
-	//               poor (MR/SD/PD) keeps the prognostic ordering while filling the cells.
-	cap drop _pr
-	qui mi passive: gen _pr = 1 if inlist(BCR, 1, 2)
-	qui mi passive: replace _pr = 2 if BCR == 3
-	qui mi passive: replace _pr = 3 if inlist(BCR, 4, 5, 6)
-	sort ID_BS Date0
-	_cf _pr
-	qui gen iL69 = BCR if inlist(Event0, 60, 70, 80, 90)
-	mi register imputed iL69
-	cap noi mi impute chained (regress) `aux' (ologit, augment) iL69 = `base' i._pr ///
-		if inlist(Event0, 60, 70, 80, 90) & CStart == 1 & Duration != ., replace rseed(`RN_l6')
-	if _rc {
-		exit _rc
-	}
-	qui mi xeq 0/$imp: replace BCR = iL69 if inlist(Event0, 60, 70, 80, 90) & !mi(iL69)
-	cap mi unregister iL69
-	forvalues m = 1/$imp {
-		cap drop _`m'_iL69
-	}
-	cap drop iL69
-	forvalues l = 6/9 {
+	cap drop iL39
+
+	// BCR_L3..L9: passive, carried forward, as for L1-L2.
+	forvalues l = 3/9 {
 		qui mi passive: gen BCR_L`l' = BCR if Event0 == `l'0
 	}
 	sort ID_BS Date0
-	forvalues l = 6/9 {
+	forvalues l = 3/9 {
 		_cf BCR_L`l'
 		label values BCR_L`l' BCR_label
 	}
@@ -452,14 +357,11 @@ if "$boot" == "0" {
 	local RN_l1   = 6192
 	local RN_sct  = 5117
 	local RN_l2   = 2731
-	local RN_l3   = 4409
-	local RN_l4   = 8102
-	local RN_l5   = 1567
-	local RN_l6   = 9284
+	local RN_l39  = 4409
 
 	mi_settings
 	impute_diagnosis `RN_diag'
-	impute_bcr       `RN_l1' `RN_sct' `RN_l2' `RN_l3' `RN_l4' `RN_l5' `RN_l6'
+	impute_bcr       `RN_l1' `RN_sct' `RN_l2' `RN_l39'
 	finalise_mi
 
 	// Save Long MI
@@ -530,10 +432,7 @@ else if "$boot" == "1" {
 		local RN_l1   = 1392
 		local RN_sct  = 8856
 		local RN_l2   = 3517
-		local RN_l3   = 6640
-		local RN_l4   = 2298
-		local RN_l5   = 7051
-		local RN_l6   = 4483
+		local RN_l39  = 6640
 
 		// Retry settings
 		local maxtries = 50
@@ -555,10 +454,7 @@ else if "$boot" == "1" {
 			local a_l1   = `RN_l1'   + 911 * `try'
 			local a_sct  = `RN_sct'  + 911 * `try'
 			local a_l2   = `RN_l2'   + 911 * `try'
-			local a_l3   = `RN_l3'   + 911 * `try'
-			local a_l4   = `RN_l4'   + 911 * `try'
-			local a_l5   = `RN_l5'   + 911 * `try'
-			local a_l6   = `RN_l6'   + 911 * `try'
+			local a_l39  = `RN_l39'  + 911 * `try'
 
 			// Resample with this attempt's seed
 			set seed `RS'
@@ -572,7 +468,7 @@ else if "$boot" == "1" {
 			capture noisily {
 				mi_settings
 				impute_diagnosis `a_diag'
-				impute_bcr       `a_l1' `a_sct' `a_l2' `a_l3' `a_l4' `a_l5' `a_l6'
+				impute_bcr       `a_l1' `a_sct' `a_l2' `a_l39'
 				finalise_mi
 			}
 
