@@ -16,7 +16,6 @@
 if "$repo_path" != "" cd "$repo_path"
 capture run "config.do"
 
-
 **********
 * PROJECTION -- full fit x synthetic population (the primary use)
 **********
@@ -25,7 +24,7 @@ capture run "config.do"
 *     Re-run whenever the extraction changes a kept variable (e.g. MND_L1, LenRefr_*); the risk
 *     equations and in-sample benchmarks below read this file. args: imp boot min_bs max_bs sample
 *     (empty 5th arg = full cohort; also clears any $sample left over from an OOS run).
-*do "prep/multiple_imputation.do" 2 0 . .
+*do "prep/multiple_imputation.do" 10 0 . .
 
 * P1. Risk equations on the FULL registry (100%) -> analyses/default/coefficients/coefficients_full.mmat
 *     args: analysis coeffs min_year max_year boot min_bs max_bs   (loads outcomes/txr_full.do)
