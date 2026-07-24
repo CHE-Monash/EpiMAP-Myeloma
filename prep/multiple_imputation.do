@@ -147,59 +147,43 @@ program define impute_diagnosis
 end
 
 // Impute BCR TXR
-cap program drop impute_bcr_txr
-program define impute_bcr_txr
-	args RN_txr
+cap program drop impute_bcr
+program define impute_bcr
+	args RN_l1 RN_sct RN_l2 RN_l3 RN_l4 RN_l5 RN_l6
 
-	// TXR imputation
-		cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR = Age i.ECOGcc i.RISS i.CLine if CStart == 1 & Duration != ., replace rseed(`RN_txr')
-		if _rc {
-			exit _rc
-		}
-		
-		// BCR_L1..L9: BCR at each line's start, copied FORWARD only
-		forvalues l = 1/9 {
-			qui mi passive: gen BCR_L`l' = BCR if Event0 == `l'0
-		}
-		sort ID_BS Date0
-		forvalues l = 1/9 {
-			_cf BCR_L`l'
-		}
-		forvalues l = 1/9 {
-			label values BCR_L`l' BCR_label
-		}
-
-		// pBCR: previous line's response, for the pooled L6+ BCR regressions (risk_equations.do
-		// Event0 60-90), where it is exactly BCR_L{line-1}. Left missing at L2 - i.BCR_L1 is used there.
-		//
-		// TWO pBCRs, deliberately. data_extraction.do builds an OBSERVED pBCR (last recorded prior
-		// response) that serves as a predictor when BCR is imputed above. The version risk_equations
-		// consumes should instead be the IMPUTED previous response, consistent with BCR_L*, so drop
-		// the observed one here and rebuild it from the imputed BCR_L*. The observed pBCR has already
-		// done its job by this point.
-		cap drop pBCR
-		qui mi passive: gen pBCR = .
-		qui mi passive: replace pBCR = BCR_L5 if Event0 == 60
-		qui mi passive: replace pBCR = BCR_L6 if Event0 == 70
-		qui mi passive: replace pBCR = BCR_L7 if Event0 == 80
-		qui mi passive: replace pBCR = BCR_L8 if Event0 == 90
-		label values pBCR BCR_label
-		
-end
-
-// Impute BCR SCT
-cap program drop impute_bcr_sct
-program define impute_bcr_sct
-	args RN_sct
-
-	// BCR_SCT - post-transplant response, imputed on itself rather than derived from an imputed
-	// BCR. The chained BCR model it replaced left 548 of 2,135 transplanted patients (25.7%)
-	// missing without erroring, and the old zero-fill absorbed the hole into the no-transplant
-	// code, so a quarter of the transplant arm looked like a category (scratch/maintenance/_notes.md).
+	// PER-LINE response imputation. Each line conditions on the previous line's response, so the
+	// imputation model mirrors the risk-equation model at that line - the congeniality principle:
+	// impute under a model at least as rich as the one you analyse with. The pooled model this
+	// replaced (BCR = ... i.CLine, no previous response) attenuated the L1->L2 association by a
+	// third to a half (scratch/bcr_congeniality.log).
 	//
-	// Imputed at Event0 == 100 only - one row per patient, then broadcast. Uses BCR_L1, so it must
-	// run after impute_bcr_txr. Assumes a missing assessment is MAR; if it is informative (died or
-	// progressed before assessment) this biases toward better responses.
+	// L1-L5 SEPARATE, L6-L9 POOLED. Cells support a per-line model through L5; L6+ are too thin and
+	// fold-dependent to split, so they pool on the L5 response. BCR_SCT is INTERLEAVED after L1,
+	// because the L2 model conditions on it (risk_equations.do Event0 == 20).
+	//
+	// Mechanics per line: impute BCR on that line's rows only, then build the PASSIVE, carried-
+	// forward BCR_L{l} the next line conditions on - the same passive-predictor pattern the pooled
+	// model already used, just split by line. Splitting the impute by `if Event0 == l0' relies on
+	// mi impute leaving other lines' imputations untouched; the completeness check at the end fires
+	// if any line-start BCR is left missing.
+	//
+	// Baseline is Age i.ECOGcc i.RISS, matching the pooled model this replaces (Male/Age2/TXR that
+	// the risk equations also use were already absent there - a separate, pre-existing gap).
+	local aux "dPara dLambda dKappa dFLC"
+	local base "Age i.ECOGcc i.RISS"
+
+	// ---- L1 (Event0 == 10): baseline ----
+	cap noi mi impute chained (regress) `aux' (ologit, augment) BCR = `base' ///
+		if Event0 == 10 & CStart == 1 & Duration != ., replace rseed(`RN_l1')
+	if _rc {
+		exit _rc
+	}
+	qui mi passive: gen BCR_L1 = BCR if Event0 == 10
+	sort ID_BS Date0
+	_cf BCR_L1
+	label values BCR_L1 BCR_label
+
+	// ---- BCR_SCT (Event0 == 100): baseline + BCR_L1. Interleaved here so L2 can condition on it. ----
 	qui mi passive: gen BCR_SCT = BCR if Event0 == 100
 	mi unregister BCR_SCT
 	mi register imputed BCR_SCT
@@ -245,8 +229,95 @@ program define impute_bcr_sct
 	if `_nbad' == 0 & `_nmiss' == 0 {
 		di as txt "  BCR_SCT: complete in m = 1 for all transplanted records; 0 means no transplant only."
 	}
-end
 
+	// ---- L2 (Event0 == 20): baseline + BCR_L1 + BCR_SCT ----
+	cap noi mi impute chained (regress) `aux' (ologit, augment) BCR = `base' i.BCR_L1 i.BCR_SCT ///
+		if Event0 == 20 & CStart == 1 & Duration != ., replace rseed(`RN_l2')
+	if _rc {
+		exit _rc
+	}
+	qui mi passive: gen BCR_L2 = BCR if Event0 == 20
+	sort ID_BS Date0
+	_cf BCR_L2
+	label values BCR_L2 BCR_label
+
+	// ---- L3 (Event0 == 30): baseline + BCR_L2 ----
+	cap noi mi impute chained (regress) `aux' (ologit, augment) BCR = `base' i.BCR_L2 ///
+		if Event0 == 30 & CStart == 1 & Duration != ., replace rseed(`RN_l3')
+	if _rc {
+		exit _rc
+	}
+	qui mi passive: gen BCR_L3 = BCR if Event0 == 30
+	sort ID_BS Date0
+	_cf BCR_L3
+	label values BCR_L3 BCR_label
+
+	// ---- L4 (Event0 == 40): baseline + BCR_L3 ----
+	cap noi mi impute chained (regress) `aux' (ologit, augment) BCR = `base' i.BCR_L3 ///
+		if Event0 == 40 & CStart == 1 & Duration != ., replace rseed(`RN_l4')
+	if _rc {
+		exit _rc
+	}
+	qui mi passive: gen BCR_L4 = BCR if Event0 == 40
+	sort ID_BS Date0
+	_cf BCR_L4
+	label values BCR_L4 BCR_label
+
+	// ---- L5 (Event0 == 50): baseline + BCR_L4 ----
+	cap noi mi impute chained (regress) `aux' (ologit, augment) BCR = `base' i.BCR_L4 ///
+		if Event0 == 50 & CStart == 1 & Duration != ., replace rseed(`RN_l5')
+	if _rc {
+		exit _rc
+	}
+	qui mi passive: gen BCR_L5 = BCR if Event0 == 50
+	sort ID_BS Date0
+	_cf BCR_L5
+	label values BCR_L5 BCR_label
+
+	// ---- L6-L9 POOLED (Event0 60-90): baseline + the L5 response ----
+	// Pooled because later-line cells are too thin to split. Conditioned on BCR_L5 - the most
+	// recent separately-imputed response, complete for anyone at L6+ (they all reached L5). This is
+	// exactly the previous response for L6 and a near-previous proxy for L7-L9, which pooling cannot
+	// give strictly. Still far richer than the no-previous-response pooled model it replaces.
+	cap noi mi impute chained (regress) `aux' (ologit, augment) BCR = `base' i.BCR_L5 ///
+		if inlist(Event0, 60, 70, 80, 90) & CStart == 1 & Duration != ., replace rseed(`RN_l6')
+	if _rc {
+		exit _rc
+	}
+
+	// BCR_L6..L9: passive, carried forward, as for L1-L5.
+	forvalues l = 6/9 {
+		qui mi passive: gen BCR_L`l' = BCR if Event0 == `l'0
+	}
+	sort ID_BS Date0
+	forvalues l = 6/9 {
+		_cf BCR_L`l'
+		label values BCR_L`l' BCR_label
+	}
+
+	// pBCR for the risk equations' pooled L6+ regressions: the IMPUTED previous response
+	// (BCR_L{line-1}), replacing the OBSERVED pBCR that data_extraction.do built as an imputation
+	// predictor. See the pBCR note in data_extraction.do.
+	cap drop pBCR
+	qui mi passive: gen pBCR = .
+	qui mi passive: replace pBCR = BCR_L5 if Event0 == 60
+	qui mi passive: replace pBCR = BCR_L6 if Event0 == 70
+	qui mi passive: replace pBCR = BCR_L7 if Event0 == 80
+	qui mi passive: replace pBCR = BCR_L8 if Event0 == 90
+	label values pBCR BCR_label
+
+	// Completeness check: the per-subset impute must leave no line-start response missing. If this
+	// fires, mi impute's `if' is not isolating lines the way the split assumes - investigate before
+	// trusting the output.
+	mi xeq 1: qui count if inlist(Event0, 10, 20, 30, 40, 50, 60, 70, 80, 90) & mi(BCR) & CStart == 1 & Duration != .
+	if r(N) > 0 {
+		di as error "  impute_bcr: " r(N) " line-start responses still missing in m = 1 - the per-line"
+		di as error "  split did not cover every line. Do NOT trust this imputation."
+	}
+	else {
+		di as txt "  impute_bcr: all line-start responses imputed (per-line L1-L5, pooled L6+)."
+	}
+end
 
 cap program drop finalise_mi
 program define finalise_mi
@@ -288,13 +359,17 @@ if "$boot" == "0" {
 	// Seeds. Each program takes only the ones it uses, so a miscount is a syntax error rather than
 	// a silently empty rseed().
 	local RN_diag = 3949
-	local RN_txr  = 6192
+	local RN_l1   = 6192
 	local RN_sct  = 5117
+	local RN_l2   = 2731
+	local RN_l3   = 4409
+	local RN_l4   = 8102
+	local RN_l5   = 1567
+	local RN_l6   = 9284
 
 	mi_settings
 	impute_diagnosis `RN_diag'
-	impute_bcr_txr   `RN_txr'
-	impute_bcr_sct   `RN_sct'
+	impute_bcr       `RN_l1' `RN_sct' `RN_l2' `RN_l3' `RN_l4' `RN_l5' `RN_l6'
 	finalise_mi
 
 	// Save Long MI
@@ -362,8 +437,13 @@ else if "$boot" == "1" {
 
 		// Base random numbers
 		local RN_diag = 7394
-		local RN_txr  = 1392
+		local RN_l1   = 1392
 		local RN_sct  = 8856
+		local RN_l2   = 3517
+		local RN_l3   = 6640
+		local RN_l4   = 2298
+		local RN_l5   = 7051
+		local RN_l6   = 4483
 
 		// Retry settings
 		local maxtries = 50
@@ -382,8 +462,13 @@ else if "$boot" == "1" {
 			// Attempt-specific, deterministic seeds
 			local RS  = 5839 * `b' + 100003 * `try'
 			local a_diag = `RN_diag' + 911 * `try'
-			local a_txr  = `RN_txr'  + 911 * `try'
+			local a_l1   = `RN_l1'   + 911 * `try'
 			local a_sct  = `RN_sct'  + 911 * `try'
+			local a_l2   = `RN_l2'   + 911 * `try'
+			local a_l3   = `RN_l3'   + 911 * `try'
+			local a_l4   = `RN_l4'   + 911 * `try'
+			local a_l5   = `RN_l5'   + 911 * `try'
+			local a_l6   = `RN_l6'   + 911 * `try'
 
 			// Resample with this attempt's seed
 			set seed `RS'
@@ -397,8 +482,7 @@ else if "$boot" == "1" {
 			capture noisily {
 				mi_settings
 				impute_diagnosis `a_diag'
-				impute_bcr_txr   `a_txr'
-				impute_bcr_sct   `a_sct'
+				impute_bcr       `a_l1' `a_sct' `a_l2' `a_l3' `a_l4' `a_l5' `a_l6'
 				finalise_mi
 			}
 
