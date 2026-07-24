@@ -162,21 +162,16 @@ program define impute_bcr
 	// instead, then writing it back into BCR, breaks the self-reference - the same pattern the
 	// BCR_SCT block already uses.
 	//
-	// L1-L5 SEPARATE (cells support it), L6-L9 POOLED (later cells too thin to split). BCR_SCT is
-	// INTERLEAVED after L1, because L2 conditions on it.
-	//
-	// NO paraprotein deltas. Response is DEFINED by paraprotein/light-chain reduction, so an ologit
-	// of response on the deltas separates - it failed to converge at the smaller later-line samples.
-	// They were only auxiliary; the risk equations do not use them, so dropping them costs no
-	// congeniality. Baseline (Age i.ECOGcc i.RISS) plus the previous response is what the analysis
-	// conditions on, and it converges.
+	// L1-L5 SEPARATE (cells support it), L6-L9 POOLED on the L5 response (later cells too thin and
+	// fold-dependent to split). BCR_SCT is INTERLEAVED after L1, because L2 conditions on it.
+	local aux "dPara dLambda dKappa dFLC"
 	local base "Age i.ECOGcc i.RISS"
 
 	// ---- L1 (Event0 == 10): baseline ----
 	qui gen iL1 = BCR if Event0 == 10
 	mi register imputed iL1
-	cap noi mi impute ologit iL1 = `base' ///
-		if Event0 == 10 & CStart == 1 & Duration != ., replace augment rseed(`RN_l1')
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL1 = `base' ///
+		if Event0 == 10 & CStart == 1 & Duration != ., replace rseed(`RN_l1')
 	if _rc {
 		exit _rc
 	}
@@ -199,8 +194,11 @@ program define impute_bcr
 	// (sim_bcr_asct.do categoryValues = 1,2,3,4).
 	qui mi xeq 0/$imp: replace BCR_SCT = 4 if inlist(BCR_SCT, 5, 6) & Event0 == 100
 
-	cap noi mi impute ologit BCR_SCT ///
-		= Age i.ECOGcc i.RISS i.BCR_L1 if Event0 == 100, replace augment rseed(`RN_sct')
+	// Chained on the paraprotein deltas: they have no downstream consumer and exist purely to
+	// inform this imputation - the change in paraprotein and light chains is what determines
+	// response. Chained also keeps their missingness from listwise-deleting BCR_SCT rows.
+	cap noi mi impute chained (regress) dPara dLambda dKappa dFLC (ologit, augment) BCR_SCT ///
+		= Age i.ECOGcc i.RISS i.BCR_L1 if Event0 == 100, replace rseed(`RN_sct')
 	if _rc {
 		di as error "  BCR_SCT imputation failed (rc = " _rc "): transplanted patients with no"
 		di as error "  recorded response will drop from the SCT == 1 equations."
@@ -236,8 +234,8 @@ program define impute_bcr
 	// ---- L2 (Event0 == 20): baseline + BCR_L1 + BCR_SCT ----
 	qui gen iL2 = BCR if Event0 == 20
 	mi register imputed iL2
-	cap noi mi impute ologit iL2 = `base' i.BCR_L1 i.BCR_SCT ///
-		if Event0 == 20 & CStart == 1 & Duration != ., replace augment rseed(`RN_l2')
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL2 = `base' i.BCR_L1 i.BCR_SCT ///
+		if Event0 == 20 & CStart == 1 & Duration != ., replace rseed(`RN_l2')
 	if _rc {
 		exit _rc
 	}
@@ -269,8 +267,8 @@ program define impute_bcr
 	_cf _pr
 	qui gen iL3 = BCR if Event0 == 30
 	mi register imputed iL3
-	cap noi mi impute ologit iL3 = `base' i._pr ///
-		if Event0 == 30 & CStart == 1 & Duration != ., replace augment rseed(`RN_l3')
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL3 = `base' i._pr ///
+		if Event0 == 30 & CStart == 1 & Duration != ., replace rseed(`RN_l3')
 	if _rc {
 		exit _rc
 	}
@@ -302,8 +300,8 @@ program define impute_bcr
 	_cf _pr
 	qui gen iL4 = BCR if Event0 == 40
 	mi register imputed iL4
-	cap noi mi impute ologit iL4 = `base' i._pr ///
-		if Event0 == 40 & CStart == 1 & Duration != ., replace augment rseed(`RN_l4')
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL4 = `base' i._pr ///
+		if Event0 == 40 & CStart == 1 & Duration != ., replace rseed(`RN_l4')
 	if _rc {
 		exit _rc
 	}
@@ -335,8 +333,8 @@ program define impute_bcr
 	_cf _pr
 	qui gen iL5 = BCR if Event0 == 50
 	mi register imputed iL5
-	cap noi mi impute ologit iL5 = `base' i._pr ///
-		if Event0 == 50 & CStart == 1 & Duration != ., replace augment rseed(`RN_l5')
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL5 = `base' i._pr ///
+		if Event0 == 50 & CStart == 1 & Duration != ., replace rseed(`RN_l5')
 	if _rc {
 		exit _rc
 	}
@@ -368,8 +366,8 @@ program define impute_bcr
 	_cf _pr
 	qui gen iL69 = BCR if inlist(Event0, 60, 70, 80, 90)
 	mi register imputed iL69
-	cap noi mi impute ologit iL69 = `base' i._pr ///
-		if inlist(Event0, 60, 70, 80, 90) & CStart == 1 & Duration != ., replace augment rseed(`RN_l6')
+	cap noi mi impute chained (regress) `aux' (ologit, augment) iL69 = `base' i._pr ///
+		if inlist(Event0, 60, 70, 80, 90) & CStart == 1 & Duration != ., replace rseed(`RN_l6')
 	if _rc {
 		exit _rc
 	}
