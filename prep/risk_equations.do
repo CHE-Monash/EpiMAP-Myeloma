@@ -238,11 +238,11 @@ program define risk_equations
 	//     would leave simulated SD/PD patients falling through to the CR base level.
 	// Coefficients are right-signed and monotone: worse response -> higher odds (CR base, VG +0.66,
 	// PR +1.14, poor +1.17), older age higher, transplant protective. AUC 0.708.
+	// ONE statement, not gen-then-replace: in mi-set data the multi-statement form left the variable
+	// unregistered and mi estimate could not find it on m = 1. min(BCR_L1, 4) IS the CR/VG/PR/poor
+	// collapse (4,5,6 all map to 4), and it matches the idiom used elsewhere in this file.
 	cap drop MNTREFR_bcr
-	gen byte MNTREFR_bcr = 1 if BCR_L1 == 1
-	replace  MNTREFR_bcr = 2 if BCR_L1 == 2
-	replace  MNTREFR_bcr = 3 if BCR_L1 == 3
-	replace  MNTREFR_bcr = 4 if inlist(BCR_L1, 4, 5, 6)
+	qui gen byte MNTREFR_bcr = min(BCR_L1, 4) if !mi(BCR_L1)
 
 	// Build the outcome from event dates: maintenance end = the earlier of a recorded cessation
 	// (Event1 == 111) and L2 start (Event1 == 20); refractory = L2 within 60 days of that end.
@@ -259,10 +259,8 @@ program define risk_equations
 	qui egen double MNTREFR_l2   = min(MNTREFR_r20),  by(ID_BS) // patient's L2 start
 	qui gen double MNTREFR_end = min(MNTREFR_cess, MNTREFR_l2)  // maintenance ended at the earlier
 	qui gen byte MNTREFR_ended = (!mi(MNTREFR_cess) | !mi(MNTREFR_l2))
-	qui gen byte MNTREFR = .
-	qui replace MNTREFR = 1 if MNTREFR_ended == 1 & !mi(MNTREFR_l2) ///
-		& (MNTREFR_l2 - MNTREFR_end) < 60
-	qui replace MNTREFR = 0 if MNTREFR_ended == 1 & mi(MNTREFR)
+	qui gen byte MNTREFR = (!mi(MNTREFR_l2) & (MNTREFR_l2 - MNTREFR_end) < 60) ///
+		if MNTREFR_ended == 1
 
 	// One row per patient: the fit is patient-level, so restrict to the maintenance-start row rather
 	// than letting a patient contribute every row of their history.
