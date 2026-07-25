@@ -238,14 +238,10 @@ program define risk_equations
 	//     would leave simulated SD/PD patients falling through to the CR base level.
 	// Coefficients are right-signed and monotone: worse response -> higher odds (CR base, VG +0.66,
 	// PR +1.14, poor +1.17), older age higher, transplant protective. AUC 0.708.
-	// ONE statement, not gen-then-replace: in mi-set data the multi-statement form left the variable
-	// unregistered and mi estimate could not find it on m = 1. min(BCR_L1, 4) IS the CR/VG/PR/poor
-	// collapse (4,5,6 all map to 4), and it matches the idiom used elsewhere in this file.
-	cap drop MNTREFR_bcr
-	qui gen byte MNTREFR_bcr = min(BCR_L1, 4) if !mi(BCR_L1)
-
-	// Build the outcome from event dates: maintenance end = the earlier of a recorded cessation
-	// (Event1 == 111) and L2 start (Event1 == 20); refractory = L2 within 60 days of that end.
+	// Outcome, from event dates. These derive from Date1/Event1 only, which do not vary by
+	// imputation, so they are REGULAR; mi update registers them (a variable created after mi set is
+	// unregistered until then, and mi estimate cannot see an unregistered variable when it builds
+	// the per-imputation dataset - which is what "variable not found on m=1" meant).
 	cap drop MNTREFR_r111
 	cap drop MNTREFR_r20
 	cap drop MNTREFR_cess
@@ -261,9 +257,18 @@ program define risk_equations
 	qui gen byte MNTREFR_ended = (!mi(MNTREFR_cess) | !mi(MNTREFR_l2))
 	qui gen byte MNTREFR = (!mi(MNTREFR_l2) & (MNTREFR_l2 - MNTREFR_end) < 60) ///
 		if MNTREFR_ended == 1
+	mi update
 
-	// One row per patient: the fit is patient-level, so restrict to the maintenance-start row rather
-	// than letting a patient contribute every row of their history.
+	// Response collapsed to CR/VG/PR/poor. mi passive, NOT plain gen: BCR_L1 is an IMPUTED variable,
+	// so the collapse must be recomputed per imputation rather than frozen at m = 0. min(BCR_L1, 4)
+	// IS the collapse (4, 5, 6 all map to 4) and matches sim_mnt_refr.do's vB4 = (vB :>= 4).
+	cap drop MNTREFR_bcr
+	qui mi passive: gen byte MNTREFR_bcr = min(BCR_L1, 4) if !mi(BCR_L1)
+
+	// Legible failure: if the fit errors again, this says what the variables actually contain.
+	di as txt "  MNTREFR outcome x collapsed response (m = 1, fitting sample):"
+	capture noisily mi xeq 1: tab MNTREFR MNTREFR_bcr if Event1 == 110 & MNT == 1 & MNR_L1 == 1, missing
+
 	mi estimate, esampvaryok: logit MNTREFR Age Age2 Male i.ECOGcc i.RISS ///
 		CM_CKD CM_CRD CM_PLM CM_DBT SCT i.MNTREFR_bcr ///
 		if(Event1 == 110 & MNT == 1 & MNR_L1 == 1 & MNTREFR_ended == 1)
