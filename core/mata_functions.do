@@ -114,8 +114,18 @@ real rowvector get_lenrefr_regimens() {
 	return(J(1, 0, .))
 }
 
+// Helper function: Get P(lenalidomide | regimen not modelled) per line - the 'other'-bucket gate
+// probability, one column per line. Empty when an analysis did not fit it, which makes sim_lenrefr
+// fall back to the strict modelled-regimen gate rather than failing.
+real rowvector get_lenrefr_pother() {
+	external LENREFR_pother
+	if (cols(LENREFR_pother) > 0) return(LENREFR_pother)
+	return(J(1, 0, .))
+}
+
 // Helper function: LenRefr treatment arm runs only if BOTH the logit and a len-regimen list exist.
-// The MAINTENANCE arm needs no helper: it is arithmetic on TFI_L1 and MND_L1, not a fitted model.
+// The maintenance arm has its own getter (get_mntrefr_coef) - it is a fitted logit too, since the
+// tail rule it used to apply was replaced.
 real scalar lenrefr_model_exists() {
 	return(rows(get_lenrefr_coef()) > 0 & cols(get_lenrefr_regimens()) > 0)
 }

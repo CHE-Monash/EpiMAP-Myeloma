@@ -7,16 +7,24 @@
 *          how LenRefr_Tx_in was fitted (docs/refractory.md 3.5 / 4).
 *
 *          The only event is the 0 -> 1 flip, and it can only happen to a not-yet-refractory
-*          patient on a lenalidomide regimen:
-*            BCR in {5,6}  -> refractory        (definitional, no equation)
-*            BCR in {1-4}  -> Bernoulli(residual logit bLENREFR_TX)
-*          Already-refractory patients stay 1 (latched); non-len lines and BCR-missing rows do
-*          nothing. The line enters the logit collapsed to L1 / L2 / L3+ (min(Line, 3)).
+*          patient, with probability
+*            P(acquire) = P(lenalidomide exposure) x  1              if BCR in {5,6}  (definitional)
+*                                                     logit p       if BCR in {1-4}  (residual)
+*          Already-refractory patients stay 1 (latched). The line enters the logit collapsed to
+*          L1 / L2 / L3+ (min(Line, 3)).
+*
+*          EXPOSURE IS PROBABILISTIC for the 'other' regimen bucket. A modelled lenalidomide code
+*          gives exposure 1; TXR code 0 gives p_line, the registry's P(len | regimen not modelled).
+*          Treating 'other' as non-len made this arm under-generate about four-fold (2.2% of L2
+*          patients against a registry ~8.3%) and hid exactly the patients the OS-by-refractory
+*          gate needs - at L1 ten years older, a third as often transplanted and 2.4x as likely to
+*          be refractory. See scratch/lenrefr_other.log and scratch/refractory/_notes.md.
 *
 * Fired by: core/simulation_engine.do at OMC 3,5,7,9,11 (L1E..L5E), i.e. after sim_os at each
 *           line end. Line still holds the just-completed line (it increments at the next start).
 * Reads:    vLenRefr_in (state), mTXR[.,Line] (regimen), mBCR[.,Line] (response), bLENREFR_TX,
-*           LENREFR_regimens (len codes), the baseline patient vectors, rn_lenrefr(Line).
+*           LENREFR_regimens (len codes), LENREFR_pother (p_line), the baseline patient vectors,
+*           rn_lenrefr(Line).
 * Writes:   vLenRefr_in (latched 0 -> 1).
 **********
 
@@ -25,6 +33,7 @@ mata {
 
 		bLR    = get_lenrefr_coef()       // 1 x 21 logit coefficients (factor-expanded, base = 0)
 		vLenReg = get_lenrefr_regimens()  // row vector of len-containing regimen codes
+		vPOth   = get_lenrefr_pother()    // P(len | regimen not modelled), one column per line
 
 		// Alive and reached this line (same filter as the other line-level sims)
 		idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
@@ -34,13 +43,25 @@ mata {
 			// This is LenRefr_Tx_in as at line entry - refractoriness from strictly prior lines.
 			mLenRefr_in[idx, Line] = vLenRefr_in[idx]
 
-			// Regimen on THIS line, and whether it is a lenalidomide code
-			vReg   = mTXR[idx, Line]
-			vIsLen = J(rows(idx), 1, 0)
-			for (c = 1; c <= cols(vLenReg); c++) vIsLen = vIsLen :| (vReg :== vLenReg[1, c])
+			// Regimen on THIS line, and the PROBABILITY it contained lenalidomide.
+			//
+			// A modelled len code is certain (1). The 'other' bucket (code 0) is a MIXTURE - it holds
+			// every regimen the analysis does not model, and at L1 half of it is lenalidomide, at L4
+			// a third, while the L4/L5+ modelled lists contain no len regimen at all. Treating it as
+			// non-len made the treatment arm under-generate about four-fold, and the patients it hid
+			// are exactly the ones the OS gate needs: at L1 ten years older, a third as often
+			// transplanted, 2.4x as likely to be refractory (scratch/lenrefr_other.log).
+			//
+			// So 'other' contributes p_line rather than 0, marginalising over the bucket's unobserved
+			// drug content. TXR and TXD are untouched - this changes only what the GATE counts, which
+			// is why it avoids the TXD regression that reverted the add-Rd-to-the-lists attempt.
+			vReg  = mTXR[idx, Line]
+			vPLen = J(rows(idx), 1, 0)
+			for (c = 1; c <= cols(vLenReg); c++) vPLen = vPLen :+ (vReg :== vLenReg[1, c])
+			if (cols(vPOth) >= Line) vPLen = vPLen :+ (vReg :== 0) :* vPOth[1, Line]
 
-			// Eligible to flip: not yet refractory AND on a len line
-			vElig = (vLenRefr_in[idx] :== 0) :& vIsLen
+			// Not yet refractory - the only patients who can flip (the state is latched)
+			vElig = (vLenRefr_in[idx] :== 0)
 
 			// This line's response, and the definitional / residual split
 			vB   = mBCR[idx, Line]
@@ -72,12 +93,18 @@ mata {
 			vXB = mPat * bLR'
 			vPR = 1 :/ (1 :+ exp(-vXB))
 
-			// One CRN draw per line; residual-arm patients flip when p > u
-			vRN      = rnDraw(idx, rn_lenrefr(Line))
-			vResRefr = vRes :& (vPR :> vRN)
+			// Acquisition probability, conditional on lenalidomide exposure:
+			//   definitional arm (BCR 5/6) - certain GIVEN exposure, so probability 1
+			//   residual arm    (BCR 1-4)  - the logit's p
+			// multiplied by P(exposure). For a modelled len regimen vPLen is 1 and this reduces
+			// exactly to the previous behaviour; for 'other' it scales by p_line. The definitional
+			// arm becoming probabilistic is correct rather than a side effect - a progressive-disease
+			// patient on an unknown regimen is only lenalidomide-refractory if they actually had it.
+			vPAcq = vPLen :* (vDef :+ vRes :* vPR)
 
-			// Acquire refractoriness this line (definitional or residual), among the eligible
-			vAcq = vElig :& (vDef :| vResRefr)
+			// One CRN draw per line (same slot as before - no rn_K change); flip when p > u
+			vRN  = rnDraw(idx, rn_lenrefr(Line))
+			vAcq = vElig :& (vPAcq :> vRN)
 
 			// Latch: 1 stays 1, eligible flips where acquired
 			vLenRefr_in[idx] = vLenRefr_in[idx] :| vAcq

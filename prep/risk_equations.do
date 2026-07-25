@@ -208,6 +208,48 @@ program define risk_equations
 		global Coeffs $Coeffs LENREFR_regimens
 	}
 
+	// P(lenalidomide | regimen NOT modelled), per line - the 'other'-bucket gate probability.
+	//
+	// sim_lenrefr.do can only flag a patient whose DRAWN regimen is a modelled lenalidomide code.
+	// Everything unlisted falls into TXR code 0 ('other'), which the gate treated as non-len - and
+	// that bucket is full of lenalidomide: 50.6% of it at L1, 33.7% at L4, and at L4/L5+ the modelled
+	// lists contain NO lenalidomide regimen at all, so every len patient there was invisible.
+	// Measured: scratch/lenrefr_other.log.
+	//
+	// The hidden patients are not a random slice - at L1 they are 10 years older (75.2 vs 65.1),
+	// a third as often transplanted (14% vs 55%) and 2.4x as likely to be refractory (21.8% vs 9.1%);
+	// at L4 their refractory rate is 84.4%. That is exactly the older, sicker, less-transplanted
+	// profile the OS-by-refractory-status gate is missing, and why the simulated refractory union
+	// looks too healthy (../scratch/refractory/_notes.md).
+	//
+	// Estimated HERE rather than hard-coded because it depends on $TXR_L{line}: a different analysis
+	// with a different regimen list has a different 'other' bucket, and a stale constant would be
+	// silently wrong. Travels with the coefficients for the same reason LENREFR_regimens does.
+	//
+	// This does NOT change which regimen is drawn or how long it lasts - TXR and TXD are untouched.
+	// Adding Rd to the modelled lists was tried and reverted (txr_full.do): TXD is fitted on
+	// i.TXR_L{line}, so a continuous-until-progression regimen moves that line's duration equation
+	// and L4 TXD over-predicted by 24-39pp. Widening only the GATE avoids that entirely.
+	cap drop LENREFR_oth
+	mata: LENREFR_pother = J(1, 9, 0)
+	forvalues l = 1/9 {
+		qui gen byte LENREFR_oth = 1 if Event0 == `l'0 & CStart == 1
+		foreach r of global TXR_L`l' {
+			qui replace LENREFR_oth = 0 if Event0 == `l'0 & CStart == 1 & Regimen == `r'
+		}
+		qui count if LENREFR_oth == 1
+		local noth = r(N)
+		local p = 0
+		if `noth' > 0 {
+			qui count if LENREFR_oth == 1 & Lenalidomide == 1
+			local p = r(N)/`noth'
+		}
+		mata: LENREFR_pother[1, `l'] = `p'
+		di as txt "  P(len | other) at L`l': " %5.1f 100*`p' "%  (" %6.0f `noth' " on a non-modelled regimen)"
+		qui drop LENREFR_oth
+	}
+	global Coeffs $Coeffs LENREFR_pother
+
 	***** LENALIDOMIDE-REFRACTORY, L1 MAINTENANCE (LENREFR_MNT) *****
 	di "Lenalidomide-refractory (L1 maintenance)"
 	// Replaces the deterministic TAIL RULE that sim_mnt_refr.do used to apply. That rule flagged a
