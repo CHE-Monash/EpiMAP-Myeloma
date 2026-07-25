@@ -208,6 +208,70 @@ program define risk_equations
 		global Coeffs $Coeffs LENREFR_regimens
 	}
 
+	***** LENALIDOMIDE-REFRACTORY, L1 MAINTENANCE (LENREFR_MNT) *****
+	di "Lenalidomide-refractory (L1 maintenance)"
+	// Replaces the deterministic TAIL RULE that sim_mnt_refr.do used to apply. That rule flagged a
+	// patient when the SIMULATED tail (TFI_L1 - MND_L1) fell under 60 days - a correct DEFINITION but
+	// a broken MECHANISM, because sim_tfi_l1 draws the gap truncated just above the maintenance
+	// duration, so the tail piles up at the bound for LONG maintenance. It therefore selected
+	// long-maintenance (good-prognosis) patients: refractory prevalence came out at 3.7% against a
+	// registry 15.5% at L2, and the flagged group SURVIVED BETTER than the registry's despite the OS
+	// penalty being applied correctly. Evidence: scratch/refractory/mnt_refr_logit.log.
+	//
+	// OUTCOME: the tail rule applied HONESTLY to observed data - progressed to L2 within 60 days of
+	// maintenance ending, among patients whose maintenance ENDED. Still-on-maintenance patients are
+	// undetermined and excluded; the engine runs everyone to completion, so the ended-maintenance
+	// group is the congenial fitting sample. Base rate 28.6% (156/545).
+	//   Note this is DATED progression only. mntrefr_reconcile.do's ~36% additionally counts patients
+	//   flagged by the registry's cessation-reason column with no dated progression - which the engine
+	//   has no field for and no mechanism could reproduce. 28.6% is the simulation-reachable target.
+	//
+	// SPECIFICATION, chosen by test not assumption (scratch/refractory/mnt_refr_logit.log):
+	//   i.BCR_L1 beats the post-transplant response and the combined variable on BOTH AIC and AUC
+	//     (327.3/0.708 vs 332.3/0.691), and within transplant patients the L1 response out-predicts
+	//     BCR_SCT (AUC 0.681 vs 0.659). The induction response is simply the better predictor.
+	//   POOLED across transplant with an SCT main effect: the response x transplant interaction is
+	//     chi2(2) = 1.47, p = 0.48, so the effects do not differ - SCT shifts the level (-1.38,
+	//     strongly protective), not the slopes. Same shape the MND split turned out to have.
+	//   Response COLLAPSED to CR/VG/PR/poor. Forced: SD was a perfect predictor on 5 observations and
+	//     was dropped from the uncollapsed fit, yet sim_bcr.do CAN draw it - so an uncollapsed model
+	//     would leave simulated SD/PD patients falling through to the CR base level.
+	// Coefficients are right-signed and monotone: worse response -> higher odds (CR base, VG +0.66,
+	// PR +1.14, poor +1.17), older age higher, transplant protective. AUC 0.708.
+	cap drop MNTREFR_bcr
+	gen byte MNTREFR_bcr = 1 if BCR_L1 == 1
+	replace  MNTREFR_bcr = 2 if BCR_L1 == 2
+	replace  MNTREFR_bcr = 3 if BCR_L1 == 3
+	replace  MNTREFR_bcr = 4 if inlist(BCR_L1, 4, 5, 6)
+
+	// Build the outcome from event dates: maintenance end = the earlier of a recorded cessation
+	// (Event1 == 111) and L2 start (Event1 == 20); refractory = L2 within 60 days of that end.
+	cap drop MNTREFR_r111
+	cap drop MNTREFR_r20
+	cap drop MNTREFR_cess
+	cap drop MNTREFR_l2
+	cap drop MNTREFR_end
+	cap drop MNTREFR_ended
+	cap drop MNTREFR
+	qui gen double MNTREFR_r111 = Date1 if Event1 == 111        // this row's cessation date, if any
+	qui gen double MNTREFR_r20  = Date1 if Event1 == 20         // this row's L2 start, if any
+	qui egen double MNTREFR_cess = min(MNTREFR_r111), by(ID_BS) // patient's cessation date
+	qui egen double MNTREFR_l2   = min(MNTREFR_r20),  by(ID_BS) // patient's L2 start
+	qui gen double MNTREFR_end = min(MNTREFR_cess, MNTREFR_l2)  // maintenance ended at the earlier
+	qui gen byte MNTREFR_ended = (!mi(MNTREFR_cess) | !mi(MNTREFR_l2))
+	qui gen byte MNTREFR = .
+	qui replace MNTREFR = 1 if MNTREFR_ended == 1 & !mi(MNTREFR_l2) ///
+		& (MNTREFR_l2 - MNTREFR_end) < 60
+	qui replace MNTREFR = 0 if MNTREFR_ended == 1 & mi(MNTREFR)
+
+	// One row per patient: the fit is patient-level, so restrict to the maintenance-start row rather
+	// than letting a patient contribute every row of their history.
+	mi estimate, esampvaryok: logit MNTREFR Age Age2 Male i.ECOGcc i.RISS ///
+		CM_CKD CM_CRD CM_PLM CM_DBT SCT i.MNTREFR_bcr ///
+		if(Event1 == 110 & MNT == 1 & MNR_L1 == 1 & MNTREFR_ended == 1)
+	save_coefs LENREFR_MNT
+	mata: _matrix_list(bLENREFR_MNT, rbLENREFR_MNT, cbLENREFR_MNT)
+
 	// COLLAPSED len-refractory covariate. Treatment- and maintenance-dose refractoriness carry the
 	// same conditional OS hazard (HR ~1.64, test Tx = Mnt p = 0.97;
 	// scratch/refractory/os_lenrefr_check.do), so ONE flag is fitted and the engine keeps one latched

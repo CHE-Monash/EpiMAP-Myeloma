@@ -96,10 +96,15 @@ real scalar rn_base_mnt()      return(64)   // 65..66
 real scalar rn_base_mnr()      return(66)   // 67
 real scalar rn_base_mnd()      return(67)   // 68
 real scalar rn_base_lenrefr()  return(68)   // 69..77  (line 1..9)
-real scalar rn_base_override() return(77)   // 78..85
+// L1 maintenance len-refractory: ONE draw per patient, at L1E only (not per line), so a single
+// column rather than a base+offset. Added when sim_mnt_refr.do moved from a deterministic tail rule
+// to a fitted Bernoulli draw - see prep/risk_equations.do LENREFR_MNT.
+real scalar rn_mntrefr()       return(78)
+
+real scalar rn_base_override() return(78)   // 79..86
 
 // ---- Total columns to allocate ----
-real scalar rn_K() return(85)
+real scalar rn_K() return(86)
 
 // ---- Accessors: each returns the absolute column index for (event, point) ----
 

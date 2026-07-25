@@ -100,6 +100,13 @@ real matrix get_lenrefr_coef() {
 	return(J(0, 0, .))
 }
 
+// Helper function: Get LENREFR_MNT (L1 maintenance) logit coefficients (empty if not fitted)
+real matrix get_mntrefr_coef() {
+	external bLENREFR_MNT
+	if (rows(bLENREFR_MNT) > 0) return(bLENREFR_MNT)
+	return(J(0, 0, .))
+}
+
 // Helper function: Get the lenalidomide-containing regimen codes the analysis declared
 real rowvector get_lenrefr_regimens() {
 	external LENREFR_regimens
