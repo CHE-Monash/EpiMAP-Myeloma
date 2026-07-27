@@ -1,7 +1,8 @@
 **********
-* Monash Myeloma Model - TXR regimens per line (default analysis)
+* Monash Myeloma Model - regimen lists (default analysis)
 *
-* Purpose: declare the per-line regimen code lists (MRDR Regimen codes). gen_txr in
+* Purpose: declare every regimen list this analysis models - per-line treatment (TXR_L1..L9), L1
+*          maintenance (MNR_L1), and the len-refractory gate (LENREFR_regimens). gen_txr in
 *          prep/risk_equations.do builds TXR_L1..L9 from these; any regimen not listed for a line falls
 *          into 0 = 'other'. This is the CANONICAL regimen list for the default analysis; the train fit
 *          (txr_train.do) sources it, so the in-sample/out-of-sample validation uses the same regimens.
@@ -30,3 +31,19 @@ global TXR_L4 "49 56"
 global LENREFR_regimens "7 31"
 * L5-L9 unset => all 'other'
 
+**********
+* MAINTENANCE regimens (MNR_L1). gen_mnr builds MNR_L1 from this list; any drug not listed falls to
+* 0 = 'other'. Drug codes, per docs/refractory.md 2:
+*   0 none/other   1 lenalidomide   2 daratumumab   3 carfilzomib   4 bortezomib   5 thalidomide
+*
+* ONE list serves both eras, so there is no per-analysis switch. Historically thalidomide was the
+* MAJORITY regimen until 2020 (51.6% of starts in 2019, none from 2021), so len + thal covers ~85%
+* of the OOS window explicitly; in a modern window thalidomide simply empties out and the r(r) == 1
+* guard in risk_equations.do assigns everyone lenalidomide. Mix by year: scratch/refractory/mnr_recency.do.
+*
+* SIMPLE-FIRST: the fits restrict to inlist(MNR_L1, 1, 5), so bortezomib, daratumumab and
+* carfilzomib maintenance are excluded from estimation and the engine never draws an 'other'
+* maintenance regimen. Bortezomib is 5-11% of starts but has no PBS maintenance DPMQ to price
+* separately (MSAG guideline, June 2022); dara/carf maintenance is a couple of dozen mostly
+* later-line patients. Rationale: docs/refractory.md 7.4.
+global MNR_L1 "1 5"

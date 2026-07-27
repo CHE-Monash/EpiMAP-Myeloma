@@ -92,7 +92,7 @@ cap program drop gen_mnr
 program define gen_mnr
 	// MNR_L1 arrives from the extraction as a RAW 6-level maintenance drug code (see
 	// docs/refractory.md 2). Keep that as MNR_drug and rebuild MNR_L1 as the levels this
-	// analysis models, per $MNR_L1 from outcomes/mnr_<coeffs>.do; anything unlisted falls to
+	// analysis models, per $MNR_L1 from outcomes/txr_<coeffs>.do; anything unlisted falls to
 	// 0 = 'other'. Mirrors gen_txr, and is what lets one extraction serve both the historical
 	// window the OOS validation scores against and a current-paradigm window: the maintenance
 	// mix stepped in 2020, so no single fixed list serves both (docs/refractory.md 7.4).
@@ -142,18 +142,19 @@ program define risk_equations
 	// TFI distribution
 	global dTFI = "lognormal"
 
-	// TXR variables
+	// Regimen lists. ONE file per analysis declares every regimen global it needs - the per-line
+	// treatment lists, the L1 maintenance list, and the len-refractory gate. Reset them all FIRST,
+	// so a stale value cannot leak in from an earlier run in the same session, then load.
+	//
+	// EVERY analysis declares a maintenance list. An empty $MNR_L1 is not a supported configuration
+	// (it collapses the maintenance arm to 'other', which starves sim_mnd and sim_mnt_refr), so the
+	// MNR/MND section below errors on it rather than skipping quietly.
 	forval l = 1/9 {
 		global TXR_L`l' ""
 	}
+	global MNR_L1 ""
 	qui do "analyses/$analysis/outcomes/txr_$coeffs.do"
 	gen_txr
-
-	// MNR variable. Not every analysis declares a maintenance regimen list; without one every
-	// regimen falls to 'other' and L1_MNR is skipped below, which is right for the $line 2
-	// analyses where maintenance is never costed (docs/refractory.md 7.3).
-	global MNR_L1 ""
-	cap qui do "analyses/$analysis/outcomes/mnr_$coeffs.do"
 	gen_mnr
 
 	// Reset global
@@ -231,21 +232,47 @@ program define risk_equations
 	// i.TXR_L{line}, so a continuous-until-progression regimen moves that line's duration equation
 	// and L4 TXD over-predicted by 24-39pp. Widening only the GATE avoids that entirely.
 	cap drop LENREFR_oth
+	// YEAR-WINDOWED, exactly as the TXR mlogits are. The 'other' bucket is an ERA composition, not a
+	// fixed quantity: at L1 it is half lenalidomide across 1995-2040 (mostly Rd), and a different
+	// mixture in a 2020-2025 window. Leaving this un-windowed while the regimen shares are windowed
+	// would gate the modern cohort on a historical bucket.
+	//
+	// FALLBACK: a narrow window can leave a line with almost no 'other' records, which makes the
+	// proportion noise rather than an estimate. Below `minoth' the all-years value is used instead
+	// and the log says so, rather than shipping a p built on a handful of patients.
+	local minoth = 50
 	mata: LENREFR_pother = J(1, 9, 0)
 	forvalues l = 1/9 {
 		qui gen byte LENREFR_oth = 1 if Event0 == `l'0 & CStart == 1
 		foreach r of global TXR_L`l' {
 			qui replace LENREFR_oth = 0 if Event0 == `l'0 & CStart == 1 & Regimen == `r'
 		}
+
+		// All-years estimate, kept as the fallback
 		qui count if LENREFR_oth == 1
+		local nall = r(N)
+		local pall = 0
+		if `nall' > 0 {
+			qui count if LENREFR_oth == 1 & Lenalidomide == 1
+			local pall = r(N)/`nall'
+		}
+
+		// Windowed estimate
+		qui count if LENREFR_oth == 1 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year
 		local noth = r(N)
 		local p = 0
 		if `noth' > 0 {
-			qui count if LENREFR_oth == 1 & Lenalidomide == 1
+			qui count if LENREFR_oth == 1 & Lenalidomide == 1 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year
 			local p = r(N)/`noth'
 		}
+
+		local note ""
+		if `noth' < `minoth' {
+			local p = `pall'
+			local note "  <- only `noth' in window, using all-years"
+		}
 		mata: LENREFR_pother[1, `l'] = `p'
-		di as txt "  P(len | other) at L`l': " %5.1f 100*`p' "%  (" %6.0f `noth' " on a non-modelled regimen)"
+		di as txt "  P(len | other) at L`l': " %5.1f 100*`p' "%  (" %6.0f `noth' " in window, " %6.0f `nall' " all years)`note'"
 		qui drop LENREFR_oth
 	}
 	global Coeffs $Coeffs LENREFR_pother
@@ -670,14 +697,38 @@ program define risk_equations
 	// Event1 == 11 row as MNT, and only among MNT == 1. Consumed only by cost_tx_mnt, so the
 	// out-of-sample validation fits them but never uses them. See docs/refractory.md 7.4.
 
+	// WHICH REGIMENS ARE MODELLED. gen_mnr has already collapsed anything outside $MNR_L1 to 0, so
+	// these counts ARE the declared list. An analysis may declare lenalidomide ALONE (car_t declares
+	// "1"): the thalidomide fits below then have no sample and are skipped. That degrades cleanly -
+	// oL1_MNR = 1 makes sim_mnr assign every maintenance patient lenalidomide, so vMNR is never 5,
+	// and get_mnd_coef_thal() returns an empty matrix so sim_mnd.do's thalidomide branch is a no-op.
+	//
+	// Lenalidomide is NOT optional. It is the mlogit base outcome and sim_mnr's single-regimen
+	// fallback, so a list without it - including an EMPTY list - is a specification error. Every
+	// analysis declares a maintenance list; there is deliberately no silent skip.
+	qui count if(MNT == 1 & MNR_L1 == 1)
+	local nLen = r(N)
+	qui count if(MNT == 1 & MNR_L1 == 5)
+	local nThal = r(N)
+	di as txt "  maintenance regimens (\$MNR_L1 '$MNR_L1'): lenalidomide " `nLen' " records, thalidomide " `nThal' " records"
+	if `nLen' == 0 {
+		di as err "risk_equations: \$MNR_L1 is '$MNR_L1' but no lenalidomide (code 1) maintenance records"
+		di as err "                remain. Lenalidomide is the maintenance base outcome and sim_mnr's"
+		di as err "                single-regimen fallback, so it cannot be omitted. Declare it in"
+		di as err "                analyses/$analysis/outcomes/txr_$coeffs.do, e.g. global MNR_L1 \"1\"."
+		exit 2000
+	}
+
 	// Which regimen. Lenalidomide and thalidomide only (docs/refractory.md 7.4) - lenalidomide
 	// is the base, thalidomide the alternative, so this is effectively a logit and the engine
 	// never produces an 'other' maintenance regimen. Year-windowed exactly as TXR_L1 is, so the
-	// mix reflects the era; the list comes from outcomes/mnr_$coeffs.do ("1 5"). If a window
-	// leaves only one regimen (r(r) == 1, e.g. thalidomide empty in a modern window) then
-	// oL1_MNR = 1 is stored and sim_mnr assigns every maintenance patient lenalidomide.
-	qui tab MNR_L1 if(Event1 == 11 & MNT == 1 & inlist(MNR_L1, 1, 5))
-	if `r(r)' > 1 {
+	// mix reflects the era. The guard counts the ESTIMATION SAMPLE itself, so it catches both a
+	// list that omits thalidomide and a list that keeps it but lands in a window where it is empty
+	// (it ended with the 2020 PBS listing). Either way oL1_MNR = 1 is stored instead.
+	qui count if(Event1 == 11 & MNT == 1 & MNR_L1 == 5 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year)
+	local nThalFit = r(N)
+	qui count if(Event1 == 11 & MNT == 1 & MNR_L1 == 1 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year)
+	if `nThalFit' > 0 & r(N) > 0 {
 		mi estimate: mlogit MNR_L1 Age Age2 Male i.ECOGcc i.RISS SCT ///
 			if(Event1 == 11 & MNT == 1 & inlist(MNR_L1, 1, 5) & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(1)
 		save_coefs L1_MNR
@@ -743,17 +794,24 @@ program define risk_equations
 
 	// Thalidomide, censored at 18 months. Pooled across transplant, no BCR: n is roughly 311 against
 	// lenalidomide's 1,020, too small to add a factor. Thalidomide maintenance also ended with the
-	// 2020 PBS listing, so it matters to historical validation rather than any current analysis.
-	mi stset Date1 if(MNT == 1 & MNR_L1 == 5), ///
-		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375) ///
-		exit(time MND_origin + `=18 * 30.4375')
-	// The engine caps the thalidomide draw at 18 months, so the next line overwrites whatever the
-	// ceiling computes; the save_max call is kept only so the refit log reports it like the others.
-	save_max L1_MND_THAL
-	mata: maxL1_MND_THAL = 18
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS SCT, d($dTFI)
-	save_coefs L1_MND_THAL
-	mata: _matrix_list(bL1_MND_THAL, rbL1_MND_THAL, cbL1_MND_THAL)
+	// 2020 PBS listing, so it matters to historical validation rather than any current analysis -
+	// which is why an analysis may legitimately leave it out of $MNR_L1 and skip this block.
+	if `nThal' > 0 {
+		mi stset Date1 if(MNT == 1 & MNR_L1 == 5), ///
+			id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375) ///
+			exit(time MND_origin + `=18 * 30.4375')
+		// The engine caps the thalidomide draw at 18 months, so the next line overwrites whatever the
+		// ceiling computes; the save_max call is kept only so the refit log reports it like the others.
+		save_max L1_MND_THAL
+		mata: maxL1_MND_THAL = 18
+		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS SCT, d($dTFI)
+		save_coefs L1_MND_THAL
+		mata: _matrix_list(bL1_MND_THAL, rbL1_MND_THAL, cbL1_MND_THAL)
+	}
+	else {
+		di as txt "  L1_MND_THAL skipped: thalidomide is not in \$MNR_L1, so every maintenance patient"
+		di as txt "                       draws the lenalidomide duration."
+	}
 
 	***** TREATMENT-FREE INTERVAL (TFI) *****
 	di "Treatment-free Interval"

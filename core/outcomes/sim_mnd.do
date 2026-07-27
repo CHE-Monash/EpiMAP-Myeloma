@@ -12,6 +12,11 @@
 *          Reasoning and the rejected alternatives: prep/risk_equations.do and
 *          scratch/maintenance/_notes.md.
 *
+*          THE THALIDOMIDE ARM IS OPTIONAL. An analysis that leaves 5 out of $MNR_L1 (car_t) fits no
+*          L1_MND_THAL, and every maintenance patient draws the lenalidomide duration. All three
+*          thalidomide symbols must then be reached through helpers, never named here - see the
+*          comment on the branch below.
+*
 * ORDER:   AFTER sim_mnr.do (needs vMNR) and sim_bcr_asct.do (needs mBCR).
 *          BEFORE sim_tfi_l1.do, which now depends on vMND. This is a REVERSAL of the previous order
 *          and the whole point of the design: maintenance first, then the gap that must contain it.
@@ -60,7 +65,13 @@ mata {
 			}
 
 			// ---- Thalidomide ----
-			if (cols(vCoefT) > 0) {
+			// Form and ceiling come through helpers rather than being named here. This is an istmt
+			// block, so a symbol named in it must resolve when the block COMPILES, even inside a branch
+			// that never runs - and an analysis may legitimately not fit this arm (car_t declares
+			// $MNR_L1 "1"). See get_mnd_form_thal() in core/mata_functions.do.
+			fbT  = get_mnd_form_thal()
+			maxT = get_mnd_max_thal()
+			if (cols(vCoefT) > 0 & fbT != "") {
 				iT = idx[selectindex(vMNR[idx] :== 5)]
 				if (rows(iT) > 0) {
 					mPatT = (vAge[iT], vAge2[iT], vMale[iT],
@@ -80,11 +91,11 @@ mata {
 					auxT   = vCoefT[1, cols(vCoefT)]
 					vXBt   = mPatT * vBetaT
 					vRNt   = rnDraw(iT, rn_mnd())
-					vOCt   = calcSurvTime(vXBt, vRNt, fbL1_MND_THAL, auxT)
-					// maxL1_MND_THAL is set to 18 in risk_equations.do, overriding the observed
+					vOCt   = calcSurvTime(vXBt, vRNt, fbT, auxT)
+					// maxT is maxL1_MND_THAL, set to 18 in risk_equations.do, overriding the observed
 					// maximum, because the records beyond that point are the ones the fit has just
 					// declared untrustworthy.
-					vMND[iT] = rowmin((vOCt, J(rows(iT), 1, maxL1_MND_THAL)))
+					vMND[iT] = rowmin((vOCt, J(rows(iT), 1, maxT)))
 				}
 			}
 		}

@@ -91,6 +91,28 @@ real matrix get_mnd_coef_thal() {
 	return(J(0, 0, .))
 }
 
+// Helper functions: MND THALIDOMIDE functional form and ceiling.
+// These exist because sim_mnd.do is a top-level `mata { }` block, and Mata resolves EVERY symbol such
+// a block names when it COMPILES it, before any `if` guard runs. Naming fbL1_MND_THAL directly there
+// therefore fails with 3499 whenever an analysis leaves thalidomide out of $MNR_L1 (car_t does), even
+// though the runtime guard would have skipped the branch. The coefficient matrix was already safe
+// because it comes through get_mnd_coef_thal() above; the form and ceiling were not.
+// findexternal() looks a symbol up WITHOUT creating it, so absence is reported rather than raised,
+// and it does not care whether the symbol is real or string.
+string scalar get_mnd_form_thal() {
+	pointer scalar p
+	p = findexternal("fbL1_MND_THAL")
+	if (p == NULL) return("")
+	return(*p)
+}
+
+real scalar get_mnd_max_thal() {
+	pointer scalar p
+	p = findexternal("maxL1_MND_THAL")
+	if (p == NULL) return(.)
+	return(*p)
+}
+
 // Helper function: Get LENREFR_TX residual-arm logit coefficients (empty if not fitted)
 // `external' creates the symbol empty when an analysis did not fit the block, so rows() can be
 // tested and sim_lenrefr.do becomes a no-op rather than failing on an undefined symbol.

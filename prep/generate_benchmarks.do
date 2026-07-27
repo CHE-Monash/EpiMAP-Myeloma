@@ -860,7 +860,7 @@ if _rc == 0 {
 // the whole maintenance population, and is what the cost engine bills. What is lost is the regimen x
 // gap interaction, which cannot be recovered on the registry side - see docs/refractory.md 5(8).
 //
-// Regimen groups match analyses/default/outcomes/mnr_full.do ($MNR_L1 "1 5"): lenalidomide,
+// Regimen groups match analyses/default/outcomes/txr_full.do ($MNR_L1 "1 5"): lenalidomide,
 // thalidomide, everything else pooled to 0. If that list changes this must change with it.
 //
 // DEATH IS A FAILURE HERE AND CENSORING IN THE FIT. That asymmetry is deliberate - do NOT
