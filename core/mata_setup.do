@@ -361,23 +361,31 @@ program define mata_setup
 		// which now carry a LenRefr_any coefficient - over-predicting survival relative to the
 		// population those equations were fitted on. mBCR is read from the cohort for exactly this
 		// reason; this vector was the one piece of line-entry state that was not.
+		//
+		// TWO CASES, distinguished by $data_type (set by load_patients.do), not by $line alone.
+		// A pool build sets $line to the decision line but SIMULATES FROM DIAGNOSIS on a synthetic
+		// incidence cohort, so the state must start at 0 and be generated - warning there would be
+		// noise on every pool build. Only a cohort that genuinely ENTERS at the line needs it read in.
 		lrLine = strtoreal(st_global("line"))
 		if (lrLine < 1 | lrLine >= .) lrLine = 1          // $line 0 = full pathway from diagnosis
 		lrName = sprintf("LenRefr_L%g", lrLine)
+		lrFromDx = (st_global("data_type") == "synthetic")
 
-		if (_st_varindex(lrName) < .) {
+		if (lrFromDx | lrLine == 1) {
+			// Simulating the pathway from diagnosis: 0 is correct and the engine fills it in.
+			vLenRefr_in = J(Obs, 1, 0)
+		}
+		else if (_st_varindex(lrName) < .) {
 			vLenRefr_in = editmissing(st_data(., lrName), 0)
-			printf("  mata_setup: len-refractory state read in from %s (mean %4.3f)\n",
+			printf("  mata_setup: len-refractory state read in from %s (mean %5.3f)\n",
 			       lrName, mean(vLenRefr_in))
 		}
 		else {
 			vLenRefr_in = J(Obs, 1, 0)
-			if (lrLine > 1) {
-				errprintf("mata_setup: %s not in the cohort - every patient enters NON-refractory.\n", lrName)
-				errprintf("            The L2-L4 OS equations carry a LenRefr_any term, so this\n")
-				errprintf("            over-predicts survival. Rebuild the cohort pool from a full\n")
-				errprintf("            $line 1 run so LenRefr_L* is carried through.\n")
-			}
+			errprintf("mata_setup: %s is not in this line-entry cohort, so every patient enters\n", lrName)
+			errprintf("            NON-refractory. The L2-L4 OS equations carry a LenRefr_any term,\n")
+			errprintf("            so this over-predicts survival. Rebuild the cohort pool with a\n")
+			errprintf("            model version that exports LenRefr_L*.\n")
 		}
 
 		// Per-line SNAPSHOT for export and validation: mLenRefr_in[.,l] is the entry-to-Ll value,
