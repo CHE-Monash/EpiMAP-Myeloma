@@ -35,13 +35,25 @@ mata {
 		vLenReg = get_lenrefr_regimens()  // row vector of len-containing regimen codes
 		vPOth   = get_lenrefr_pother()    // P(len | regimen not modelled), one column per line
 
-		// Alive and reached this line (same filter as the other line-level sims)
+		// SNAPSHOT and DRAW are two different populations, deliberately.
+		//
+		// The snapshot records the state a patient ENTERED this line with - refractoriness from
+		// strictly prior lines, fixed before this line began. It is therefore well defined for a
+		// patient who dies DURING the line, and must NOT be gated on survival. It used to share the
+		// draw's index, which left LenRefr_Ll missing for everyone who died in line l - 11.4% at L2 -
+		// and mata_setup.do coerces missing to 0. A line-L cohort analysis re-simulating those
+		// patients from entry therefore admitted them as NON-refractory. They are the sickest
+		// entrants (worse ECOG, RISS and L1 response, transplanted 23% against 30%) and so the most
+		// likely to be refractory, making the loss differential rather than noise.
+		//
+		// Reached this line, alive or not. Same test sim_asct_dn.do uses.
+		idxSnap = selectindex(mState[., 1] :<= OMC)
+		if (rows(idxSnap) > 0) mLenRefr_in[idxSnap, Line] = vLenRefr_in[idxSnap]
+
+		// The DRAW is gated on survival - only a living patient can flip (same filter as the
+		// other line-level sims).
 		idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
 		if (rows(idx) > 0) {
-
-			// Snapshot the ENTRY-to-this-line state (before the update below) for export/validation.
-			// This is LenRefr_Tx_in as at line entry - refractoriness from strictly prior lines.
-			mLenRefr_in[idx, Line] = vLenRefr_in[idx]
 
 			// Regimen on THIS line, and the PROBABILITY it contained lenalidomide.
 			//
