@@ -76,7 +76,7 @@ if _rc gen phase = ""
 frame copy default fregs, replace
 
 * cost keys = regimen, or regimen_phase for phased regimens (DVd/Kd phases p1/p2/p3)
-local reglist "VCd VRd Rd Kd_p1 Kd_p2 DVd_p1 DVd_p2 DVd_p3 Pd Vd VTd TCd Td R T VPod DadPo Dad PoCd Da KCd KRd"
+local reglist "VCd VRd Rd Kd_p1 Kd_p2 DVd_p1 DVd_p2 DVd_p3 Pd Vd VTd TCd Td R T VPd DPd Dd PCd D KCd KRd"
 
 * scalars the Mata block reads (locals are not visible inside mata:)
 scalar BSA_    = `BSA'
@@ -376,7 +376,7 @@ gen double value = .
 gen str8 unit = ""
 gen str48 note = ""
 local i 0
-foreach p in cVCd cVRd cRd cKd_p1 cKd_p2 cDVd_p1 cDVd_p2 cDVd_p3 cPd cVd cOther cMNT cVTd cTCd cTd cR cT cVPod cDadPo cDad cPoCd cDa cKCd cKRd ///
+foreach p in cVCd cVRd cRd cKd_p1 cKd_p2 cDVd_p1 cDVd_p2 cDVd_p3 cPd cVd cOther cMNT cVTd cTCd cTd cR cT cVPd cDPd cDd cPCd cD cKCd cKRd ///
              cOther_L1 cOther_L2 cOther_L3 cOther_L4 cOther_L5 cOther_L6 {
     local ++i
     local nm = subinstr("`p'", "c", "", 1)
