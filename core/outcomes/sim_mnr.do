@@ -7,7 +7,7 @@
 *          the engine never produces one. The maintenance analogue of sim_txr.do.
 *
 * Notes:   WHICH drug codes are modelled is an analysis-level choice, declared in
-*          analyses/$analysis/outcomes/mnr_$coeffs.do and applied by gen_mnr in
+*          analyses/$analysis/outcomes/txr_$coeffs.do and applied by gen_mnr in
 *          prep/risk_equations.do; anything unlisted was folded into 0 = 'other' at fit
 *          time. That is what lets one extraction serve both the historical window the
 *          out-of-sample validation scores against (thalidomide was the majority regimen
@@ -103,12 +103,22 @@ mata {
 		}
 	}
 	else {
-		// No model - the analysis declared no maintenance regimens (or none survived the
-		// r(r) > 1 guard in risk_equations.do), so every maintenance patient gets the
-		// pooled 'other'. Mirrors sim_txr.do's no-model branch.
-		idxOther = selectindex((mMOR[., OMC-1] :== 0) :& (vMNT :== 1))
+		// No mlogit was fitted. TWO DIFFERENT CASES, and conflating them is a silent data loss:
+		//
+		//   (a) the analysis declared exactly ONE maintenance regimen (car_t declares $MNR_L1 "1"),
+		//       so there was nothing to choose between and risk_equations.do stored oL1_MNR instead
+		//       of fitting. Every maintenance patient gets THAT regimen.
+		//   (b) the analysis declared NO maintenance list at all, so maintenance is not modelled and
+		//       everyone falls to 'other'. This is the $line 2 case (docs/refractory.md 7.3).
+		//
+		// This branch used to assign 0 in both cases, which broke (a) end to end and quietly: with
+		// vMNR == 0 sim_mnd draws no duration (nothing is billed), and sim_mnt_refr fires only where
+		// vMNR == 1, so the whole maintenance len-refractory arm produced nobody.
+		vMNRout  = get_mnr_outcome()
+		idxOther = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC) :& (vMNT :== 1))
 		if (rows(idxOther) > 0) {
-			vMNR[idxOther] = J(rows(idxOther), 1, 0)
+			if (cols(vMNRout) == 1) vMNR[idxOther] = J(rows(idxOther), 1, vMNRout[1,1])
+			else                    vMNR[idxOther] = J(rows(idxOther), 1, 0)
 		}
 	}
 }
