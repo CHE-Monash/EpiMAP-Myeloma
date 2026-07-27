@@ -352,7 +352,33 @@ program define mata_setup
 		// ONE vector, not two. The treatment-dose and maintenance-dose flags were kept separate
 		// while it was open whether they carried different prognostic weight; os_lenrefr_check.do
 		// settled it at p = 0.97, so they collapse and the union is what the OS equations read.
-		vLenRefr_in = J(Obs, 1, 0)
+		//
+		// READ IT IN for a line-entry analysis. At $line 1 the state is 0 by construction (no prior
+		// lines), but a $line >= 2 analysis starts its patients mid-pathway, where refractoriness
+		// acquired earlier is real and already recorded: process_data.do exports LenRefr_L1..L9 and
+		// cohort_pool.do carries them through, so the value exists in the pool. Initialising to 0
+		// regardless would hand every patient the NON-refractory branch of the L2-L4 OS equations,
+		// which now carry a LenRefr_any coefficient - over-predicting survival relative to the
+		// population those equations were fitted on. mBCR is read from the cohort for exactly this
+		// reason; this vector was the one piece of line-entry state that was not.
+		lrLine = strtoreal(st_global("line"))
+		if (lrLine < 1 | lrLine >= .) lrLine = 1          // $line 0 = full pathway from diagnosis
+		lrName = sprintf("LenRefr_L%g", lrLine)
+
+		if (_st_varindex(lrName) < .) {
+			vLenRefr_in = editmissing(st_data(., lrName), 0)
+			printf("  mata_setup: len-refractory state read in from %s (mean %4.3f)\n",
+			       lrName, mean(vLenRefr_in))
+		}
+		else {
+			vLenRefr_in = J(Obs, 1, 0)
+			if (lrLine > 1) {
+				errprintf("mata_setup: %s not in the cohort - every patient enters NON-refractory.\n", lrName)
+				errprintf("            The L2-L4 OS equations carry a LenRefr_any term, so this\n")
+				errprintf("            over-predicts survival. Rebuild the cohort pool from a full\n")
+				errprintf("            $line 1 run so LenRefr_L* is carried through.\n")
+			}
+		}
 
 		// Per-line SNAPSHOT for export and validation: mLenRefr_in[.,l] is the entry-to-Ll value,
 		// recorded at each line end before the state updates. Missing for a line never reached,
