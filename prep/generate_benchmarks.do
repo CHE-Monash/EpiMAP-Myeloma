@@ -273,13 +273,13 @@ forvalues bcr = 1/6 {
 // Lenalidomide-refractory (treatment lines)
 **********
 // Validates the len-refractory wiring (docs/refractory.md 4.7, 4.4). Target is TRUE len-refractory =
-// treatment OR maintenance (LenRefr_Tx_in | LenRefr_Mnt_in), so the checks register BOTH generation
+// treatment OR maintenance (refr_len_tx_in | refr_len_mnt_in), so the checks register BOTH generation
 // models together (the maintenance half is ~as large as treatment - 5(6)). Prevalence-by-line scores
 // generation; OS-by-status scores the consumption/redistribution. Guarded on both flags so a fold
 // built before either existed skips these rather than erroring.
-capture confirm variable LenRefr_Tx_in
+capture confirm variable refr_len_tx_in
 local have_lenrefr = (_rc == 0)
-capture confirm variable LenRefr_Mnt_in
+capture confirm variable refr_len_mnt_in
 if _rc local have_lenrefr = 0
 
 if `have_lenrefr' {
@@ -294,7 +294,7 @@ if `have_lenrefr' {
 	matrix rownames LENREFR = "L1" "L2" "L3" "L4" "L5" "L6"
 	forvalues l = 1/6 {
 		capture drop lr_ln lr_pt
-		gen byte lr_ln = (LenRefr_Tx_in == 1 | LenRefr_Mnt_in == 1) if Line == `l'
+		gen byte lr_ln = (refr_len_tx_in == 1 | refr_len_mnt_in == 1) if Line == `l'
 		bysort ID_BS: egen lr_pt = max(lr_ln)
 		quietly count if !missing(lr_pt) & first_record == 1
 		matrix LENREFR[`l', 1] = r(N)
@@ -306,10 +306,10 @@ if `have_lenrefr' {
 	}
 
 	// OS from L2 start, split by TRUE len-refractory as at L2 entry (treatment OR maintenance, vs
-	// neither). Mirrors the OS-by-BCR_L2 benchmark; the sim scores OS_L2S by LenRefr_L2 (the union)
+	// neither). Mirrors the OS-by-BCR_L2 benchmark; the sim scores OS_L2S by refr_len_l2 (the union)
 	// the same way. The direct check on the subgroup OS split (5.6) the whole-population OS cannot see.
 	capture drop lr2 lr2_pt
-	gen byte lr2 = (LenRefr_Tx_in == 1 | LenRefr_Mnt_in == 1) if Line == 2
+	gen byte lr2 = (refr_len_tx_in == 1 | refr_len_mnt_in == 1) if Line == 2
 	bysort ID_BS: egen lr2_pt = max(lr2)
 
 	stset Date1 if(F_OS != 1), id(ID_BS) origin(Event1 == 20) failure(Event1 == 104) scale(30.4375)

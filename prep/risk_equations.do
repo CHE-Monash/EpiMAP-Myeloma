@@ -156,12 +156,12 @@ program define risk_equations
 	// population, so prior state is not a covariate. Line collapsed to L1/L2/L3+; baseline set carried
 	// regardless of significance. The fit gates on Lenalidomide == 1, the engine on the drawn regimen -
 	// deliberate. docs/refractory.md 3.5 / 4.
-	cap drop LENREFR_line
-	gen byte LENREFR_line = min(Line, 3)
+	cap drop refr_len_grp
+	gen byte refr_len_grp = min(Line, 3)
 	// esampvaryok: the residual arm is defined on imputed BCR, so its membership varies across m.
-	mi estimate, esampvaryok: logit LineRefr Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT ///
-		i.LENREFR_line i.BCR ///
-		if(CStart == 1 & inlist(Event0, 10, 20, 30, 40, 50, 60, 70, 80, 90) & Lenalidomide == 1 & inlist(BCR, 1, 2, 3, 4) & LenRefr_Tx_in == 0)
+	mi estimate, esampvaryok: logit refr_line Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT ///
+		i.refr_len_grp i.BCR ///
+		if(CStart == 1 & inlist(Event0, 10, 20, 30, 40, 50, 60, 70, 80, 90) & Lenalidomide == 1 & inlist(BCR, 1, 2, 3, 4) & refr_len_tx_in == 0)
 	save_coefs LENREFR_TX
 	mata: _matrix_list(bLENREFR_TX, rbLENREFR_TX, cbLENREFR_TX)
 
@@ -177,33 +177,33 @@ program define risk_equations
 	// a large lenalidomide share, skewed older and more refractory. Estimated here rather than
 	// hard-coded because it depends on $TXR_L{line}, and travels with the coefficients. Does not touch
 	// which regimen is drawn or for how long. Evidence: docs/refractory.md 5(6).
-	cap drop LENREFR_oth
+	cap drop refr_len_oth
 	// Year-windowed as the TXR mlogits are: the bucket is an era composition, not a fixed quantity.
 	// Below `minoth' records in the window the all-years value is used, rather than a p built on a
 	// handful of patients.
 	local minoth = 50
 	mata: LENREFR_pother = J(1, 9, 0)
 	forvalues l = 1/9 {
-		qui gen byte LENREFR_oth = 1 if Event0 == `l'0 & CStart == 1
+		qui gen byte refr_len_oth = 1 if Event0 == `l'0 & CStart == 1
 		foreach r of global TXR_L`l' {
-			qui replace LENREFR_oth = 0 if Event0 == `l'0 & CStart == 1 & Regimen == `r'
+			qui replace refr_len_oth = 0 if Event0 == `l'0 & CStart == 1 & Regimen == `r'
 		}
 
 		// All-years estimate, kept as the fallback
-		qui count if LENREFR_oth == 1
+		qui count if refr_len_oth == 1
 		local nall = r(N)
 		local pall = 0
 		if `nall' > 0 {
-			qui count if LENREFR_oth == 1 & Lenalidomide == 1
+			qui count if refr_len_oth == 1 & Lenalidomide == 1
 			local pall = r(N)/`nall'
 		}
 
 		// Windowed estimate
-		qui count if LENREFR_oth == 1 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year
+		qui count if refr_len_oth == 1 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year
 		local noth = r(N)
 		local p = 0
 		if `noth' > 0 {
-			qui count if LENREFR_oth == 1 & Lenalidomide == 1 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year
+			qui count if refr_len_oth == 1 & Lenalidomide == 1 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year
 			local p = r(N)/`noth'
 		}
 
@@ -213,52 +213,29 @@ program define risk_equations
 			local note "  <- only `noth' in window, using all-years"
 		}
 		mata: LENREFR_pother[1, `l'] = `p'
-		qui drop LENREFR_oth
+		qui drop refr_len_oth
 	}
 	global Coeffs $Coeffs LENREFR_pother
 
 	***** LENALIDOMIDE-REFRACTORY, L1 MAINTENANCE (LENREFR_MNT) *****
 	// Replaces the withdrawn tail rule, which selected long-maintenance good-prognosis patients because
-	// sim_tfi_l1 draws the gap truncated just above the duration. Outcome is that rule applied to
-	// OBSERVED data: progressed to L2 within 60 days of maintenance ending, among patients whose
-	// maintenance ended (still-on-maintenance is undetermined and excluded). Pooled across transplant
-	// with an SCT main effect; response collapsed to CR/VG/PR/poor because SD perfectly predicts on a
-	// handful of rows yet sim_bcr.do can draw it. docs/refractory.md 4.4.
-	//
-	// Outcome derives from Date1/Event1 only, so it does not vary by imputation and is REGULAR;
-	// mi update registers it, without which mi estimate cannot see it on m=1.
-	cap drop MNTREFR_r111
-	cap drop MNTREFR_r20
-	cap drop MNTREFR_cess
-	cap drop MNTREFR_l2
-	cap drop MNTREFR_end
-	cap drop MNTREFR_ended
-	cap drop MNTREFR
-	qui gen double MNTREFR_r111 = Date1 if Event1 == 111        // this row's cessation date, if any
-	qui gen double MNTREFR_r20  = Date1 if Event1 == 20         // this row's L2 start, if any
-	qui egen double MNTREFR_cess = min(MNTREFR_r111), by(ID_BS) // patient's cessation date
-	qui egen double MNTREFR_l2   = min(MNTREFR_r20),  by(ID_BS) // patient's L2 start
-	qui gen double MNTREFR_end = min(MNTREFR_cess, MNTREFR_l2)  // maintenance ended at the earlier
-	qui gen byte MNTREFR_ended = (!mi(MNTREFR_cess) | !mi(MNTREFR_l2))
-	qui gen byte MNTREFR = (!mi(MNTREFR_l2) & (MNTREFR_l2 - MNTREFR_end) < 60) ///
-		if MNTREFR_ended == 1
-	mi update
-
-	// mi passive, not plain gen: BCR_L1 is imputed, so the collapse must be recomputed per m rather
-	// than frozen at m=0. min(BCR_L1, 4) matches sim_mnt_refr.do's vB4 = (vB :>= 4).
-	cap drop MNTREFR_bcr
-	qui mi passive: gen byte MNTREFR_bcr = min(BCR_L1, 4) if !mi(BCR_L1)
-
-	mi estimate, esampvaryok: logit MNTREFR Age Age2 Male i.ECOGcc i.RISS ///
-		CM_CKD CM_CRD CM_PLM CM_DBT SCT i.MNTREFR_bcr ///
-		if(Event1 == 110 & MNT == 1 & MNR_L1 == 1 & MNTREFR_ended == 1)
+	// sim_tfi_l1 draws the gap truncated just above the duration. Outcome refr_len_mnt_l1 is that rule
+	// applied to OBSERVED data, built in data_extraction.do: progressed to L2 within 60 days of
+	// maintenance ending. It is MISSING where maintenance has not ended, so logit drops the
+	// undetermined patients without a separate flag. Pooled across transplant with an SCT main effect;
+	// response collapsed to CR/VG/PR/poor because SD perfectly predicts on a handful of rows yet
+	// sim_bcr.do can draw it. docs/refractory.md 4.4.
+	// esampvaryok: bcr_grp_l1 derives from imputed BCR_L1, so its levels can vary across m.
+	mi estimate, esampvaryok: logit refr_len_mnt_l1 Age Age2 Male i.ECOGcc i.RISS ///
+		CM_CKD CM_CRD CM_PLM CM_DBT SCT i.bcr_grp_l1 ///
+		if(Event1 == 110 & MNT == 1 & MNR_L1 == 1)
 	save_coefs LENREFR_MNT
 	mata: _matrix_list(bLENREFR_MNT, rbLENREFR_MNT, cbLENREFR_MNT)
 
 	// Treatment- and maintenance-dose refractoriness carry the same conditional OS hazard, so one
 	// collapsed flag is fitted and the engine keeps one latched state. docs/refractory.md 5.
-	cap drop LenRefr_any
-	gen byte LenRefr_any = (LenRefr_Tx_in == 1 | LenRefr_Mnt_in == 1)
+	cap drop refr_len_in
+	gen byte refr_len_in = (refr_len_tx_in == 1 | refr_len_mnt_in == 1)
 
 	***** OVERALL SURVIVAL *****
 	// Per-line OS family: one Weibull per pathway stage, window-censored via origin()/exit().
@@ -291,37 +268,37 @@ program define risk_equations
 
 	// OS_L2S: L2S -> L2E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 20) exit(Event1 == 21) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2 LenRefr_any, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2 refr_len_in, d($dOS)
 	save_coefs OS_L2S
 	mata: _matrix_list(bOS_L2S, rbOS_L2S, cbOS_L2S)
 
 	// OS_L2E: L2E -> L3S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 21) exit(Event1 == 30) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2 LenRefr_any, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2 refr_len_in, d($dOS)
 	save_coefs OS_L2E
 	mata: _matrix_list(bOS_L2E, rbOS_L2E, cbOS_L2E)
 
 	// OS_L3S: L3S -> L3E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 30) exit(Event1 == 31) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3 LenRefr_any, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3 refr_len_in, d($dOS)
 	save_coefs OS_L3S
 	mata: _matrix_list(bOS_L3S, rbOS_L3S, cbOS_L3S)
 
 	// OS_L3E: L3E -> L4S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 31) exit(Event1 == 40) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3 LenRefr_any, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3 refr_len_in, d($dOS)
 	save_coefs OS_L3E
 	mata: _matrix_list(bOS_L3E, rbOS_L3E, cbOS_L3E)
 
 	// OS_L4S: L4S -> L4E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 40) exit(Event1 == 41) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4 LenRefr_any, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4 refr_len_in, d($dOS)
 	save_coefs OS_L4S
 	mata: _matrix_list(bOS_L4S, rbOS_L4S, cbOS_L4S)
 
 	// OS_L4E: L4E -> L5S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 41) exit(Event1 == 50) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4 LenRefr_any, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4 refr_len_in, d($dOS)
 	save_coefs OS_L4E
 	mata: _matrix_list(bOS_L4E, rbOS_L4E, cbOS_L4E)
 
@@ -378,7 +355,7 @@ program define risk_equations
 	// L2
 	qui tab TXR_L2 // Check if modelling specific regimens
 	if `r(r)' > 1 {
-		mi estimate: mlogit TXR_L2 Age Age2 LenRefr_any if(Event0 == 20 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+		mi estimate: mlogit TXR_L2 Age Age2 refr_len_in if(Event0 == 20 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
 		save_coefs L2_TXR
 		mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
 	}
@@ -390,7 +367,7 @@ program define risk_equations
 	// L3
 	qui tab TXR_L3 // Check if modelling specific regimens
 	if `r(r)' > 1 {
-		mi estimate: mlogit TXR_L3 Age Age2 LenRefr_any if(Event0 == 30 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+		mi estimate: mlogit TXR_L3 Age Age2 refr_len_in if(Event0 == 30 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
 		save_coefs L3_TXR
 		mata: _matrix_list(bL3_TXR, rbL3_TXR, cbL3_TXR)
 	}
@@ -402,7 +379,7 @@ program define risk_equations
 	// L4
 	qui tab TXR_L4 // Check if modelling specific regimens
 	if `r(r)' > 1 {
-		mi estimate: mlogit TXR_L4 Age Age2 LenRefr_any if(Event0 == 40 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+		mi estimate: mlogit TXR_L4 Age Age2 refr_len_in if(Event0 == 40 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
 		save_coefs L4_TXR
 		mata: _matrix_list(bL4_TXR, rbL4_TXR, cbL4_TXR)
 	}

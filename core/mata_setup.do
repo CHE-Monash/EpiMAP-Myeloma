@@ -355,10 +355,10 @@ program define mata_setup
 		//
 		// READ IT IN for a line-entry analysis. At $line 1 the state is 0 by construction (no prior
 		// lines), but a $line >= 2 analysis starts its patients mid-pathway, where refractoriness
-		// acquired earlier is real and already recorded: process_data.do exports LenRefr_L1..L9 and
+		// acquired earlier is real and already recorded: process_data.do exports refr_len_l1..L9 and
 		// cohort_pool.do carries them through, so the value exists in the pool. Initialising to 0
 		// regardless would hand every patient the NON-refractory branch of the L2-L4 OS equations,
-		// which now carry a LenRefr_any coefficient - over-predicting survival relative to the
+		// which now carry a refr_len_in coefficient - over-predicting survival relative to the
 		// population those equations were fitted on. mBCR is read from the cohort for exactly this
 		// reason; this vector was the one piece of line-entry state that was not.
 		//
@@ -368,7 +368,7 @@ program define mata_setup
 		// noise on every pool build. Only a cohort that genuinely ENTERS at the line needs it read in.
 		lrLine = strtoreal(st_global("line"))
 		if (lrLine < 1 | lrLine >= .) lrLine = 1          // $line 0 = full pathway from diagnosis
-		lrName = sprintf("LenRefr_L%g", lrLine)
+		lrName = sprintf("refr_len_l%g", lrLine)
 		lrFromDx = (st_global("data_type") == "synthetic")
 
 		if (lrFromDx | lrLine == 1) {
@@ -383,14 +383,14 @@ program define mata_setup
 		else {
 			vLenRefr_in = J(Obs, 1, 0)
 			errprintf("mata_setup: %s is not in this line-entry cohort, so every patient enters\n", lrName)
-			errprintf("            NON-refractory. The L2-L4 OS equations carry a LenRefr_any term,\n")
+			errprintf("            NON-refractory. The L2-L4 OS equations carry a refr_len_in term,\n")
 			errprintf("            so this over-predicts survival. Rebuild the cohort pool with a\n")
 			errprintf("            model version that exports LenRefr_L*.\n")
 		}
 
 		// Per-line SNAPSHOT for export and validation: mLenRefr_in[.,l] is the entry-to-Ll value,
 		// recorded at each line end before the state updates. Missing for a line never reached,
-		// matching mBCR. process_data.do writes it out as LenRefr_L1..L9.
+		// matching mBCR. process_data.do writes it out as refr_len_l1..L9.
 		mLenRefr_in = J(Obs, 9, .)                       // L1 maintenance duration, months (capped at TFI when billed)
 
 	}

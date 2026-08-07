@@ -29,7 +29,7 @@ cap mata: mata drop mRN
 * Column names for mSum, in assembly order below.
 * (getmata errors on a name/column count mismatch, which guards this alignment.)
 	local varnames ID Male ECOGcc RISS ISS CM_CKD CM_CRD CM_PLM CM_DBT Age70 Age75 SCT_DN SCT_L1 MNT MNR_L1 MND_L1 ///
-		LenRefr_L1 LenRefr_L2 LenRefr_L3 LenRefr_L4 LenRefr_L5 LenRefr_L6 LenRefr_L7 LenRefr_L8 LenRefr_L9 ///
+		refr_len_l1 refr_len_l2 refr_len_l3 refr_len_l4 refr_len_l5 refr_len_l6 refr_len_l7 refr_len_l8 refr_len_l9 ///
 		Age_DN Age_L1S Age_L1E Age_L2S Age_L2E Age_L3S Age_L3E Age_L4S Age_L4E Age_L5S Age_L5E Age_L6S Age_L6E Age_L7S Age_L7E Age_L8S Age_L8E Age_L9S Age_L9E ///
 		OS_DN OS_L1S OS_L1E OS_L2S OS_L2E OS_L3S OS_L3E OS_L4S OS_L4E OS_L5S OS_L5E OS_L6S OS_L6E OS_L7S OS_L7E OS_L8S OS_L8E OS_L9S OS_L9E ///
 		TNE_DN TNE_L1S TNE_L1E TNE_L2S TNE_L2E TNE_L3S TNE_L3E TNE_L4S TNE_L4E TNE_L5S TNE_L5E TNE_L6S TNE_L6E TNE_L7S TNE_L7E TNE_L8S TNE_L8E TNE_L9S TNE_L9E ///

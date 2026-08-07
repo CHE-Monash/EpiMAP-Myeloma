@@ -31,7 +31,7 @@
 *
 *          Design MUST match the fit in prep/risk_equations.do:
 *              logit MNTREFR Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT SCT
-*                            i.MNTREFR_bcr
+*                            i.bcr_grp_l1
 *          e(b) order: Age Age2 Male, ECOG(0,1,2), RISS(1,2,3), CM x4, SCT, BCR(1,2,3,4), _cons.
 *          Base-level dummies carry a 0 coefficient and are included as columns, as elsewhere.
 **********
@@ -48,7 +48,7 @@ mata {
 
 		if (rows(idx) > 0) {
 
-			// Response collapsed to CR / VG / PR / poor, matching MNTREFR_bcr in the fit. The
+			// Response collapsed to CR / VG / PR / poor, matching bcr_grp_l1 in the fit. The
 			// collapse is not cosmetic: SD was a perfect predictor on 5 observations and was dropped
 			// from the uncollapsed fit, while sim_bcr.do CAN draw SD and PD - so without it those
 			// patients would fall through every dummy to the CR base level, the BEST response.

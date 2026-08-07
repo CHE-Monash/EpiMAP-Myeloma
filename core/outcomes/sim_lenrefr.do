@@ -2,9 +2,9 @@
 * Monash Myeloma Model - Sim LenRefr (treatment lines)
 *
 * Purpose: update the LATCHED lenalidomide-refractory-from-treatment state (vLenRefr_in = the
-*          LenRefr_Tx_in covariate). Fires at each line's END OMC, AFTER that line's OS, so the
+*          refr_len_tx_in covariate). Fires at each line's END OMC, AFTER that line's OS, so the
 *          state read by this line's TXR and OS is the value from STRICTLY PRIOR lines - which is
-*          how LenRefr_Tx_in was fitted (docs/refractory.md 3.5 / 4).
+*          how refr_len_tx_in was fitted (docs/refractory.md 3.5 / 4).
 *
 *          The only event is the 0 -> 1 flip, and it can only happen to a not-yet-refractory
 *          patient, with probability
@@ -82,7 +82,7 @@ mata {
 
 			// Residual-arm probability from the logit. Line dummies are constant across idx
 			// (the whole block is one line); BCR dummies are per-patient. Column order MUST match
-			// the fit: Age Age2 Male i.ECOGcc i.RISS CM(4) i.LENREFR_line i.BCR _cons.
+			// the fit: Age Age2 Male i.ECOGcc i.RISS CM(4) i.refr_len_grp i.BCR _cons.
 			lg3 = min((Line, 3))
 			vLR1 = J(rows(idx), 1, lg3 == 1)
 			vLR2 = J(rows(idx), 1, lg3 == 2)

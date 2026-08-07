@@ -265,16 +265,16 @@ if _rc == 0 {
 }
 else n di "LEN-REFRACTORY prevalence: SKIPPED - no lenrefr.csv target (re-run test_targets / generate_benchmarks)." _n
 
-// OS from L2 start, split by len-refractory-at-L2 (LenRefr_L2) -- scores the CONSUMPTION /
+// OS from L2 start, split by len-refractory-at-L2 (refr_len_l2) -- scores the CONSUMPTION /
 // redistribution: does the simulated subgroup OS gap match observed (docs/refractory.md 5.6)?
 capture confirm matrix OS_LENREFR_bench
 if _rc == 0 {
-	capture confirm variable LenRefr_L2
+	capture confirm variable refr_len_l2
 	if _rc == 0 {
 		n di "OS FROM L2 BY LEN-REFRACTORY STATUS (true=Tx|Mnt) | Benchmark | Simulated | Diff   | Pass?"
 		// TRUE len-refractory at L2 entry = treatment OR maintenance; missing for non-L2-reachers
 		qui cap drop _lrU2
-		qui gen byte _lrU2 = (LenRefr_L2 == 1) if !missing(LenRefr_L2)
+		qui gen byte _lrU2 = (refr_len_l2 == 1) if !missing(refr_len_l2)
 		qui cap drop OC_TIME_L2S
 		qui gen OC_TIME_L2S = OC_TIME - TSD_L2S
 		qui stset OC_TIME_L2S, failure(OC_MORT==1) id(ID)
@@ -301,7 +301,7 @@ if _rc == 0 {
 		}
 		n di _n
 	}
-	else n di "OS by len-refractory status: SKIPPED - LenRefr_L2 not in the simulated data (re-run simulate)." _n
+	else n di "OS by len-refractory status: SKIPPED - refr_len_l2 not in the simulated data (re-run simulate)." _n
 }
 else n di "OS by len-refractory status: SKIPPED - no os_lenrefr.csv target (re-run test_targets / generate_benchmarks)." _n
 

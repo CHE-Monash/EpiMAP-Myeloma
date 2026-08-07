@@ -124,51 +124,59 @@ section is the specification of record.
 
 | Variable | Meaning |
 |---|---|
-| `LineRefr` | The line is refractory (IMWG, per 1.5) |
-| `LineProg` | Any progression on/after this line's start |
-| `LineProgDate` | Date of the first such progression |
+| `refr_line` | The line is refractory (IMWG, per 1.5) |
 
 **Per patient (maintenance)**:
 
 | Variable | Meaning |
 |---|---|
-| `MNT_Refr` | Refractory to maintenance (any drug, any episode) |
-| `MNT_LenRefr` | Refractory to lenalidomide maintenance (any episode) |
-| `MNT_LenRefrStart` | Start of the earliest refractory lenalidomide-maintenance episode |
-| `MNT_LenRefr_L1` | Refractory to the **L1** lenalidomide maintenance - the generation model's outcome (4.4) |
+| `refr_len_mnt` | Refractory to lenalidomide maintenance (any episode) |
+| `refr_len_mnt_date` | Start of the earliest refractory lenalidomide-maintenance episode |
+| `refr_len_mnt_l1` | Refractory to the **L1** lenalidomide maintenance - the `LENREFR_MNT` outcome (4.4). Built from the event skeleton, **not** from `refr_len_mnt`; missing where maintenance has not ended |
 
 **Carried forward, as at entry to each line** (the modelling covariates):
 
 | Variable | Meaning |
 |---|---|
-| `LenRefr_Tx_in` | Refractory to a lenalidomide **treatment** line, from strictly prior lines |
-| `LenRefr_Mnt_in` | Refractory to lenalidomide **maintenance**, applying from the first line starting after that episode |
+| `refr_len_tx_in` | Refractory to a lenalidomide **treatment** line, from strictly prior lines |
+| `refr_len_mnt_in` | Refractory to lenalidomide **maintenance**, applying from the first line starting after that episode |
 
-`LenRefr_Tx_in` is a cumulative-any over strictly prior lines, so it is **0 at L1 entry by
-construction** and rises across lines. `LenRefr_Mnt_in` is line-resolved by date via
-`MNT_LenRefrStart`, floored at `Line >= 2` (maintenance never precedes L1).
+`refr_len_tx_in` is a cumulative-any over strictly prior lines, so it is **0 at L1 entry by
+construction** and rises across lines. `refr_len_mnt_in` is line-resolved by date via
+`refr_len_mnt_date`, floored at `Line >= 2` (maintenance never precedes L1).
 
 **The `_in` suffix means at-line-entry, held constant within the line, and it is not cosmetic.**
-The underlying quantities move at every row - `LenRefr_Tx_in`'s is a running cumulative-any and
-`LenRefr_Mnt_in`'s is a test on `Date0`. Read at a line-*start* row either is correct, so a
+The underlying quantities move at every row - `refr_len_tx_in`'s is a running cumulative-any and
+`refr_len_mnt_in`'s is a test on `Date0`. Read at a line-*start* row either is correct, so a
 regimen `mlogit` would be fine; but the OS equations `stset` **across** a line's span, and a
 covariate that changed mid-span would be silently treated as time-varying. Evaluating at entry and
 holding it removes that. It also keeps the at-entry **covariate** visibly distinct from the
-per-patient **source fact** `MNT_LenRefr`, which is otherwise the same words in the other order.
+per-patient **source fact** `refr_len_mnt`, which is otherwise the same words in the other order.
 Caveat: `Line` is capped at 6 upstream, so L6-L9 share a group and hold the L6 entry value; 5
 records that L5+ has no contrast anyway.
 
-**Naming.** Three scopes, three shapes: `Line*` = per chemotherapy line, `MNT_*` = per-patient
-maintenance source fact, `LenRefr_*_in` = at-line-entry covariate. `Refractory` became `LineRefr`
-(it is per-line, and the bare name greps against every prose use of the word); `MntLenRefrStart`
-became `MNT_LenRefrStart` (it was the only `Mnt`-cased name against seven `MNT_*`, and the one a
-`MN*` wildcard would silently miss - the flag arriving without the date that resolves it to a line
-is a worse failure than neither arriving). Two variables were **dropped**: `MNT_Len`, which was
-exactly `MNT_Drug == 1` and built from the same expression in `build_refractory.do`; and
-`MNT_Drug` itself, a patient-level priority coding over **any** episode, superseded by
-`MNR_L`l'` - the regimen of the maintenance in line `l`'s gap, which is line-resolved, is what
-the engine simulates, and is what the cost engine prices. `MNT_Drug`'s only remaining job would
-have been later-line maintenance, which `MNR_L2+` covers properly if it is ever modelled (7.3).
+**Naming (revised August 2026).** The refractory variables are one family under a `refr_` prefix,
+lower case throughout, with **scope carried by the suffix**:
+
+| Shape | Scope | Example |
+|---|---|---|
+| `refr_line` | per chemotherapy line, any regimen | `refr_line` |
+| `refr_len_mnt`, `refr_len_mnt_date` | per-patient source fact, lenalidomide maintenance | - |
+| `refr_len_mnt_l1`, `refr_len_l1..l9` | line-resolved | - |
+| `refr_len_tx_in`, `refr_len_mnt_in`, `refr_len_in` | at-line-entry covariate, held within the line | - |
+
+The previous scheme used `Line*` / `MNT_*` / `LenRefr_*_in`, which spread one concept across three
+prefixes and two cases, and made `MNT_LenRefr` and `LenRefr_Mnt_in` the same words in the other order.
+
+**Case now marks the layer, not the concept.** Lower case is a data column; UPPER is a Mata object or
+a global (`LENREFR_TX`, `LENREFR_MNT`, `LENREFR_regimens`, `LENREFR_pother`), and the engine keeps its
+own `vLenRefr_in` / `mLenRefr_in` convention for Mata state. Equation names still lead with the line
+(`L1_MND`) while data columns trail with it (`MND_L1`) - that is deliberate and unchanged.
+
+Earlier drops: `MNT_Len`, which was exactly `MNT_Drug == 1`; and `MNT_Drug` itself, a patient-level
+priority coding over **any** episode, superseded by `MNR_L1` - line-resolved, what the engine
+simulates, and what the cost engine prices. Later-line maintenance would be `MNR_L2+` if ever
+modelled (7.3).
 
 **L1 maintenance duration** (per patient, for the cost fix in section 7):
 
@@ -176,13 +184,35 @@ have been later-line maintenance, which `MNR_L2+` covers properly if it is ever 
 |---|---|
 | `MND_L1` | Maintenance duration delivered inside the billed L1 gap, **days**. The **benchmark** target (`L1_MND` itself is fitted on the skeleton's maintenance events, not on this column). 0 where `MNT == 1` but no episode falls in the gap |
 | `MNR_L1` | L1 maintenance regimen (0 none/other, 1 len, 2 dara, 3 carf, 4 bort, 5 thal), from the first episode **inside the gap** |
-| `MNT_TTM_L1` | L1 end to maintenance start, days. **Descriptive only** - the simple-first model dropped the start offset (4.4), so this is not carried into the imputed file |
 
-`MNT_LenRefr_L1` is likewise built in `data_extraction.do`: it needs the billed L1 gap, which
-`build_refractory.do` cannot see. It matters because `MNT_LenRefr` covers **any** lenalidomide-
-maintenance episode, later-line included, so a patient refractory only to later-line lenalidomide
-maintenance must not count as L1-refractory. In the 251128 cut the line-resolution moves exactly
-**1 patient of 1,029**, but a one-patient approximation is not one to bake into a definition.
+`refr_len_mnt_l1` is likewise built in `data_extraction.do`, but from the **event skeleton** rather
+than from `refr_len_mnt`: maintenance ends at the earlier of its recorded end (111) and the L2 start
+(20), and the patient is refractory if L2 begins within 60 days of that. It is **missing** where
+maintenance has not ended - undetermined, not negative - so `logit` drops those rows and no separate
+`ended` flag is needed.
+
+**Changed August 2026.** It previously line-resolved `refr_len_mnt` against the billed L1 gap. That
+version was never what `LENREFR_MNT` was fitted on: `risk_equations.do` built its own skeleton
+outcome at fit time and used that, leaving the extraction column with no consumer. The two disagree
+substantially, so the skeleton version was moved into the extraction and the other retired
+(`scratch/refractory/mntrefr_defcheck.log`):
+
+| | |
+|---|---|
+| Skeleton definition, among the 545 whose maintenance ended | **28.6%** (156/545) |
+| Old `refr_len_mnt_l1`, over all 1,031 rows | 18.9% |
+| Disagreement on the 545 determined rows | 84 (15.4%) - **61** flagged by the old version only, **23** by the skeleton only |
+| Of the 486 still on maintenance, old version flagged | **1** - the other 485 were coded 0 rather than missing |
+
+The disagreement is **two-way**, so these are not nested definitions. The 61 are largely the
+cessation-reason limb, which the engine cannot compute (4.4). The 23 are cases the skeleton reaches
+through the L2 start date and the episode tables miss, consistent with the progression
+under-recording that 1.5 already works around. Fitted on the same 544 rows, the skeleton outcome
+gives pseudo R2 0.0615 / AUC 0.665 against 0.0527 / 0.658; on its own diluted sample the old version
+falls to 0.0384 / 0.636.
+
+Building it in the extraction also removes a bootstrap artefact: `risk_equations.do` derived it
+*after* the bootstrap date shift, so the 60-day threshold was evaluated on nudged dates.
 
 These are built in `data_extraction.do`, not `build_refractory.do`, because the billed gap
 (`[DateL1E, gap end]`, gap end = L2 start, else death, else last follow-up) is a `MRDR Long` concept
@@ -200,12 +230,18 @@ unchanged: all of the above is additive.
 `multiple_imputation.do` carries **six** of the above into `MRDR Long MI`: `MND_L1` (the benchmark
 target) and `MNR_L1` for the maintenance equations - the `L1_MND` survival fit reads the maintenance
 start/end EVENTS (110/111) kept in the skeleton, so it needs no duration or censoring column -
-and `LineRefr`, `LenRefr_Tx_in`, `LenRefr_Mnt_in` and `MNT_LenRefr_L1` for the refractory ones - the
-generation-model outcomes and covariates. Everything else stops at `MRDR Long`: `MNT_TTM_L1` (now
-descriptive only), `LineProg`, `LineProgDate`, `MNT_Refr`, `MNT_LenRefr` and `MNT_LenRefrStart` are
-either diagnostics or already consumed by the extraction. That file's `keep` list is **explicit**, so
-anything not named there is silently dropped, and until July 2026 that was the whole refractory
-family - which is why none of it had ever reached an equation.
+and `refr_line`, `refr_len_tx_in`, `refr_len_mnt_in` and `refr_len_mnt_l1` for the refractory ones - the
+generation-model outcomes and covariates. `refr_len_mnt` and `refr_len_mnt_date` stop at `MRDR Long`,
+having already been consumed by the extraction. That file's `keep` list is **explicit**, so anything
+not named there is silently dropped, and until July 2026 that was the whole refractory family - which
+is why none of it had ever reached an equation.
+
+**Removed August 2026** as built-but-never-read: `MNT_TTM_L1` (the start offset the simple-first
+duration model dropped), `MNT_Refr` (the any-drug flag, superseded by the lenalidomide-specific
+chain), and `LineProg` / `LineProgDate` (`LineProgDate` fed only `LineProg`; neither feeds `refr_line`,
+which comes from `refbase | inwin`). `refr_ep` is retained in `build_refractory.do`: it still builds
+`refr_len_mnt`. Diagnostics under `scratch/refractory/` that read the removed columns
+(`check_long.do`, `line_check.do`, the `mnd_tail*` family) need editing before they will re-run.
 
 ---
 
@@ -246,7 +282,7 @@ Australia, so much of the registry received bortezomib-based L1.
 
 Refractoriness accrues **throughout** the pathway, not only L1 to L2. Status as at line entry:
 
-| Line entered | `LenRefr_Tx_in` | `LenRefr_Mnt_in` | Either |
+| Line entered | `refr_len_tx_in` | `refr_len_mnt_in` | Either |
 |---|---|---|---|
 | L1 | 0.0% | 0.0% | 0.1% |
 | L2 | 8.7% | 8.9% | 16.0% |
@@ -290,12 +326,12 @@ p < 0.0001. This is the strongest contrast in the analysis.
 | **Maintenance-dose** refractory | 244 | **47.2 mo** |
 | **Treatment-dose** refractory | 243 | **24.7 mo** |
 
-Age/R-ISS-adjusted Cox: either HR **1.53** (1.25 to 1.86); entered separately, `LenRefr_Tx_in` HR
-**1.62** (1.25 to 2.11) and `LenRefr_Mnt_in` HR **1.34** (1.01 to 1.76).
+Age/R-ISS-adjusted Cox: either HR **1.53** (1.25 to 1.86); entered separately, `refr_len_tx_in` HR
+**1.62** (1.25 to 2.11) and `refr_len_mnt_in` HR **1.34** (1.01 to 1.76).
 
 Per-line OS with both flags together (adjusted for age and R-ISS):
 
-| Line | `LenRefr_Tx_in` HR (p) | `LenRefr_Mnt_in` HR (p) |
+| Line | `refr_len_tx_in` HR (p) | `refr_len_mnt_in` HR (p) |
 |---|---|---|
 | L2 | 1.62 (<0.001) | 1.38 (0.043) |
 | L3 | 1.32 (0.006) | 1.61 (0.006) |
@@ -315,10 +351,10 @@ Len-refractory status effectively bans Rd. L2 regimen (event year >= 2019):
 
 L3: Rd 32.7% / 0.9% / 3.8%; Kd 6.9% / 23.9% / 17.7%.
 
-`mlogit` relative risk ratios (base = other): L2 Rd RRR 0.076 for `LenRefr_Tx_in` (p < 0.001) and
-approximately 0 for `LenRefr_Mnt_in` (perfect avoidance); L2 DVd RRR 2.21 and 3.94 (both p < 0.001).
-L3 Rd 0.078 / 0.027 (p < 0.001); L3 Kd 1.89 / 2.01 (p < 0.01). L4: `LenRefr_Tx_in` significant
-(Kd 2.45, Pd 3.04, p ~ 0.001), `LenRefr_Mnt_in` not (p = 0.075 to 0.16).
+`mlogit` relative risk ratios (base = other): L2 Rd RRR 0.076 for `refr_len_tx_in` (p < 0.001) and
+approximately 0 for `refr_len_mnt_in` (perfect avoidance); L2 DVd RRR 2.21 and 3.94 (both p < 0.001).
+L3 Rd 0.078 / 0.027 (p < 0.001); L3 Kd 1.89 / 2.01 (p < 0.01). L4: `refr_len_tx_in` significant
+(Kd 2.45, Pd 3.04, p ~ 0.001), `refr_len_mnt_in` not (p = 0.075 to 0.16).
 
 A regimen equation carrying `Age Age2` only cannot reproduce this: it would keep prescribing Rd to
 len-refractory patients, which never happens.
@@ -341,10 +377,10 @@ equation**. That is the arm 4.4's engine rule stands on, and it is exact by cons
 | **PD** | **100%** | **82.4%** |
 
 > **The definitional rule does not survive imputation. Anyone fitting or checking this arm on the MI
-> data must know it.** `BCR` is `mi register imputed` (`multiple_imputation.do:134`); `LineRefr` is
+> data must know it.** `BCR` is `mi register imputed` (`multiple_imputation.do:134`); `refr_line` is
 > not registered and is carried as observed. The imputation model does not know the two are
 > deterministically linked, so it assigns SD/PD to rows the registry never flagged: **111 of 562
-> SD/PD rows (19.75%) have `LineRefr == 0`** on imputation 1. The registry definition is intact and
+> SD/PD rows (19.75%) have `refr_line == 0`** on imputation 1. The registry definition is intact and
 > the **engine is unaffected** (it simulates `BCR` and applies the rule, reproducing the registry
 > join exactly). What is affected is the *data*: the MI file cannot be used to verify the
 > definitional arm, and the residual arm's **membership** carries the same noise, since ~29% of its
@@ -369,7 +405,7 @@ Only the residual arm (responders, BCR 1 to 4) needs a logit, and it is well pre
 **Line is the model.** Odds vs L1 are ~13x at L2 (z = 23.0) and ~23x at L3 (z = 21.8). Everything
 else is a tilt on top of it. Also predictive: the **BCR gradient** (PR 0.57, MR 0.69, both
 p < 0.001; VGPR n.s.), **ECOGcc** (p = 0.015 and 0.041) and **prior refractory state**
-(`LenRefr_Tx_in`, 0.75, p = 0.012).
+(`refr_len_tx_in`, 0.75, p = 0.012).
 
 Age, sex, all four comorbidity flags **and R-ISS** are non-significant. The line term is `i.Line`,
 not a rebuilt `Event0/10` counter: the two agree perfectly below the cap at 6, so the counter that
@@ -378,7 +414,7 @@ collapse (identical AUC, LR chi2(2) = 0.04, p = 0.982), and `keep if Line <= 4` 
 than collapsing: it drops 47 of 3,287 rows (1.43%, 80.9% refractory) while the engine applies one
 coefficient at L4+ either way.
 
-**Two covariates are line in disguise.** Drop the line term and `LenRefr_Tx_in` inflates from 0.75
+**Two covariates are line in disguise.** Drop the line term and `refr_len_tx_in` inflates from 0.75
 to 2.56 (z = 9.13); in the earlier complete-case fit `ECOGcc` did the same thing. Later-line
 patients are sicker and already refractory, so both proxy for line until line is there to absorb
 them. Neither coefficient should be read causally.
@@ -388,7 +424,7 @@ them. Neither coefficient should be read causally.
 > `MRDR Long` and so fitted **n = 952 of a 2,335-row residual arm**: listwise deletion on 41% of
 > the data, mostly via `BCR`. Imputing it more than triples the sample, and **three covariate calls
 > reverse**: `ECOGcc` 0.118/0.075 -> 0.015/0.041 (n.s. to real), `R-ISS 3` 0.007 -> 0.774 (real to
-> n.s.), `LenRefr_Tx_in` 0.288 -> 0.012 (n.s. to real). The AUC also falls, 0.892 -> 0.856, on 3.5x
+> n.s.), `refr_len_tx_in` 0.288 -> 0.012 (n.s. to real). The AUC also falls, 0.892 -> 0.856, on 3.5x
 > the data. An earlier draft of this section quoted the deleted fit and, worse, mixed a p-value
 > from the baseline-only model into a sentence of adjusted figures. Hence the rule the
 > specification now follows: **carry the pre-specified baseline set regardless of significance.**
@@ -421,7 +457,7 @@ and strict (treatment-dose only) definitions both be tested without rebuilding.
 ### 4.2 TFI_L1 gets no refractory flags: circularity
 
 Len-refractory status is **defined by** the progression event that closes the interval into the next
-line. `LenRefr_Mnt_in` means "progressed on/within 60 days of L1 maintenance", and that progression is
+line. `refr_len_mnt_in` means "progressed on/within 60 days of L1 maintenance", and that progression is
 what **starts L2**, i.e. what **ends TFI_L1**. Regressing TFI_L1 on it is close to tautological.
 
 The data make the point unmistakably. Median TFI_L1: **3.9 months** for not-maintenance-refractory
@@ -429,7 +465,7 @@ patients vs **22.0 months** for maintenance-refractory. The refractory group loo
 **better**, because to be maintenance-refractory you must have had maintenance, and maintenance takes
 about two years. The association is an artefact and points the wrong way.
 
-`LenRefr_Tx_in` is likewise endogenous to TFI_L1 and redundant with `BCR_L1` / `BCR_SCT`, which are
+`refr_len_tx_in` is likewise endogenous to TFI_L1 and redundant with `BCR_L1` / `BCR_SCT`, which are
 already in that equation. **Neither flag enters TFI_L1 or DN_TFI.**
 
 The general rule: status as at a line's entry may predict that line's regimen, response, survival and
@@ -439,7 +475,7 @@ outgoing interval, but never the interval that **defined** it.
 
 Fitting the model's actual specifications **plus** the flags:
 
-| | `LenRefr_Tx_in` | `LenRefr_Mnt_in` |
+| | `refr_len_tx_in` | `refr_len_mnt_in` |
 |---|---|---|
 | L2 TXD | HR 1.15, p = 0.31 | HR 0.89, p = 0.46 |
 | L3 TXD | HR 1.15, p = 0.29 | HR 1.22, p = 0.33 |
@@ -453,7 +489,7 @@ continuous therapy). Its effect on duration flows **through** the response and r
 Response (`ologit BCR`) is likewise non-significant after adjustment (L2 p = 0.098 and 0.34;
 L3 p > 0.4).
 
-The single exception is `LenRefr_Mnt_in` in TFI_L2 (p = 0.003). It is deliberately **not** included in
+The single exception is `refr_len_mnt_in` in TFI_L2 (p = 0.003). It is deliberately **not** included in
 the first specification, on grounds of parsimony and to keep the engine change to `sim_txr` and
 `sim_os` only. It is a flagged candidate: if the out-of-sample validation shows the L2 to L3 timing
 is off, this is the first refinement to try.
@@ -477,7 +513,7 @@ knows when maintenance started and how long it ran, that second limb reduces to 
 
 ```
 tail = TFI_L1 - TTM - MND_L1                (maintenance end -> L2 start)
-MNT_LenRefr_L1 = 1  if  tail <= 60 days
+refr_len_mnt_l1 = 1  if  tail <= 60 days
 ```
 
 This section previously specified that rule at **AUC 0.905** against the 3.5 logit's 0.69. **Both
@@ -618,7 +654,7 @@ separate (4.1). The engine files (as built, on `refractory-status`):
 |---|---|
 | Generation | `core/outcomes/sim_lenrefr.do`, fired at each line-END OMC in `core/simulation_engine.do` |
 | Fitted logit | `LENREFR_TX` in `prep/risk_equations.do` (residual arm; 3.5) |
-| Consumption | `LenRefr_Tx_in` in `L2/L3/L4_TXR` and `OS_L2S..L4E` (`sim_txr.do`, `sim_os.do`) |
+| Consumption | `refr_len_tx_in` in `L2/L3/L4_TXR` and `OS_L2S..L4E` (`sim_txr.do`, `sim_os.do`) |
 | CRN / state / helpers | `rn_lenrefr()` (`rng_slots.do`); `vLenRefr_in` (`mata_setup.do`); `get_lenrefr_*` (`mata_functions.do`) |
 | Len-regimen codes | `global LENREFR_regimens` in `analyses/<a>/outcomes/txr_<coeffs>.do` (default "7 31") |
 
@@ -626,8 +662,8 @@ separate (4.1). The engine files (as built, on `refractory-status`):
 flips 0 to 1 the first time a not-yet-refractory patient on a lenalidomide regimen becomes
 refractory - definitionally if `BCR` is SD/PD, else a Bernoulli draw from the residual logit. Once 1
 it stays 1. The generation fires at a line's **end**, after that line's OS, so this line's `TXR` and
-`OS` read the state from *strictly prior* lines - which is how `LenRefr_Tx_in` was fitted. This is
-why the residual logit is fitted on `LenRefr_Tx_in == 0` rows only and carries no prior-state
+`OS` read the state from *strictly prior* lines - which is how `refr_len_tx_in` was fitted. This is
+why the residual logit is fitted on `refr_len_tx_in == 0` rows only and carries no prior-state
 covariate: the engine applies it exactly there (3.5).
 
 **The len-gate is by drawn regimen, not a drug binary.** The fit conditions on `Lenalidomide == 1`;
@@ -635,7 +671,7 @@ the engine has no drug field, so it counts a line as lenalidomide iff the drawn 
 len code (`LENREFR_regimens`). The `0 = other` bucket is treated as non-len. Declared per analysis
 alongside the `TXR` list, so a change of modelled regimens carries the gate with it.
 
-**Adding it to OS is mean-preserving redistribution, and that is the point.** `LenRefr_Tx_in` is a
+**Adding it to OS is mean-preserving redistribution, and that is the point.** `refr_len_tx_in` is a
 worse-prognosis covariate (4.1: treatment-dose refractory median OS 24.7 months, HR 1.62; 3.3). So in
 `OS_L2..L4` it pulls refractory patients' survival **down** and, because whole-population OS stays
 calibrated, non-refractory patients' survival correspondingly **up**. The population mean is held; the
@@ -679,7 +715,7 @@ under-generated - see 5(6) for the diagnosis and the two causes.
    specification can.
 6. **The refractory subsystem reproduces about a quarter of true L2 refractoriness, and the
    out-of-sample checks (4.7) now measure why.** Whole-population OS validates, but the two direct
-   refractory checks fail: prevalence of `LenRefr_Tx_in` at line entry is under-produced and the gap
+   refractory checks fail: prevalence of `refr_len_tx_in` at line entry is under-produced and the gap
    widens with line (L2 4.6% vs 8.3% observed, L3 13.6 vs 25.2, L4 32.9 vs 56.6, L5 45.2 vs 70.1),
    and OS from L2 by refractory status is well-calibrated for the non-refractory arm but far too
    favourable for the refractory arm (3-year 44% vs 21% observed) - the latter downstream of the

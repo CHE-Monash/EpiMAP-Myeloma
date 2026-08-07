@@ -293,6 +293,11 @@ program define impute_bcr
 	qui mi passive: replace pBCR = BCR_L8 if Event0 == 90
 	label values pBCR BCR_label
 
+	// Response collapsed to CR/VG/PR/poor, the LENREFR_MNT covariate. Passive, not plain gen: BCR_L1
+	// is imputed, so the collapse recomputes per m. Matches sim_mnt_refr.do's vB4 = (vB :>= 4).
+	cap drop bcr_grp_l1
+	qui mi passive: gen byte bcr_grp_l1 = min(BCR_L1, 4) if !mi(BCR_L1)
+
 	// Completeness: every line-start response must be imputed. Fires if a per-line impute missed a line.
 	mi xeq 1: qui count if inlist(Event0, 10, 20, 30, 40, 50, 60, 70, 80, 90) & mi(BCR) & CStart == 1 & Duration != .
 	if r(N) > 0 {
@@ -313,7 +318,7 @@ program define finalise_mi
 
 	// Unregister, keep, sort & order
 	mi unregister AlkalinePhosphatase BMPlasmaCells SerumCalcium SerumCreatinine EQ5D_Diagnosis LTHaemoglobinGL WhiteCellCount NeutrophillCount PlateletCount CRABScore ExtraMedullaryD LyticLesion Para Lambda Kappa FLC dPara dLambda dKappa dFLC
-	keep ID ID_BS Event* Date* Age* Male ECOGcc ISS RISS SCT MNT MND_L1 MNR_L1 LineRefr LenRefr_Tx_in LenRefr_Mnt_in MNT_LenRefr_L1 CM* BCR* pBCR* Reg* OS Line Duration CID CLine CStart CEnd Country F_* CN_* Year Albumin SerumB2Microglobulin LactateDehydrogenase LDHUpperLimit LDHRisk FISHRisk eGFR _* Bortezomib Carfilzomib Cisplatin Cyclophosphamide Daratumamab Dexamethasone Doxorubicin Elotuzamab Etoposide Lenalidomide Melphalan Methylprednisolone Panobinostat Prednisolone Thalidomide Pomalidomide Ixazomib TXD* TFI*
+	keep ID ID_BS Event* Date* Age* Male ECOGcc ISS RISS SCT MNT MND_L1 MNR_L1 refr_line refr_len_tx_in refr_len_mnt_in refr_len_mnt_l1 bcr_grp_l1 CM* BCR* pBCR* Reg* OS Line Duration CID CLine CStart CEnd Country F_* CN_* Year Albumin SerumB2Microglobulin LactateDehydrogenase LDHUpperLimit LDHRisk FISHRisk eGFR _* Bortezomib Carfilzomib Cisplatin Cyclophosphamide Daratumamab Dexamethasone Doxorubicin Elotuzamab Etoposide Lenalidomide Melphalan Methylprednisolone Panobinostat Prednisolone Thalidomide Pomalidomide Ixazomib TXD* TFI*
 	sort ID_BS Date0
 	order $core Age Male ECOGcc RISS BCR Reg Regimen Line Duration
 end
