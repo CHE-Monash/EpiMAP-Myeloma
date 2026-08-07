@@ -433,12 +433,19 @@ them. Neither coefficient should be read causally.
 > out-of-sample validation is the arbiter, not in-sample fit.
 
 **Maintenance refractoriness is barely predictable *by a logit on baseline covariates*** (AUC 0.69
-here, and 0.586 when re-measured like-for-like in 4.4). 4.4 proposed replacing it with a definitional
-tail rule and that rule is now withdrawn, so **the engine currently has no generation model for this
-outcome at all** - see 4.4 for the evidence and the paths forward. The two maintenance rows in the
-table above stand only as a description of that logit: it assigns the ~20% marginal rate with a mild
-covariate tilt, which is an honest outcome rather than a defect, but the coefficients should not be
-over-interpreted. They are also still complete-case and have not been refitted on the MI data.
+here, and 0.586 when re-measured like-for-like in 4.4). The definitional tail rule 4.4 proposed as a
+replacement is withdrawn; the shipped generation model is this logit, `LENREFR_MNT`, drawn once per
+patient at L1E. It assigns roughly the marginal rate with a mild covariate tilt, which is an honest
+outcome rather than a defect, but the coefficients should not be over-interpreted.
+
+**Refitted August 2026 on the rebuilt MI data, the model is weaker still: `Prob > F = 0.073`, and the
+response term is non-significant** (`bcr_grp_l1` 0.19 and 0.42, both n.s.), against the monotone
++0.66 / +1.14 / +1.17 and AUC 0.708 previously recorded here. The outcome is unchanged - the
+definition check reproduces 156/545 exactly - so the difference is in the covariates, and the most
+likely cause is the per-line rebuild of the `BCR_L1` imputation, which moved the L1-to-L2 association
+by a third to a half. The response term is **retained regardless of significance**, per the
+pre-specified-baseline rule above. Treat the specification argument earlier in this section - that
+`i.BCR_L1` beat the alternatives on AIC and AUC - as measured on the superseded imputation.
 
 ---
 
@@ -506,7 +513,9 @@ if the line contains lenalidomide:
     else                ->  Bernoulli(p), p from the residual logit (the 60-day arm)
 ```
 
-**Maintenance has no generation model. The tail rule was proposed here and is withdrawn.** 1.5 makes
+**The tail rule was proposed here and is withdrawn; a fitted logit ships in its place** (`LENREFR_MNT`,
+3.5, drawn once per patient at L1E from CRN slot 78). The rest of this section is the evidence for
+the withdrawal and is kept because the rule is an obvious thing to re-propose. 1.5 makes
 an episode refractory if it ceased for progressive disease, **or** if a progression event falls in
 `[start, end + 60d]`. The progression that ends the L1 gap *is* the L2 start, so once the engine
 knows when maintenance started and how long it ran, that second limb reduces to arithmetic:
@@ -646,9 +655,10 @@ classified.
 > rediscovered; the MRDR-side variables (`prep/multiple_imputation.do`,
 > `prep/sub/MRDR/build_refractory.do`) are deliberately kept, so the data still carries them.
 
-`LenRefr_Tx` is generated and consumed by the engine. Only the treatment-line arm is wired;
-maintenance refractoriness stays gated on its generation model (4.4), and the two flags remain
-separate (4.1). The engine files (as built, on `refractory-status`):
+Both arms are generated and consumed by the engine: `refr_len_tx_in` from the treatment-line logit
+and `refr_len_mnt_in` from `LENREFR_MNT`, the L1 maintenance logit that replaced the withdrawn tail
+rule (4.4). The two flags remain separate in the data and are collapsed to `refr_len_in` for the
+equations that read them (4.1). The engine files:
 
 | piece | file |
 |---|---|
@@ -733,15 +743,17 @@ under-generated - see 5(6) for the diagnosis and the two causes.
    `P(len | line)` - at a cost in statistical coherence (the drawn exposure is uncorrelated with the
    simulated regimen and its response).
 
-   (b) **The maintenance half is not modelled at all.** Refractoriness acquired on L1 lenalidomide
-   MAINTENANCE (`LenRefr_Mnt`) is absent from the engine (no generation model, 4.4), and it is not a
-   minor add-on: at L2 entry it is 7.1% of patients, essentially the same size as treatment-dose
+   (b) **The maintenance half was not modelled.** *Since fixed - `LENREFR_MNT` now generates it (4.4).
+   The quantification below is what motivated that, and the prevalence figures still stand as the
+   target.* Refractoriness acquired on L1 lenalidomide MAINTENANCE (`refr_len_mnt_in`) was absent
+   from the engine, and it is not a minor add-on: at L2 entry it is 7.1% of patients, essentially the
+   same size as treatment-dose
    refractoriness (8.1%), so true L2 refractoriness is 15.5% and the engine models only the treatment
    portion. The treatment flag is clean - just 0.2% of L2 patients are both treatment- and
    maintenance-refractory, so the 8.3% benchmark is genuinely treatment-driven and the
    primary-refractory back-flag (1.5) does not contaminate it. This is the first quantification of the
-   maintenance gap, and it makes `LenRefr_Mnt` the first-order piece of refractory completeness rather
-   than a loose end.
+   maintenance gap, and it made `refr_len_mnt_in` the first-order piece of refractory completeness
+   rather than a loose end.
 
    None of this moves the whole-population projection: the redistribution nets out and whole-pop OS
    validates. It bites only for refractory-targeted analyses, where the engine under-represents true
