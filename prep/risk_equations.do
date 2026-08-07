@@ -75,14 +75,11 @@ end
 
 cap program drop save_max
 program define save_max
-	// Ceiling over ALL records, censored included. Correct for a MAXIMUM: a patient censored while
-	// still on treatment proves durations of at least that length occur, which is exactly what a
-	// curtailment ceiling needs. Taking the max over observed ends only (the retired save_max_obs)
-	// understated it - most for the heavily-censored quantities - and truncated the simulated tail.
+	// Ceiling over ALL records, censored included: a patient censored while still on treatment proves
+	// durations of at least that length occur. Observed ends only understates it.
 	args mat
 
 	qui summarize _t if _st == 1, meanonly
-	di as txt "  ceiling `mat': " %7.1f r(max) " months over " %6.0f r(N) " records (censored included)"
 	mata: max`mat' = st_numscalar("r(max)")
 	global Coeffs $Coeffs max`mat'
 end
@@ -90,20 +87,14 @@ end
 
 cap program drop gen_mnr
 program define gen_mnr
-	// MNR_L1 arrives from the extraction as a RAW 6-level maintenance drug code (see
-	// docs/refractory.md 2). Keep that as MNR_drug and rebuild MNR_L1 as the levels this
-	// analysis models, per $MNR_L1 from outcomes/txr_<coeffs>.do; anything unlisted falls to
-	// 0 = 'other'. Mirrors gen_txr, and is what lets one extraction serve both the historical
-	// window the OOS validation scores against and a current-paradigm window: the maintenance
-	// mix stepped in 2020, so no single fixed list serves both (docs/refractory.md 7.4).
-	// Re-entrant: rebuilds from MNR_drug if already called.
+	// Keep the raw 6-level drug code as MNR_drug and rebuild MNR_L1 as the levels this analysis
+	// models per $MNR_L1; anything unlisted falls to 0 = 'other'. Mirrors gen_txr. Re-entrant.
+	// docs/refractory.md 2 / 7.4.
 	cap confirm variable MNR_drug
 	if _rc {
 		cap confirm variable MNR_L1
 		if _rc {
-			di as err "gen_mnr: MNR_L1 is not in the MI data."
-			di as err "         Rebuild MRDR Long (prep/data_extraction.do), then re-run"
-			di as err "         prep/multiple_imputation.do - its keep list must name MNR_L1."
+			di as err "gen_mnr: MNR_L1 not in the MI data - rebuild the extraction and re-run the MI."
 			exit 111
 		}
 		rename MNR_L1 MNR_drug
@@ -142,13 +133,9 @@ program define risk_equations
 	// TFI distribution
 	global dTFI = "lognormal"
 
-	// Regimen lists. ONE file per analysis declares every regimen global it needs - the per-line
-	// treatment lists, the L1 maintenance list, and the len-refractory gate. Reset them all FIRST,
-	// so a stale value cannot leak in from an earlier run in the same session, then load.
-	//
-	// EVERY analysis declares a maintenance list. An empty $MNR_L1 is not a supported configuration
-	// (it collapses the maintenance arm to 'other', which starves sim_mnd and sim_mnt_refr), so the
-	// MNR/MND section below errors on it rather than skipping quietly.
+	// Regimen lists: one file per analysis declares the per-line treatment lists, the L1 maintenance
+	// list and the len-refractory gate. Reset first so a stale value cannot leak in from an earlier
+	// run in the same session. An empty $MNR_L1 is not supported and errors below.
 	forval l = 1/9 {
 		global TXR_L`l' ""
 	}
@@ -160,86 +147,40 @@ program define risk_equations
 	// Reset global
 	global Coeffs
 
-	// Risk equations are grouped BY OUTCOME TYPE (not by line). Each block below is a
-	// self-contained estimation (its own stset/if), so grouping is purely organisational -
-	// $Coeffs/matsave key by name, so order does not affect the saved coefficients. Within a
-	// group the equations run in pathway order (diagnosis -> L1 -> ... -> LX). See the engine's
-	// core/outcomes/sim_*.do for how each is consumed.
+	// Grouped by outcome type, each block a self-contained estimation. $Coeffs/matsave key by name,
+	// so order does not affect the saved coefficients. See core/outcomes/sim_*.do for consumption.
 
 	***** LENALIDOMIDE-REFRACTORY, TREATMENT LINES (LENREFR_TX) *****
-	di "Lenalidomide-refractory (treatment lines)"
-	// LenRefr_Tx is a LATCHED state: once refractory to a lenalidomide treatment line the patient
-	// stays refractory (cumulative-any, and downstream TXR/OS read only that latched flag). So the
-	// only event to model is the 0 -> 1 FLIP, which can only happen to a NOT-YET-REFRACTORY patient.
-	// The engine (sim_lenrefr.do) therefore draws only where LenRefr_Tx_in == 0:
-	//     BCR in {5,6}  -> refractory        (definitional, no equation)
-	//     BCR in {1-4}  -> Bernoulli(this logit)
-	// and leaves already-refractory patients latched at 1. This logit is fitted on exactly that
-	// population - not-yet-refractory (LenRefr_Tx_in == 0), responding (BCR 1-4), len line-start
-	// rows - so prior state is NOT a covariate (it is 0 by construction here). Fitting it on the
-	// full sample with LenRefr_Tx_in as a covariate, as an earlier draft did, mismatches the engine's
-	// application population (the 4.4 "test with what the engine will have" rule).
-	//
-	// POOLED across lines with the line collapsed to L1 / L2 / L3+ (LENREFR_line): docs/refractory.md
-	// 3.5 settles that shape - full line resolution and the L4+ split each add nothing (LR p > 0.95),
-	// and line is the dominant predictor. Carries the pre-specified baseline set REGARDLESS of
-	// significance (selecting on in-sample p-values does not replicate out of sample; the OOS
-	// validation is the arbiter), plus i.BCR.
-	//
-	// FIT vs ENGINE gate: the fit conditions on Lenalidomide == 1 (the true drug binary, the clean
-	// residual-arm definition). The engine has no drug binary, so sim_lenrefr applies this where the
-	// DRAWN regimen is a lenalidomide code (analysis-declared, 'other' treated as non-len). That
-	// asymmetry is deliberate and noted in docs/refractory.md 3.5 / 4.
+	// LenRefr_Tx is a latched 0 -> 1 state, so only the flip is modelled, and only where the patient is
+	// not yet refractory: BCR in {5,6} is definitional, BCR 1-4 draws this logit. Fitted on exactly that
+	// population, so prior state is not a covariate. Line collapsed to L1/L2/L3+; baseline set carried
+	// regardless of significance. The fit gates on Lenalidomide == 1, the engine on the drawn regimen -
+	// deliberate. docs/refractory.md 3.5 / 4.
 	cap drop LENREFR_line
 	gen byte LENREFR_line = min(Line, 3)
-	// esampvaryok: the residual arm (BCR 1-4) is defined on imputed BCR, so its membership varies
-	// across imputations - legitimate, and pooled the same way the ASCT equations are (docs note).
+	// esampvaryok: the residual arm is defined on imputed BCR, so its membership varies across m.
 	mi estimate, esampvaryok: logit LineRefr Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT ///
 		i.LENREFR_line i.BCR ///
 		if(CStart == 1 & inlist(Event0, 10, 20, 30, 40, 50, 60, 70, 80, 90) & Lenalidomide == 1 & inlist(BCR, 1, 2, 3, 4) & LenRefr_Tx_in == 0)
 	save_coefs LENREFR_TX
 	mata: _matrix_list(bLENREFR_TX, rbLENREFR_TX, cbLENREFR_TX)
 
-	// The len-regimen gate travels WITH the coefficients, not as a global, so a simulation cannot
-	// silently run the refractory logit against a different regimen list from the one it was fitted
-	// beside. sim_lenrefr.do reads it via get_lenrefr_regimens(); absent, the treatment arm is a
-	// no-op rather than an error.
+	// The gate travels WITH the coefficients so a run cannot use a different regimen list from the one
+	// it was fitted beside. sim_lenrefr.do reads it via get_lenrefr_regimens(); absent, it is a no-op.
 	if ("$LENREFR_regimens" != "") {
 		mata: LENREFR_regimens = strtoreal(tokens(st_global("LENREFR_regimens")))
 		global Coeffs $Coeffs LENREFR_regimens
 	}
 
-	// P(lenalidomide | regimen NOT modelled), per line - the 'other'-bucket gate probability.
-	//
-	// sim_lenrefr.do can only flag a patient whose DRAWN regimen is a modelled lenalidomide code.
-	// Everything unlisted falls into TXR code 0 ('other'), which the gate treated as non-len - and
-	// that bucket is full of lenalidomide: 50.6% of it at L1, 33.7% at L4, and at L4/L5+ the modelled
-	// lists contain NO lenalidomide regimen at all, so every len patient there was invisible.
-	// Measured: scratch/lenrefr_other.log.
-	//
-	// The hidden patients are not a random slice - at L1 they are 10 years older (75.2 vs 65.1),
-	// a third as often transplanted (14% vs 55%) and 2.4x as likely to be refractory (21.8% vs 9.1%);
-	// at L4 their refractory rate is 84.4%. That is exactly the older, sicker, less-transplanted
-	// profile the OS-by-refractory-status gate is missing, and why the simulated refractory union
-	// looks too healthy (../scratch/refractory/_notes.md).
-	//
-	// Estimated HERE rather than hard-coded because it depends on $TXR_L{line}: a different analysis
-	// with a different regimen list has a different 'other' bucket, and a stale constant would be
-	// silently wrong. Travels with the coefficients for the same reason LENREFR_regimens does.
-	//
-	// This does NOT change which regimen is drawn or how long it lasts - TXR and TXD are untouched.
-	// Adding Rd to the modelled lists was tried and reverted (txr_full.do): TXD is fitted on
-	// i.TXR_L{line}, so a continuous-until-progression regimen moves that line's duration equation
-	// and L4 TXD over-predicted by 24-39pp. Widening only the GATE avoids that entirely.
+	// P(lenalidomide | regimen NOT modelled), per line - the 'other'-bucket gate probability. Unlisted
+	// regimens fall to TXR code 0, which the gate would otherwise treat as non-len; that bucket carries
+	// a large lenalidomide share, skewed older and more refractory. Estimated here rather than
+	// hard-coded because it depends on $TXR_L{line}, and travels with the coefficients. Does not touch
+	// which regimen is drawn or for how long. Evidence: docs/refractory.md 5(6).
 	cap drop LENREFR_oth
-	// YEAR-WINDOWED, exactly as the TXR mlogits are. The 'other' bucket is an ERA composition, not a
-	// fixed quantity: at L1 it is half lenalidomide across 1995-2040 (mostly Rd), and a different
-	// mixture in a 2020-2025 window. Leaving this un-windowed while the regimen shares are windowed
-	// would gate the modern cohort on a historical bucket.
-	//
-	// FALLBACK: a narrow window can leave a line with almost no 'other' records, which makes the
-	// proportion noise rather than an estimate. Below `minoth' the all-years value is used instead
-	// and the log says so, rather than shipping a p built on a handful of patients.
+	// Year-windowed as the TXR mlogits are: the bucket is an era composition, not a fixed quantity.
+	// Below `minoth' records in the window the all-years value is used, rather than a p built on a
+	// handful of patients.
 	local minoth = 50
 	mata: LENREFR_pother = J(1, 9, 0)
 	forvalues l = 1/9 {
@@ -272,45 +213,20 @@ program define risk_equations
 			local note "  <- only `noth' in window, using all-years"
 		}
 		mata: LENREFR_pother[1, `l'] = `p'
-		di as txt "  P(len | other) at L`l': " %5.1f 100*`p' "%  (" %6.0f `noth' " in window, " %6.0f `nall' " all years)`note'"
 		qui drop LENREFR_oth
 	}
 	global Coeffs $Coeffs LENREFR_pother
 
 	***** LENALIDOMIDE-REFRACTORY, L1 MAINTENANCE (LENREFR_MNT) *****
-	di "Lenalidomide-refractory (L1 maintenance)"
-	// Replaces the deterministic TAIL RULE that sim_mnt_refr.do used to apply. That rule flagged a
-	// patient when the SIMULATED tail (TFI_L1 - MND_L1) fell under 60 days - a correct DEFINITION but
-	// a broken MECHANISM, because sim_tfi_l1 draws the gap truncated just above the maintenance
-	// duration, so the tail piles up at the bound for LONG maintenance. It therefore selected
-	// long-maintenance (good-prognosis) patients: refractory prevalence came out at 3.7% against a
-	// registry 15.5% at L2, and the flagged group SURVIVED BETTER than the registry's despite the OS
-	// penalty being applied correctly. Evidence: scratch/refractory/mnt_refr_logit.log.
+	// Replaces the withdrawn tail rule, which selected long-maintenance good-prognosis patients because
+	// sim_tfi_l1 draws the gap truncated just above the duration. Outcome is that rule applied to
+	// OBSERVED data: progressed to L2 within 60 days of maintenance ending, among patients whose
+	// maintenance ended (still-on-maintenance is undetermined and excluded). Pooled across transplant
+	// with an SCT main effect; response collapsed to CR/VG/PR/poor because SD perfectly predicts on a
+	// handful of rows yet sim_bcr.do can draw it. docs/refractory.md 4.4.
 	//
-	// OUTCOME: the tail rule applied HONESTLY to observed data - progressed to L2 within 60 days of
-	// maintenance ending, among patients whose maintenance ENDED. Still-on-maintenance patients are
-	// undetermined and excluded; the engine runs everyone to completion, so the ended-maintenance
-	// group is the congenial fitting sample. Base rate 28.6% (156/545).
-	//   Note this is DATED progression only. mntrefr_reconcile.do's ~36% additionally counts patients
-	//   flagged by the registry's cessation-reason column with no dated progression - which the engine
-	//   has no field for and no mechanism could reproduce. 28.6% is the simulation-reachable target.
-	//
-	// SPECIFICATION, chosen by test not assumption (scratch/refractory/mnt_refr_logit.log):
-	//   i.BCR_L1 beats the post-transplant response and the combined variable on BOTH AIC and AUC
-	//     (327.3/0.708 vs 332.3/0.691), and within transplant patients the L1 response out-predicts
-	//     BCR_SCT (AUC 0.681 vs 0.659). The induction response is simply the better predictor.
-	//   POOLED across transplant with an SCT main effect: the response x transplant interaction is
-	//     chi2(2) = 1.47, p = 0.48, so the effects do not differ - SCT shifts the level (-1.38,
-	//     strongly protective), not the slopes. Same shape the MND split turned out to have.
-	//   Response COLLAPSED to CR/VG/PR/poor. Forced: SD was a perfect predictor on 5 observations and
-	//     was dropped from the uncollapsed fit, yet sim_bcr.do CAN draw it - so an uncollapsed model
-	//     would leave simulated SD/PD patients falling through to the CR base level.
-	// Coefficients are right-signed and monotone: worse response -> higher odds (CR base, VG +0.66,
-	// PR +1.14, poor +1.17), older age higher, transplant protective. AUC 0.708.
-	// Outcome, from event dates. These derive from Date1/Event1 only, which do not vary by
-	// imputation, so they are REGULAR; mi update registers them (a variable created after mi set is
-	// unregistered until then, and mi estimate cannot see an unregistered variable when it builds
-	// the per-imputation dataset - which is what "variable not found on m=1" meant).
+	// Outcome derives from Date1/Event1 only, so it does not vary by imputation and is REGULAR;
+	// mi update registers it, without which mi estimate cannot see it on m=1.
 	cap drop MNTREFR_r111
 	cap drop MNTREFR_r20
 	cap drop MNTREFR_cess
@@ -328,15 +244,10 @@ program define risk_equations
 		if MNTREFR_ended == 1
 	mi update
 
-	// Response collapsed to CR/VG/PR/poor. mi passive, NOT plain gen: BCR_L1 is an IMPUTED variable,
-	// so the collapse must be recomputed per imputation rather than frozen at m = 0. min(BCR_L1, 4)
-	// IS the collapse (4, 5, 6 all map to 4) and matches sim_mnt_refr.do's vB4 = (vB :>= 4).
+	// mi passive, not plain gen: BCR_L1 is imputed, so the collapse must be recomputed per m rather
+	// than frozen at m=0. min(BCR_L1, 4) matches sim_mnt_refr.do's vB4 = (vB :>= 4).
 	cap drop MNTREFR_bcr
 	qui mi passive: gen byte MNTREFR_bcr = min(BCR_L1, 4) if !mi(BCR_L1)
-
-	// Legible failure: if the fit errors again, this says what the variables actually contain.
-	di as txt "  MNTREFR outcome x collapsed response (m = 1, fitting sample):"
-	capture noisily mi xeq 1: tab MNTREFR MNTREFR_bcr if Event1 == 110 & MNT == 1 & MNR_L1 == 1, missing
 
 	mi estimate, esampvaryok: logit MNTREFR Age Age2 Male i.ECOGcc i.RISS ///
 		CM_CKD CM_CRD CM_PLM CM_DBT SCT i.MNTREFR_bcr ///
@@ -344,15 +255,12 @@ program define risk_equations
 	save_coefs LENREFR_MNT
 	mata: _matrix_list(bLENREFR_MNT, rbLENREFR_MNT, cbLENREFR_MNT)
 
-	// COLLAPSED len-refractory covariate. Treatment- and maintenance-dose refractoriness carry the
-	// same conditional OS hazard (HR ~1.64, test Tx = Mnt p = 0.97;
-	// scratch/refractory/os_lenrefr_check.do), so ONE flag is fitted and the engine keeps one latched
-	// state rather than two. Simpler, and the two-flag wiring did not apply the penalty correctly.
+	// Treatment- and maintenance-dose refractoriness carry the same conditional OS hazard, so one
+	// collapsed flag is fitted and the engine keeps one latched state. docs/refractory.md 5.
 	cap drop LenRefr_any
 	gen byte LenRefr_any = (LenRefr_Tx_in == 1 | LenRefr_Mnt_in == 1)
 
 	***** OVERALL SURVIVAL *****
-	di "Overall Survival"
 	// Per-line OS family: one Weibull per pathway stage, window-censored via origin()/exit().
 	// Same covariates throughout (Age Age2 Male i.ECOGcc i.RISS CM_* + stage BCR); stages differ
 	// only by the stset window and BCR source. See core/outcomes/sim_os.do for the firing map.
@@ -436,7 +344,6 @@ program define risk_equations
 	mata: _matrix_list(bOS_L6plus, rbOS_L6plus, cbOS_L6plus)
 
 	***** ASCT (TRANSPLANT DECISION) *****
-	di "ASCT"
 	// Transplant-eligibility logits: at diagnosis (DN_SCT) and at L1 end (L1_SCT).
 	// Comorbidities: 4 individual flags (CKD/cardiac/lung/diabetes).
 
@@ -451,7 +358,6 @@ program define risk_equations
 	mata: _matrix_list(bL1_SCT, rbL1_SCT, cbL1_SCT)
 
 	***** TREATMENT REGIMEN (TXR) *****
-	di "Treatment Regimen"
 	// Regimen choice is availability-driven; L1 carries Age Age2 SCT (transplant gates some
 	// regimens), L2+ carry Age only - Male/ECOG/RISS/prior-BCR carried no signal (see
 	// scratch/txr_predictor_check.do). Engine design mPat in core/outcomes/sim_txr.do must match.
@@ -518,7 +424,6 @@ program define risk_equations
 	}
 
 	***** BEST CLINICAL RESPONSE (BCR) *****
-	di "Best Clinical Response"
 	// Ordered logit for response at each line; each line conditions on the prior line's response
 	// (and regimen). SCT_BCR is the post-transplant response (conditional on BCR_L1).
 
@@ -565,7 +470,6 @@ program define risk_equations
 */
 
 	***** TREATMENT DURATION (TXD) *****
-	di "Treatment Duration"
 	// Time on treatment within a line (Weibull). L1 splits by transplant: ASCT fixed-duration is a
 	// 3-spline fit (cut-offs 60/120 mo), NoASCT is a single fit, and Continuous (Rd) is separate.
 	// L2+ are single fits conditional on that line's response and regimen.
@@ -677,7 +581,6 @@ program define risk_equations
 */
 
 	***** MAINTENANCE (MNT) *****
-	di "Maintenance"
 	// Maintenance-therapy logit after L1 induction, split by transplant status.
 
 	// ASCT
@@ -691,40 +594,26 @@ program define risk_equations
 	mata: _matrix_list(bMNT_NoASCT, rbMNT_NoASCT, cbMNT_NoASCT)
 
 	***** MAINTENANCE REGIMEN AND DURATION (MNR / MND) *****
-	di "Maintenance regimen and duration"
 	// The maintenance analogue of TXR_L1 / TXD_L1, sat here because both condition on the MNT
 	// logit above: MNT decides WHETHER, L1_MNR WHICH, L1_MND HOW LONG. Both fit at the same
 	// Event1 == 11 row as MNT, and only among MNT == 1. Consumed only by cost_tx_mnt, so the
 	// out-of-sample validation fits them but never uses them. See docs/refractory.md 7.4.
 
-	// WHICH REGIMENS ARE MODELLED. gen_mnr has already collapsed anything outside $MNR_L1 to 0, so
-	// these counts ARE the declared list. An analysis may declare lenalidomide ALONE (car_t declares
-	// "1"): the thalidomide fits below then have no sample and are skipped. That degrades cleanly -
-	// oL1_MNR = 1 makes sim_mnr assign every maintenance patient lenalidomide, so vMNR is never 5,
-	// and get_mnd_coef_thal() returns an empty matrix so sim_mnd.do's thalidomide branch is a no-op.
-	//
-	// Lenalidomide is NOT optional. It is the mlogit base outcome and sim_mnr's single-regimen
-	// fallback, so a list without it - including an EMPTY list - is a specification error. Every
-	// analysis declares a maintenance list; there is deliberately no silent skip.
+	// An analysis may declare lenalidomide alone: the thalidomide fits below then have no sample and
+	// are skipped, oL1_MNR = 1, and sim_mnd's thalidomide branch is a no-op. Lenalidomide itself is
+	// not optional - it is the mlogit base outcome and sim_mnr's single-regimen fallback.
 	qui count if(MNT == 1 & MNR_L1 == 1)
 	local nLen = r(N)
 	qui count if(MNT == 1 & MNR_L1 == 5)
 	local nThal = r(N)
-	di as txt "  maintenance regimens (\$MNR_L1 '$MNR_L1'): lenalidomide " `nLen' " records, thalidomide " `nThal' " records"
 	if `nLen' == 0 {
-		di as err "risk_equations: \$MNR_L1 is '$MNR_L1' but no lenalidomide (code 1) maintenance records"
-		di as err "                remain. Lenalidomide is the maintenance base outcome and sim_mnr's"
-		di as err "                single-regimen fallback, so it cannot be omitted. Declare it in"
-		di as err "                analyses/$analysis/outcomes/txr_$coeffs.do, e.g. global MNR_L1 \"1\"."
+		di as err "risk_equations: \$MNR_L1 is '$MNR_L1' but no lenalidomide records remain. Declare 1 in analyses/$analysis/outcomes/txr_$coeffs.do."
 		exit 2000
 	}
 
-	// Which regimen. Lenalidomide and thalidomide only (docs/refractory.md 7.4) - lenalidomide
-	// is the base, thalidomide the alternative, so this is effectively a logit and the engine
-	// never produces an 'other' maintenance regimen. Year-windowed exactly as TXR_L1 is, so the
-	// mix reflects the era. The guard counts the ESTIMATION SAMPLE itself, so it catches both a
-	// list that omits thalidomide and a list that keeps it but lands in a window where it is empty
-	// (it ended with the 2020 PBS listing). Either way oL1_MNR = 1 is stored instead.
+	// Which regimen: lenalidomide (base) vs thalidomide, so effectively a logit. Year-windowed as
+	// TXR_L1 is. The guard counts the estimation sample, so it catches a list that omits thalidomide
+	// and one that keeps it but lands in a window where it is empty. docs/refractory.md 7.4.
 	qui count if(Event1 == 11 & MNT == 1 & MNR_L1 == 5 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year)
 	local nThalFit = r(N)
 	qui count if(Event1 == 11 & MNT == 1 & MNR_L1 == 1 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year)
@@ -739,52 +628,24 @@ program define risk_equations
 		global Coeffs $Coeffs oL1_MNR
 	}
 
-	// How long: maintenance DURATION via parametric survival on the maintenance EVENTS in the
-	// skeleton, exactly as L1_TFI is fitted (docs/refractory.md 4.4). The extraction keeps the L1
-	// maintenance start (110) and end (111) events, so this is a normal stset:
-	//     origin(Event1 == 110)          maintenance start
-	//     failure(Event1 == 20 111)      maintenance end - the recorded end (111), or L2 start (20)
+	// Maintenance DURATION via parametric survival on the 110/111 maintenance events, as L1_TFI is
+	// fitted. Split by regimen, pooled across transplant (SCT a covariate), no gap term - ln(TFI_L1)
+	// is missing without an observed L2; sim_tfi_l1.do supplies the dependence instead by drawing the
+	// gap truncated below at the duration. Thalidomide is censored at 18 months, a judgement that
+	// later recorded ends are stale; generate_benchmarks.do carries the same exit().
+	// docs/refractory.md 4.4 / 5(7) / 7; rejected specifications in scratch/maintenance/_notes.md.
 	//
-	// SPLIT BY REGIMEN, POOLED ACROSS TRANSPLANT, NO GAP TERM. The two drugs are different processes
-	// with non-overlapping ancillaries (thalidomide a fixed course, lenalidomide running to
-	// progression); the two transplant arms are near-identical, so SCT is a covariate instead. BCR
-	// drops out as a consequence - the arms key on different response variables.
-	//
-	// The gap covariate is gone because ln(TFI_L1) is missing without an observed L2, which
-	// restricted this fit to a quarter of the maintenance population. Dropping it alone is NOT
-	// enough: it leaves duration and gap independent and the billing cap does the damage instead.
-	// sim_tfi_l1.do supplies the dependence by drawing the gap truncated below at the maintenance.
-	//
-	// THALIDOMIDE IS CENSORED AT 18 MONTHS - a documented judgement that recorded ends beyond that
-	// are stale records, not a measurement. Censored rather than excluded: excluding leaves a
-	// truncated sample and an untruncated family fitted to it undershoots. generate_benchmarks.do
-	// carries the same exit() so both sides measure the same quantity.
-	//
-	// Evidence for all of the above, and the five specifications rejected on the way, are in
-	// scratch/maintenance/_notes.md. Conclusions in docs/refractory.md 5(7) and 7.
-	//
-	// TRAP: exit() is in the TIME VARIABLE's scale, not analysis time, and `origin' is unavailable
-	// inside it when origin() is an event condition. It must reference the origin date in days.
+	// TRAP: exit() is in the TIME VARIABLE's scale, and `origin' is unavailable inside it when
+	// origin() is an event condition, so it must reference the origin date in days.
 	capture drop MND_origin
 	qui gen double _mxMNDo = Date1 if Event1 == 110
 	qui egen double MND_origin = min(_mxMNDo), by(ID_BS)
 	qui drop _mxMNDo
 
-	// Lenalidomide, POOLED across transplant, baseline covariates only.
-	//
-	// NO response term and NO transplant split. Response depth was tested exhaustively once BCR_SCT
-	// was correctly imputed (it had been mis-coded, which is what created an apparent signal): the
-	// post-transplant response BCR_SCT, the L1 response BCR_L1 collapsed AND full 6-level, the two
-	// combined, and a transplant interaction - none predicts maintenance duration (all LR p > 0.4,
-	// every AIC worse than baseline). Comorbidities likewise (p = 0.23). The p = 0.0021 that once
-	// justified splitting the arm to carry BCR_SCT was purely the coding artefact.
-	// Evidence: scratch/mnd_bcr_pooled.log. Response still drives TFI and OS at full 6 levels; it
-	// simply does not add to the maintenance-DURATION draw within the selected maintenance cohort.
-	//
-	// CEILING and FAMILY, both settled: $dTFI is lognormal, the 157.96-month ceiling is a genuine
-	// recorded cessation (RMST(158) is the only unflagged KM estimate), and the drawn duration
-	// reproduces the registry restricted mean at every horizon. Do not lower the ceiling.
-	// Evidence: scratch/mnd_dist.log, scratch/mnd_failtype.log, ../scratch/maintenance/_notes.md.
+	// Lenalidomide, pooled across transplant, baseline covariates only. No response term and no
+	// transplant split: once BCR_SCT was correctly imputed, no response specification predicted
+	// duration. Ceiling and family are settled - do not lower the ceiling.
+	// Evidence: scratch/maintenance/_notes.md.
 	mi stset Date1 if(MNT == 1 & MNR_L1 == 1), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
 	save_max L1_MND_LEN
@@ -809,12 +670,9 @@ program define risk_equations
 		mata: _matrix_list(bL1_MND_THAL, rbL1_MND_THAL, cbL1_MND_THAL)
 	}
 	else {
-		di as txt "  L1_MND_THAL skipped: thalidomide is not in \$MNR_L1, so every maintenance patient"
-		di as txt "                       draws the lenalidomide duration."
 	}
 
 	***** TREATMENT-FREE INTERVAL (TFI) *****
-	di "Treatment-free Interval"
 	// Gap from the end of one line's treatment to the start of the next (log-normal). DN_TFI is the
 	// diagnosis-to-L1 interval; L1 splits by transplant (with maintenance MNT); L2+ are single fits.
 

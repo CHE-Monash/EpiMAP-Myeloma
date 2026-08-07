@@ -130,8 +130,28 @@ do "analyses/default/validate_outsample.do"
    rsync -auvzce ssh "$repo_path"/hpc/risk_equations.script $hpc:~/em76/$user/hpc/
    rsync -auvzce ssh "$repo_path"/hpc/simulate.script $hpc:~/em76/$user/hpc/
 
-   # == Step (a): submit TRAIN-fold MI + risk equations (chained; risk eqs waits on the MI array) ==
-   ssh $hpc "cd em76/$user ; mi=\$(sbatch --parsable --mail-user=$hpc_email --export=ALL,IMP=2,SAMPLE=train hpc/multiple_imputation.script) ; echo MI job \$mi ; sbatch --mail-user=$hpc_email --dependency=afterok:\$mi --export=ALL,ANALYSIS=default,COEFFS=train,MINYR=1995,MAXYR=2040,SAMPLE=train hpc/risk_equations.script"
+   # == Step (a): TRAIN-fold MI, then TRAIN-fold risk equations. Both are 500-job arrays and the
+   #    second reads the first's B<b> datasets, so the order is fixed. Submitted SEPARATELY below so
+   #    either can be run on its own; the chained one-liner that does both is at the end of the step.
+   #    NOTE this is the OOS TRAIN fold (IMP=2, SAMPLE=train). The transport_dvd / car_t bootstraps
+   #    need the MAIN-MODEL MI instead -- full data, no fold, IMP=10 -- which is step (a) in
+   #    analyses/transport_dvd/run.do. Running this one will not satisfy those.
+
+   # (a1) TRAIN-fold bootstrap MI -- 500-job array. --parsable prints just the job id; note it as
+   #      MIJOB if you want to queue (a2) behind it instead of waiting.
+   ssh $hpc "cd em76/$user ; sbatch --parsable --mail-user=$hpc_email --export=ALL,IMP=2,SAMPLE=train hpc/multiple_imputation.script"
+
+   #      Watch it finish before submitting (a2):
+   ssh $hpc "squeue -u $user"
+
+   # (a2) TRAIN-fold risk equations -- 500-job array. Run ONLY once (a1) has finished.
+   ssh $hpc "cd em76/$user ; sbatch --mail-user=$hpc_email --export=ALL,ANALYSIS=default,COEFFS=train,MINYR=1995,MAXYR=2040,SAMPLE=train hpc/risk_equations.script"
+
+   #      Or, to queue (a2) behind (a1) without waiting, using the id (a1) printed:
+   # ssh $hpc "cd em76/$user ; sbatch --mail-user=$hpc_email --dependency=afterok:<MIJOB> --export=ALL,ANALYSIS=default,COEFFS=train,MINYR=1995,MAXYR=2040,SAMPLE=train hpc/risk_equations.script"
+
+   #      Or both in one go, chained (the original single-command form):
+   # ssh $hpc "cd em76/$user ; mi=\$(sbatch --parsable --mail-user=$hpc_email --export=ALL,IMP=2,SAMPLE=train hpc/multiple_imputation.script) ; echo MI job \$mi ; sbatch --mail-user=$hpc_email --dependency=afterok:\$mi --export=ALL,ANALYSIS=default,COEFFS=train,MINYR=1995,MAXYR=2040,SAMPLE=train hpc/risk_equations.script"
 
    # Pull the bootstrap coefficients back (optional; already on hpc for step b)
    rsync -auvzce ssh $hpc:~/em76/$user/analyses/$analysis/coefficients/bootstrap/ "$repo_path"/analyses/$analysis/coefficients/bootstrap/
