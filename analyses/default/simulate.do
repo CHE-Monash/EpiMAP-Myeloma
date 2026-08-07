@@ -79,10 +79,6 @@ global sim_out = cond("$scenario" == "", "$simulated_path", "$simulated_path/$sc
 * Load Programs
 **********
 
-run "core/load_patients.do"
-run "core/mata_setup.do"
-run "core/simulation_engine.do"
-run "core/process_data.do"
 run "core/export_results.do"
 run "core/run_pipeline.do"
 

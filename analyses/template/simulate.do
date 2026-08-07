@@ -78,10 +78,6 @@ global cohort_file  ""    // or point at a non-standard cohort: "$patients_path/
 * Load Programs
 **********
 
-run "core/load_patients.do"
-run "core/mata_setup.do"
-run "core/simulation_engine.do"
-run "core/process_data.do"
 run "core/export_results.do"
 run "core/run_pipeline.do"
 

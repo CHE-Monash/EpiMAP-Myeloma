@@ -46,10 +46,6 @@ local pool_file "$patients_path/cohort_pool_${line}.dta"
 * Load core programs (incl. the shared engine pass)
 **********
 
-run "core/load_patients.do"
-run "core/mata_setup.do"
-run "core/simulation_engine.do"
-run "core/process_data.do"
 run "core/run_pipeline.do"
 
 **********
