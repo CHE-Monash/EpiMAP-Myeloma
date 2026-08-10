@@ -30,7 +30,7 @@
 * Writes:  vLenRefr_in (latched 0 -> 1).
 *
 *          Design MUST match the fit in prep/risk_equations.do:
-*              logit MNTREFR Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT SCT
+*              logit refr_len_mnt_l1 Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT SCT
 *                            i.bcr_grp_l1
 *          e(b) order: Age Age2 Male, ECOG(0,1,2), RISS(1,2,3), CM x4, SCT, BCR(1,2,3,4), _cons.
 *          Base-level dummies carry a 0 coefficient and are included as columns, as elsewhere.

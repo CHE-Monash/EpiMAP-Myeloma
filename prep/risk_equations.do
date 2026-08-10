@@ -24,7 +24,7 @@ global sample `8'   // "" = standard MI data; "train"/"test" = OOS fold under ${
 
 cap mkdir "scratch"
 cap log close req
-log using "scratch/risk_equations_$coeffs.log", replace text name(req)
+//log using "scratch/risk_equations_$coeffs.log", replace text name(req)
 
 if "$repo_path" != "" cd "$repo_path"   // cd to repo root only if config.do set it; a bare cd "" goes to home on Mac/Unix
 capture run "config.do"     // machine-specific paths: $data_path (git-ignored)
@@ -68,6 +68,27 @@ program define save_coefs
 	capture mata: o`mat' = st_matrix("e(out)")
 	if _rc == 0 {
 		global Coeffs $Coeffs o`mat'
+	}
+
+	// HEALTH CHECK. An unidentified block does not error - OS_L5S shipped SEs of 462 and hazard
+	// ratios of 50-140 in every generation until four bootstrap replicates happened to die. This
+	// flags it at the point of fit. Silent on pass; one line per problem.
+	capture {
+		tempname V
+		capture matrix `V' = e(V_mi)
+		if _rc matrix `V' = e(V)
+		local mx = 0
+		forvalues i = 1/`=colsof(`V')' {
+			local v = `V'[`i', `i']
+			if `v' < . & `v' > 0 & sqrt(`v') > `mx' local mx = sqrt(`v')
+		}
+		if `mx' > 50 ///
+			di as error "  CHECK `mat': max SE " %10.1f `mx' " - block likely unidentified (see docs/refractory.md 3.5)."
+		local npar = colsof(`V')
+		if !missing(e(N_fail)) & `npar' > 0 {
+			if e(N_fail) / `npar' < 5 ///
+				di as error "  CHECK `mat': " e(N_fail) " events for " `npar' " parameters (" %4.1f e(N_fail)/`npar' " each)."
+		}
 	}
 
 	ereturn clear
@@ -151,7 +172,7 @@ program define risk_equations
 	// so order does not affect the saved coefficients. See core/outcomes/sim_*.do for consumption.
 
 	***** LENALIDOMIDE-REFRACTORY, TREATMENT LINES (LENREFR_TX) *****
-	// LenRefr_Tx is a latched 0 -> 1 state, so only the flip is modelled, and only where the patient is
+	// refr_len_tx_in is a latched 0 -> 1 state, so only the flip is modelled, and only where the patient is
 	// not yet refractory: BCR in {5,6} is definitional, BCR 1-4 draws this logit. Fitted on exactly that
 	// population, so prior state is not a covariate. Line collapsed to L1/L2/L3+; baseline set carried
 	// regardless of significance. The fit gates on Lenalidomide == 1, the engine on the drawn regimen -
@@ -302,23 +323,18 @@ program define risk_equations
 	save_coefs OS_L4E
 	mata: _matrix_list(bOS_L4E, rbOS_L4E, cbOS_L4E)
 
-	// OS_L5S: L5S -> L5E
-	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 50) exit(Event1 == 51) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L5, d($dOS)
-	save_coefs OS_L5S
-	mata: _matrix_list(bOS_L5S, rbOS_L5S, cbOS_L5S)
-
-	// OS_L5E: L5E -> L6S
-	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 51) exit(Event1 == 60) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L5, d($dOS)
-	save_coefs OS_L5E
-	mata: _matrix_list(bOS_L5E, rbOS_L5E, cbOS_L5E)
-
-	// OS_L6plus: L6S onward (single conditional model for the sparse deep tail; running BCR)
-	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 60) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR, d($dOS)
-	save_coefs OS_L6plus
-	mata: _matrix_list(bOS_L6plus, rbOS_L6plus, cbOS_L6plus)
+	// OS_L5plus: L5S onward, pooled, with an L7+ stage term. Replaces OS_L5S, OS_L5E and OS_L6plus.
+	// The boundary was in the wrong place: L5 and L6 are indistinguishable (stage 0.07, p = 0.70)
+	// while L7+ is not (0.78, p < 0.001, HR 2.2), so one indicator carries what three equations
+	// carried badly. 291 deaths against OS_L5S's 49 - which is what fixes the separation, since
+	// OS_L5S's CR cell drew ZERO deaths in 2 imputations of 10 and its BCR block was unidentified
+	// (SE 462, HRs of 50-140) in every generation shipped to date. The BCR gradient is common
+	// across stages (all interactions p > 0.17), so no response collapse is needed here.
+	// Evidence: scratch/l5_pooling_test.log, scratch/os_l5s_check.log.
+	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 50) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR L7plus, d($dOS)
+	save_coefs OS_L5plus
+	mata: _matrix_list(bOS_L5plus, rbOS_L5plus, cbOS_L5plus)
 
 	***** ASCT (TRANSPLANT DECISION) *****
 	// Transplant-eligibility logits: at diagnosis (DN_SCT) and at L1 end (L1_SCT).
@@ -448,15 +464,15 @@ program define risk_equations
 
 	***** TREATMENT DURATION (TXD) *****
 	// Time on treatment within a line (Weibull). L1 splits by transplant: ASCT fixed-duration is a
-	// 3-spline fit (cut-offs 60/120 mo), NoASCT is a single fit, and Continuous (Rd) is separate.
+	// 3-spline fit, NoASCT is a single fit, and Continuous (Rd) is separate.
 	// L2+ are single fits conditional on that line's response and regimen.
 
 	// L1 - Fixed w/ ASCT (3 splines)
-	// Cut off 1 - 60 for optimal fit with 3 splines, 90 for 2 splines
-	scalar L1_TXD_ASCT_C1 = 60
+	// Cut off 1 - 60 days for optimal fit but too few event, 90 days selected
+	scalar L1_TXD_ASCT_C1 = 90
 	mata: L1_TXD_ASCT_C1 = st_numscalar("L1_TXD_ASCT_C1")
 
-	// Cut off 2 - 120 for optimal fit with 3 splines
+	// Cut off 2 - 120 days for optimal fit with 3 splines
 	scalar L1_TXD_ASCT_C2 = 120
 	mata: L1_TXD_ASCT_C2 = st_numscalar("L1_TXD_ASCT_C2")
 
@@ -701,7 +717,11 @@ program define risk_equations
 	// L5
 	mi stset Date1, id(ID_BS) failure(Event1 == 60) origin(Event1 == 51) scale(30.4375)
 	save_max L5_TFI
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L5, d($dTFI)
+	// Response COLLAPSED to CR vs not-CR. On n = 302 the six-level block was carrying a single
+	// binary contrast - every non-CR coefficient fell between -1.23 and -1.43 against SEs near 0.85 -
+	// and a level empty in one imputation but not another failed `mi estimate' ("omitted terms vary")
+	// on 5 of 500 bootstrap replicates. sim_tfi.do reads the block width from the coefficients.
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.bcr_grp_l5, d($dTFI)
 	save_coefs L5_TFI
 	mata: _matrix_list(bL5_TFI, rbL5_TFI, cbL5_TFI)
 

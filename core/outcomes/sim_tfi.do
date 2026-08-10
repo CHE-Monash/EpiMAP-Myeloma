@@ -45,15 +45,15 @@ mata {
 				vECOG0[idx], vECOG1[idx], vECOG2[idx],
 		        vRISS1[idx], vRISS2[idx], vRISS3[idx])
 		
-		// Add BCR
+		// Add BCR. The block WIDTH comes from the coefficient vector (9 built above + block + _cons
+		// + 1 ancillary), so a line whose fit collapses the response works with no special case, and
+		// the VALUE domain is clamped to match - without the clamp a simulated SD/PD patient scores 0
+		// on every dummy of a narrowed block and silently falls through to the CR base level.
+		// L5 is fitted on min(BCR_L5, 2): see prep/risk_equations.do and docs/refractory.md.
+		nBCR = cols(vCoef) - 11
 		vBCR = mBCR[idx, Line]
-		vBCR_1 = (vBCR :== 1)
-		vBCR_2 = (vBCR :== 2)
-		vBCR_3 = (vBCR :== 3)
-		vBCR_4 = (vBCR :== 4)
-		vBCR_5 = (vBCR :== 5)
-		vBCR_6 = (vBCR :== 6)
-		mPat = (mPat, vBCR_1, vBCR_2, vBCR_3, vBCR_4, vBCR_5, vBCR_6)
+		if (nBCR < 6) vBCR = rowmin((vBCR, J(rows(idx), 1, nBCR)))
+		for (k = 1; k <= nBCR; k++) mPat = mPat, (vBCR :== k)
 	
 		// Add constant
 		mPat = mPat, vCons[idx]

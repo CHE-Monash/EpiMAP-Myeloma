@@ -229,7 +229,7 @@ if _rc == 0 {
 }
 
 // Lenalidomide-refractory prevalence by line (entry state).
-// LenRefr_L* IS the union: the engine keeps ONE latched flag that both sim_lenrefr.do (treatment)
+// refr_len_l* IS the union: the engine keeps ONE latched flag that both sim_lenrefr.do (treatment)
 // and sim_mnt_refr.do (maintenance) write into, since the two carry the same conditional OS hazard
 // (test Tx = Mnt p = 0.97). An earlier version assembled the union here from two exported flags. -- scores the GENERATION model:
 // does the engine make the right share refractory as it accrues across lines (docs/refractory.md 4.7)?
@@ -237,7 +237,7 @@ capture confirm matrix LENREFR_bench
 if _rc == 0 {
 	local _lrok = 1
 	forvalues l = 1/6 {
-		capture confirm variable LenRefr_L`l'
+		capture confirm variable refr_len_l`l'
 		if _rc local _lrok = 0
 	}
 	if _rc local _lrok = 0
@@ -245,11 +245,11 @@ if _rc == 0 {
 		n di "LEN-REFRACTORY PREVALENCE BY LINE (true=Tx|Mnt) | Benchmark | Simulated | Diff   | Pass?"
 		forvalues l = 1/6 {
 			local bench = LENREFR_bench[`l', 2]
-			qui count if !missing(LenRefr_L`l')
+			qui count if !missing(refr_len_l`l')
 			local denom = r(N)
 			if `denom' > 0 & !missing(`bench') {
 				// TRUE len-refractory = treatment OR maintenance; maintenance applies only from L2
-				qui count if !missing(LenRefr_L`l') & LenRefr_L`l' == 1
+				qui count if !missing(refr_len_l`l') & refr_len_l`l' == 1
 				local sim = 100 * r(N) / `denom'
 				local diff = `sim' - `bench'
 				local status = cond(abs(`diff') <= `tolerance' * 100, "PASS", "FAIL")
@@ -261,7 +261,7 @@ if _rc == 0 {
 		}
 		n di _n
 	}
-	else n di "LEN-REFRACTORY prevalence: SKIPPED - LenRefr_L* not in the simulated data (re-run simulate)." _n
+	else n di "LEN-REFRACTORY prevalence: SKIPPED - refr_len_l* not in the simulated data (re-run simulate)." _n
 }
 else n di "LEN-REFRACTORY prevalence: SKIPPED - no lenrefr.csv target (re-run test_targets / generate_benchmarks)." _n
 

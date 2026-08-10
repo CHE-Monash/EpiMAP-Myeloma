@@ -77,8 +77,12 @@ mata {
 
 			vOC[idxASCT] = calcSurvTime(vXB_ASCT, vRN_ASCT, fbL1_TFI_ASCT, aux_ASCT)
 			
-			// Curtail if beyond maximum observed
-			vOC[idxASCT] = rowmin((vOC[idxASCT], J(rows(idxASCT), 1, maxL1_TFI_ASCT)))
+			// Curtail if beyond maximum observed - but NEVER below the truncation bound, or the
+			// ceiling silently undoes the truncated draw above. A patient whose maintenance runs
+			// past maxL1_TFI would otherwise be handed a gap shorter than the maintenance it is
+			// supposed to contain, which is the bias reversing the draw order removed.
+			vCap_A = rowmax((J(rows(idxASCT), 1, maxL1_TFI_ASCT), vLB_A))
+			vOC[idxASCT] = rowmin((vOC[idxASCT], vCap_A))
 		}
 		
 		// Group 2: No ASCT
@@ -128,8 +132,9 @@ mata {
 
 			vOC[idxNoASCT] = calcSurvTime(vXB_NoASCT, vRN_NoASCT, fbL1_TFI_NoASCT, aux_NoASCT)
 			
-			// Curtail if beyond maximum observed
-			vOC[idxNoASCT] = rowmin((vOC[idxNoASCT], J(rows(idxNoASCT), 1, maxL1_TFI_NoASCT)))
+			// Curtail if beyond maximum observed - never below the truncation bound (see the ASCT arm)
+			vCap_N = rowmax((J(rows(idxNoASCT), 1, maxL1_TFI_NoASCT), vLB_N))
+			vOC[idxNoASCT] = rowmin((vOC[idxNoASCT], vCap_N))
 		}
 		
 		// Update matrices

@@ -385,7 +385,7 @@ program define mata_setup
 			errprintf("mata_setup: %s is not in this line-entry cohort, so every patient enters\n", lrName)
 			errprintf("            NON-refractory. The L2-L4 OS equations carry a refr_len_in term,\n")
 			errprintf("            so this over-predicts survival. Rebuild the cohort pool with a\n")
-			errprintf("            model version that exports LenRefr_L*.\n")
+			errprintf("            model version that exports refr_len_l*.\n")
 		}
 
 		// Per-line SNAPSHOT for export and validation: mLenRefr_in[.,l] is the entry-to-Ll value,

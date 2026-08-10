@@ -108,7 +108,7 @@ mata:
 void xv_bump_os(real scalar d)
 {
 	external bOS_DN, bOS_L1S, bOS_L1E_NoASCT, bOS_L1E_ASCT, bOS_L2S, bOS_L2E
-	external bOS_L3S, bOS_L3E, bOS_L4S, bOS_L4E, bOS_L5S, bOS_L5E, bOS_L6plus
+	external bOS_L3S, bOS_L3E, bOS_L4S, bOS_L4E, bOS_L5plus
 	bOS_DN[1, cols(bOS_DN)-1]                 = bOS_DN[1, cols(bOS_DN)-1] + d
 	bOS_L1S[1, cols(bOS_L1S)-1]               = bOS_L1S[1, cols(bOS_L1S)-1] + d
 	bOS_L1E_NoASCT[1, cols(bOS_L1E_NoASCT)-1] = bOS_L1E_NoASCT[1, cols(bOS_L1E_NoASCT)-1] + d
@@ -119,9 +119,7 @@ void xv_bump_os(real scalar d)
 	bOS_L3E[1, cols(bOS_L3E)-1]               = bOS_L3E[1, cols(bOS_L3E)-1] + d
 	bOS_L4S[1, cols(bOS_L4S)-1]               = bOS_L4S[1, cols(bOS_L4S)-1] + d
 	bOS_L4E[1, cols(bOS_L4E)-1]               = bOS_L4E[1, cols(bOS_L4E)-1] + d
-	bOS_L5S[1, cols(bOS_L5S)-1]               = bOS_L5S[1, cols(bOS_L5S)-1] + d
-	bOS_L5E[1, cols(bOS_L5E)-1]               = bOS_L5E[1, cols(bOS_L5E)-1] + d
-	bOS_L6plus[1, cols(bOS_L6plus)-1]         = bOS_L6plus[1, cols(bOS_L6plus)-1] + d
+	bOS_L5plus[1, cols(bOS_L5plus)-1]         = bOS_L5plus[1, cols(bOS_L5plus)-1] + d
 }
 end
 

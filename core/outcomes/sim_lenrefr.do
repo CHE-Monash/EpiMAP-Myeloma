@@ -40,7 +40,7 @@ mata {
 		// The snapshot records the state a patient ENTERED this line with - refractoriness from
 		// strictly prior lines, fixed before this line began. It is therefore well defined for a
 		// patient who dies DURING the line, and must NOT be gated on survival. It used to share the
-		// draw's index, which left LenRefr_Ll missing for everyone who died in line l - 11.4% at L2 -
+		// draw's index, which left refr_len_ll missing for everyone who died in line l - 11.4% at L2 -
 		// and mata_setup.do coerces missing to 0. A line-L cohort analysis re-simulating those
 		// patients from entry therefore admitted them as NON-refractory. They are the sickest
 		// entrants (worse ECOG, RISS and L1 response, transplanted 23% against 30%) and so the most

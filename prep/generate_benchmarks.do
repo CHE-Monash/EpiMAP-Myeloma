@@ -285,7 +285,7 @@ if _rc local have_lenrefr = 0
 if `have_lenrefr' {
 
 	// Prevalence of TRUE len-refractory (treatment OR maintenance) AS AT ENTRY to each line (= the
-	// sim's LenRefr_L`l', which IS the union - the engine keeps one latched flag that both arms write
+	// sim's refr_len_l`l', which IS the union - the engine keeps one latched flag that both arms write
 	// into), one value per patient per line. Both registry flags are held within a
 	// line, so their value on a patient's line-l rows is the entry-to-l state; egen max over those rows
 	// recovers it (missing if the line is unreached). L1 is 0 by construction; L2+ carry the accrual.

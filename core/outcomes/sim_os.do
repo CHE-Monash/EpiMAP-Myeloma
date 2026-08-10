@@ -29,9 +29,8 @@
 *    7   L3E           OS_L3E           7  (TSD_L3E)     3  (BCR_L3)
 *    8   L4S           OS_L4S           8  (TSD_L4S)     4  (BCR_L4)
 *    9   L4E           OS_L4E           9  (TSD_L4E)     4  (BCR_L4)
-*   10   L5S           OS_L5S           10 (TSD_L5S)     5  (BCR_L5)
-*   11   L5E           OS_L5E           11 (TSD_L5E)     5  (BCR_L5)
-* 12-19  L6S .. L9E    OS_L6plus        12 (TSD_L6S)     Line (running BCR)
+* 10-19  L5S .. L9E    OS_L5plus        OMC (own clock)  floor(OMC/2) (running BCR)
+*                      + an L7plus stage column: L5 and L6 are indistinguishable, L7+ is not.
 *
 * Pattern: origin col = OMC (each stage's own clock, elapsed = 0 -> unconditional),
 * BCR col = floor(OMC/2). Exceptions: DN (no BCR), L1E ASCT (BCR_SCT col 10), and L6+
@@ -104,17 +103,12 @@ mata {
 			vCoef = bOS_L4E
 			dist  = fbOS_L4E
 		}
-		else if (OMC == 10) {
-			vCoef = bOS_L5S
-			dist  = fbOS_L5S
-		}
-		else if (OMC == 11) {
-			vCoef = bOS_L5E
-			dist  = fbOS_L5E
-		}
 		else {
-			vCoef = bOS_L6plus
-			dist  = fbOS_L6plus
+			// OMC 10-19: one pooled equation from L5 start onward. Replaced OS_L5S / OS_L5E /
+			// OS_L6plus - OS_L5S had 49 deaths and an unidentified BCR block. See
+			// prep/risk_equations.do and scratch/l5_pooling_test.log.
+			vCoef = bOS_L5plus
+			dist  = fbOS_L5plus
 		}
 
 		idx = selectindex(baseFilter :& sctFilter)
@@ -135,13 +129,23 @@ mata {
 		// implied BCR width therefore drops by one there.
 		hasLenRefr = (OMC >= 4 & OMC <= 9)
 
-		//   cols - 13 covariates (Age,Age2,Male,ECOGx3,RISSx3,CMx4) - cons - aux - hasLenRefr
-		nBCR = cols(vCoef) - 15 - hasLenRefr
+		// OS_L5plus (OMC >= 10) carries one L7plus stage column AFTER the BCR block. Derived from
+		// OMC rather than a data column: line = floor(OMC/2), so OMC >= 14 is L7 onward.
+		hasL7 = (OMC >= 10)
+
+		//   cols - 13 covariates (Age,Age2,Male,ECOGx3,RISSx3,CMx4) - cons - aux - hasLenRefr - hasL7
+		nBCR = cols(vCoef) - 15 - hasLenRefr - hasL7
 		if (nBCR > 0 & bcrCol > 0) {
 			vB = mBCR[idx, bcrCol]
+			// Clamp the VALUE domain to the block width, as sim_tfi.do does. Without it a narrowed
+			// block scores a simulated SD/PD patient 0 on every dummy and drops them to the CR base
+			// level - silently, since the width guard below still passes. No-op at 6, and no-op for
+			// BCR_SCT which is already collapsed to 1-4 at source.
+			if (nBCR < 6) vB = rowmin((vB, J(rows(idx), 1, nBCR)))
 			for (k = 1; k <= nBCR; k++) mPat = mPat, (vB :== k)
 		}
 		if (hasLenRefr) mPat = mPat, (vLenRefr_in[idx])
+		if (hasL7)      mPat = mPat, J(rows(idx), 1, floor(OMC / 2) >= 7)
 		mPat = mPat, vCons[idx]
 
 		// Guard: design columns must equal coefficients minus the ancillary (1). Catches a

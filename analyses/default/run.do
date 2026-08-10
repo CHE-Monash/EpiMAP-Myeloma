@@ -21,7 +21,7 @@ capture run "config.do"
 **********
 
 * P0. Multiple imputation on the FULL registry -> ${data_path}/MRDR Long MI.dta  (needs MRDR drive).
-*     Re-run whenever the extraction changes a kept variable (e.g. MND_L1, LenRefr_*); the risk
+*     Re-run whenever the extraction changes a kept variable (e.g. MND_L1, refr_len_*); the risk
 *     equations and in-sample benchmarks below read this file. args: imp boot min_bs max_bs sample
 *     (empty 5th arg = full cohort; also clears any $sample left over from an OOS run).
 do "prep/multiple_imputation.do" 10 0 . .
@@ -50,12 +50,12 @@ do "analyses/default/validate_insample.do"
 **********
 
 * O0. Split patients 70/30 -> ${data_path}/oos/oos_split.dta   (run ONCE, fixed seed; needs MRDR drive)
-*do "analyses/default/prep/split.do"
+do "analyses/default/prep/split.do"
 
 * O1. Multiple imputation, each fold imputed SEPARATELY (split BEFORE imputation = no leakage)
 *     args: imp boot min_bs max_bs sample
-*do "prep/multiple_imputation.do" 2 0 . . train         // train (70%) -> coefficients
-*do "prep/multiple_imputation.do" 2 0 . . test          // test  (30%) -> targets + cohort
+do "prep/multiple_imputation.do" 2 0 . . train         // train (70%) -> coefficients
+do "prep/multiple_imputation.do" 2 0 . . test          // test  (30%) -> targets + cohort
 
 * O2. Risk equations on the TRAIN fold -> analyses/default/coefficients/coefficients_train.mmat
 *     (loads outcomes/txr_train.do, which sources the canonical txr_full.do)
