@@ -10,6 +10,8 @@ A comprehensive discrete-event simulation model for multiple myeloma disease out
 - **Common Random Numbers (CRN)**: aligned RNG across treatment arms for variance-reduced cost-effectiveness comparisons
 - **Per-line overall survival**: OS is now a separate parametric model for each line/stage of therapy, clocked from that line's own start, replacing the single from-diagnosis survival curve — removing an accumulated-time bias that inflated survival for poor responders at later lines
 - **Individual comorbidities**: the OS and ASCT-eligibility equations now carry four individual comorbidity flags (renal impairment, cardiac, pulmonary, diabetes) instead of a single combined comorbidity score
+- **Reproducible treatment costs**: drug prices derived from a dated PBS Schedule extract as the dispensed price for maximum quantity, with phase-of-care non-treatment costs, replacing the manual price spreadsheet
+- **Refractory status and first-line maintenance**: lenalidomide-refractory status is captured from the treatment record and carried into each subsequent line, and maintenance is modelled as an episode with its own regimen and duration instead of running for the whole treatment-free interval
 - **Standardised CSV exports**: machine-readable result surface for downstream and programmatic use
 - **Vectorised engine** (incorporated from v2.1): Mata vector/matrix rewrite for dramatically faster large-scale simulation
 - **Rebrand**: project renamed from EpiMAP Myeloma to the Monash Myeloma Model
@@ -172,7 +174,7 @@ The model has been comprehensively validated:
 
 Access previous versions via Git tags:
 
-- **v3.0**: Current version (`main`) — Calibrated Transport & CRN methods, per-line overall survival, individual comorbidity covariates, standardised CSV exports, rebrand to Monash Myeloma Model (incorporates the earlier vectorised Mata engine)
+- **v3.0**: Current version (`main`) — Calibrated Transport & CRN methods, per-line overall survival, individual comorbidity covariates, the PBS treatment-cost engine, the refractory/maintenance subsystem, standardised CSV exports, rebrand to Monash Myeloma Model (incorporates the earlier vectorised Mata engine)
 - **v2.0**: Reorganised architecture with extended treatment options — `git checkout v2.0`
 - **v1.0**: Initial public release (August 2024) — `git checkout v1.0`
 

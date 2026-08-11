@@ -1,6 +1,6 @@
 # Monash Myeloma Model — Technical Review
 
-**Version:** 3.0 · **Updated:** 2026-07-07 · **Tooling:** Stata 15+ (Mata)
+**Version:** 3.0 · **Updated:** 2026-08-11 · **Tooling:** Stata 15+ (Mata)
 
 This document describes the architecture and implementation of the Monash Myeloma Model. Where a method underpins a specific analysis (notably Calibrated Transport), the authoritative specification lives in that analysis's own README; this review covers the shared engine.
 
