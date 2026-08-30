@@ -84,7 +84,7 @@ end
 // N=17 out of sample with 12-month on-treatment 35.3%, against N=54 and 56.4% in sample - the two
 // folds disagree by 21 points about the same registry quantity, while the simulation sits near 70%
 // in both. That produced six L4 FAILs which were read as a model defect and cost a day (see
-// scratch/maintenance/_notes.md). Below the floor the registry cannot say what the truth is, so
+// scratch/maintenance/notes.md). Below the floor the registry cannot say what the truth is, so
 // neither should the target.
 //
 // The floor is deliberately low. It removes cells that are indefensible, not cells that are merely

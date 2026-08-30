@@ -132,7 +132,7 @@ mi estimate, vartable: proportion BCR if CStart == 1 & Duration != .
 * non-zero. Measure it rather than assume it.
 *
 * If FMI is ~0 here, the case for imputing the per-line variables directly is strong and is the main
-* argument in scratch/bcr/_notes.md. If it is materially non-zero, that argument largely falls away
+* argument in scratch/bcr/notes.md. If it is materially non-zero, that argument largely falls away
 * and the refactor is a tidiness change. BCR_SCT is now imputed in its own right, so it is the
 * control: it SHOULD show non-zero FMI, and if it does not, the conversion did not take.
 di as text _n(2) "{hline 74}"

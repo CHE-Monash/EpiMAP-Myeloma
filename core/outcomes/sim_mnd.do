@@ -10,7 +10,7 @@
 *          sim_tfi_l1.do draws the gap truncated below at the duration drawn here, so nothing is
 *          clipped. Thalidomide is capped at 18 months, matching the censoring in its fit.
 *          Reasoning and the rejected alternatives: prep/risk_equations.do and
-*          scratch/maintenance/_notes.md.
+*          scratch/maintenance/notes.md.
 *
 *          THE THALIDOMIDE ARM IS OPTIONAL. An analysis that leaves 5 out of $MNR_L1 (car_t) fits no
 *          L1_MND_THAL, and every maintenance patient draws the lenalidomide duration. All three

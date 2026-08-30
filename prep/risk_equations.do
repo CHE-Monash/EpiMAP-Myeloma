@@ -105,7 +105,6 @@ program define save_max
 	global Coeffs $Coeffs max`mat'
 end
 
-
 cap program drop gen_mnr
 program define gen_mnr
 	// Keep the raw 6-level drug code as MNR_drug and rebuild MNR_L1 as the levels this analysis
@@ -626,7 +625,7 @@ program define risk_equations
 	// is missing without an observed L2; sim_tfi_l1.do supplies the dependence instead by drawing the
 	// gap truncated below at the duration. Thalidomide is censored at 18 months, a judgement that
 	// later recorded ends are stale; generate_benchmarks.do carries the same exit().
-	// docs/refractory.md 4.4 / 5(7) / 7; rejected specifications in scratch/maintenance/_notes.md.
+	// docs/refractory.md 4.4 / 5(7) / 7; rejected specifications in scratch/maintenance/notes.md.
 	//
 	// TRAP: exit() is in the TIME VARIABLE's scale, and `origin' is unavailable inside it when
 	// origin() is an event condition, so it must reference the origin date in days.
@@ -638,7 +637,7 @@ program define risk_equations
 	// Lenalidomide, pooled across transplant, baseline covariates only. No response term and no
 	// transplant split: once BCR_SCT was correctly imputed, no response specification predicted
 	// duration. Ceiling and family are settled - do not lower the ceiling.
-	// Evidence: scratch/maintenance/_notes.md.
+	// Evidence: scratch/maintenance/notes.md.
 	mi stset Date1 if(MNT == 1 & MNR_L1 == 1), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
 	save_max L1_MND_LEN

@@ -15,7 +15,7 @@ figure turned out to be unreproducible by any route on the current extraction. I
 than corrected. Promoting a tracked diagnostic is an open todo; 7.6 records what working from
 throwaway scripts has cost.
 
-**Where the working lives.** `scratch/refractory/_notes.md` and `scratch/maintenance/_notes.md` carry
+**Where the working lives.** `scratch/refractory/notes.md` and `scratch/maintenance/notes.md` carry
 what was tried and rejected, the numbers behind each decision, and the hypotheses already killed.
 This file holds conclusions; those hold the reasoning. Read them before re-diagnosing anything here.
 
@@ -794,7 +794,7 @@ under-generated - see 5(6) for the diagnosis and the two causes.
    | Drop `ln(gap)`, split by regimen | Correct draw, then the clip destroyed it - **worse** than the original |
    | Two-part tail | The long arm needs an observed L2 too; implied p90 of 201 months |
 
-   Working, figures and the full sequence: `scratch/maintenance/_notes.md`.
+   Working, figures and the full sequence: `scratch/maintenance/notes.md`.
 
 
 8. **Benchmarks and the model must measure the same quantity on the same patients, and three times
@@ -936,7 +936,7 @@ quantity.
 rank in OPPOSITE orders, so information criteria alone select the specification that breaks the
 simulation - the best-AIC candidates for lenalidomide have no finite mean. Log-normal is the
 compromise, and the thalidomide ceiling is what contains its tail. Working:
-`scratch/maintenance/_notes.md`.
+`scratch/maintenance/notes.md`.
 
 
 **Lenalidomide and thalidomide only.** The fits restrict to `inlist(MNR_L1, 1, 5)`, so bortezomib,

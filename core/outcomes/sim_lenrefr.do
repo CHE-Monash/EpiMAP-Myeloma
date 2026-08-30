@@ -18,7 +18,7 @@
 *          Treating 'other' as non-len made this arm under-generate about four-fold (2.2% of L2
 *          patients against a registry ~8.3%) and hid exactly the patients the OS-by-refractory
 *          gate needs - at L1 ten years older, a third as often transplanted and 2.4x as likely to
-*          be refractory. See scratch/lenrefr_other.log and scratch/refractory/_notes.md.
+*          be refractory. See scratch/lenrefr_other.log and scratch/refractory/notes.md.
 *
 * Fired by: core/simulation_engine.do at OMC 3,5,7,9,11 (L1E..L5E), i.e. after sim_os at each
 *           line end. Line still holds the just-completed line (it increments at the next start).
