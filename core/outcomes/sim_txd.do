@@ -34,7 +34,7 @@ mata {
 		}
 		else if (Line == 5) {
 			vCoef = bL5_TXD
-			dist = fbL4_TXD
+			dist = fbL5_TXD
 			vTXR = J(1, 0, .)
 			maxTXD = maxL5_TXD
 		}

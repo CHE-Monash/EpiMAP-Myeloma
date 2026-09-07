@@ -24,11 +24,11 @@ capture run "config.do"
 *     Re-run whenever the extraction changes a kept variable (e.g. MND_L1, refr_len_*); the risk
 *     equations and in-sample benchmarks below read this file. args: imp boot min_bs max_bs sample
 *     (empty 5th arg = full cohort; also clears any $sample left over from an OOS run).
-do "prep/multiple_imputation.do" 10 0 . .
+*do "prep/multiple_imputation.do" 10 0 . .
 
 * P1. Risk equations on the FULL registry (100%) -> analyses/default/coefficients/coefficients_full.mmat
 *     args: analysis coeffs min_year max_year boot min_bs max_bs   (loads outcomes/txr_full.do)
-do "prep/risk_equations.do" default full 1995 2040 0
+do "prep/risk_equations.do" default full 2020 2025 0
 
 * P2. Synthetic incidence population cohort(s) -> patients/synthetic_1995_2040_*.dta  (needs MRDR drive)
 *do "prep/synthetic_1995_2040.do"
@@ -82,8 +82,10 @@ do "analyses/default/validate_outsample.do"
 * (hpc/*.script) are generic array jobs 1-500; per-analysis args ride on the `sbatch --export=` lines.
 **********
 
-*  Projection PIs (optional): bootstrap the full-fit coefficients, then 500 projection sims.
-* do "prep/risk_equations.do" default full 1995 2040 1 1 500
+*  Projection PIs: bootstrap the full-fit coefficients, then 500 projection sims. HPC plumbing is
+*  step (f) in the shell block at the end. Reuses the MAIN-MODEL bootstrap MI (full data, no fold,
+*  IMP=10), so if ${data_path}/bootstrap/MRDR Long MI B1..500.dta already exist, skip the MI step.
+* do "prep/risk_equations.do" default full 2020 2025 1 1 500
 * do "analyses/default/simulate.do" 1 1 500
 
 *  Out-of-sample PIs (the headline validation metric):
@@ -129,6 +131,35 @@ do "analyses/default/validate_outsample.do"
    rsync -auvzce ssh "$repo_path"/hpc/multiple_imputation.script $hpc:~/em76/$user/hpc/
    rsync -auvzce ssh "$repo_path"/hpc/risk_equations.script $hpc:~/em76/$user/hpc/
    rsync -auvzce ssh "$repo_path"/hpc/simulate.script $hpc:~/em76/$user/hpc/
+
+   # == Step (f): PROJECTION bootstrap -- full-registry risk equations with prediction intervals.
+   #    Independent of the OOS steps below; run either on its own.
+   #    -> analyses/default/coefficients/bootstrap/coefficients_full_B1..500.mmat
+   #
+   #    Inputs: the MAIN-MODEL bootstrap MI (FULL data, no fold, IMP=10), i.e.
+   #    ${data_path}/bootstrap/MRDR Long MI B1..500.dta -- the SAME 500 datasets transport_dvd and
+   #    car_t use. If they are already on hpc, SKIP (f1) and go straight to (f2).
+   #
+   #    SAMPLE is left empty: that selects the main-model path in risk_equations.do (the OOS steps
+   #    below set SAMPLE=train instead). It is passed explicitly so nothing leaks in via --export=ALL.
+   #
+   #    The 2020-2025 window reaches ONLY the regimen mlogits (TXR_L1..L5), the L1 maintenance
+   #    regimen and the len-refractory fallback; OS, TFI, TXD, response and transplant are fitted on
+   #    the full registry regardless (see prep/risk_equations.do).
+   #    P1 above uses the same 2020-2025 window, so the point estimate and these prediction
+   #    intervals share a specification.
+
+   # (f1) Shared bootstrap MI -- 500-job array. SKIP if the B<b> datasets already exist on hpc.
+   ssh $hpc "cd em76/$user ; sbatch --mail-user=$hpc_email --export=ALL,IMP=10 hpc/multiple_imputation.script"
+
+   #      Watch it finish before submitting (f2):
+   ssh $hpc "squeue -u $user"
+
+   # (f2) Bootstrap the FULL-registry risk equations -- 500-job array (run once the MI has finished):
+   ssh $hpc "cd em76/$user ; sbatch --mail-user=$hpc_email --export=ALL,ANALYSIS=default,COEFFS=full,MINYR=2020,MAXYR=2025,SAMPLE= hpc/risk_equations.script"
+
+   # (f3) Pull the bootstrap coefficients back:
+   rsync -auvzce ssh $hpc:~/em76/$user/analyses/$analysis/coefficients/bootstrap/ "$repo_path"/analyses/$analysis/coefficients/bootstrap/
 
    # == Step (a): TRAIN-fold MI, then TRAIN-fold risk equations. Both are 500-job arrays and the
    #    second reads the first's B<b> datasets, so the order is fixed. Submitted SEPARATELY below so
